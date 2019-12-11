@@ -1,6 +1,2 @@
-black
-pytest
-pandas
-numpy
-sphinx
+
 
