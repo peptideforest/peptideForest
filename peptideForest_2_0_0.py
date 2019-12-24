@@ -61,17 +61,16 @@ def main(
 
     # So soll es am Ende aussehen:
     # input_df = peptideForest.setup_dataset.combine_ursgal_csv_files(path_dict, output_file)
-    # df_training, old_data, feature_cols = peptideForest.setup_dataset.make_dataset(input_df)
+    # df_training, old_data, feature_cols = peptideForest.setup_dataset.extract_features(input_df)
     # df_training.to_csv(output_file.split(".csv")[0] + "-features.csv")
     # input_df.to_csv(output_file)
     # messy code in between
-    # initial_score_col = "Score_processed_{0}".format(initial_engine)
-    # (set) = peptideForest.models.fit(df_training, classifier, n_train, n_eval, train_top_data, use_cross_validation, features_cols, initial_score_col, hyper_parameters, q_cut, q_train)
+    # (Tuple) = peptideForest.models.fit(df_training, classifier, n_train, n_eval, train_top_data, use_cross_validation, feature_cols, hyper_parameters, q_cut, q_train)
     # half of the set is not used again?
-    # New function doing all the analyses
+    # New function doing all the analyses couple lines are completely useless in the old version (ll. 268-270)
     # df_training = peptideForest.results.analyse(df_training, initial_engine, q_val_cut)
-    # Plot results
-
+    # Plot results:
+    # peptideForest.plot.all()
 
     print("Complete run time: {total_run_time} min".format(**timer))
 
