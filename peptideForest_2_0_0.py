@@ -24,7 +24,7 @@ def main(
 
     Args:
         path_dict (str): path to ursgal path dict as .json
-        output_file (str, optional): path to save new data frame to, do not save if None (default)
+        output_file (str, optional): path to save new dataframe to, do not save if None (default)
         classifier (str, optional): name of the classifier
         n_train (int, optional): number of training iterations
         n_eval (int, optional): number of evaluation iterations
