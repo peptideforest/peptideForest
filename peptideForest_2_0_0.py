@@ -5,31 +5,31 @@ import pprint
 import peptideForest
 
 
+# [TRISTAN] really maybe add: cleavage_site
 def main(
-        path_dict="config/path_dict.json",
-        output_file=None,
-        classifier="RF-reg",
-        n_train=5,
-        n_eval=5,
-        q_cut=0.01,
-        q_cut_train=0.1,
-        train_top_data=True,
-        use_cross_validation=True,
-        plot_dir="./plots/",
-        plot_prefix="",
-        initial_engine="msgfplus",
+    output_file=None,
+    classifier="RF-reg",
+    n_train=5,
+    n_eval=5,
+    q_cut=0.01,
+    q_cut_train=0.1,
+    train_top_data=True,
+    use_cross_validation=True,
+    plot_dir="./plots/",
+    plot_prefix="Plot",
+    initial_engine="msgfplus",
 ):
     """
     Extract features from training set, impute missing values, fit model and make prediction.
 
     Args:
-        path_dict (str): path to ursgal path dict as .json
         output_file (str, optional): path to save new dataframe to, do not save if None (default)
         classifier (str, optional): name of the classifier
         n_train (int, optional): number of training iterations
         n_eval (int, optional): number of evaluation iterations
         q_cut (float, optional): cut-off for q-values below which a target PSM is counted as top-target
-        q_cut_train (float, optional): cut-off for q-values below which a target PSM is counted as top-target, if train_top_data=True
+        q_cut_train (float, optional):  cut-off for q-values below which a target PSM is counted as top-target,
+                                        if train_top_data=True
         train_top_data (bool, optional): only use top data (0.1% q-value) for training
         use_cross_validation (bool, optional): use of cross-validation
         plot_dir (str, optional): path to save plots to
@@ -59,11 +59,29 @@ def main(
     print("Using hyper parameters:")
     pprint.pprint(hyper_parameter_dict)
 
-    # So soll es am Ende aussehen:
-    # input_df = peptideForest.setup_dataset.combine_ursgal_csv_files(path_dict, output_file)
-    # df_training, old_data, feature_cols = peptideForest.setup_dataset.extract_features(input_df)
-    # df_training.to_csv(output_file.split(".csv")[0] + "-features.csv")
-    # input_df.to_csv(output_file)
+    # Load data and combine in one dataframe
+    input_df = peptideForest.setup_dataset.combine_ursgal_csv_files(
+        path_dict, output_file
+    )
+    n_rows_df = input_df.shape[0]
+    if n_rows_df < 100:
+        raise Exception(
+            f"Too few idents to run machine learning. DataFrame has only {n_rows_df} rows"
+        )
+
+    # Extract features from dataframe
+    timer["features"]
+    df_training, old_data, feature_cols = peptideForest.setup_dataset.extract_features(
+        input_df
+    )
+    n_features = str(len(feature_cols))
+    print(f"Extracted {n_features} features in", "{features}".format(**timer))
+
+    # Export dataframe
+    if output_file is not None:
+        timer["export"]
+        df_training.to_csv(output_file.split(".csv")[0] + "-features.csv")
+        input_df.to_csv(output_file)
     # messy code in between
     # (Tuple) = peptideForest.models.fit(df_training, classifier, n_train, n_eval, train_top_data, use_cross_validation, feature_cols, hyper_parameters, q_cut, q_train)
     # half of the set is not used again?
@@ -72,7 +90,7 @@ def main(
     # Plot results:
     # peptideForest.plot.all()
 
-    print("Complete run time: {total_run_time} min".format(**timer))
+    print("Complete run time: {total_run_time}".format(**timer))
 
 
 if __name__ == "__main__":

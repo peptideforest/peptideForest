@@ -10,9 +10,16 @@ class PFTimer(object):
         return self.times.keys()
 
     def __getitem__(self, key):
+        unit = (" sec", " min")
         if key not in self.was_stopped:
             if key in self.times.keys():
-                self.times[key] = round((time.time() - self.times[key]) / 60, 3)
+                elapsed = round((time.time() - self.times[key]), 2)
+                if elapsed > 60:
+                    elapsed = round(elapsed / 60, 2)
+                    selected_unit = unit[1]
+                else:
+                    selected_unit = unit[0]
+                self.times[key] = str(elapsed) + selected_unit
                 self.was_stopped.add(key)
             else:
                 self.times[key] = time.time()

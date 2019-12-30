@@ -1,9 +1,8 @@
 from peptideForest import results
 
+
 def plot_num_psms_by_method(
-        df,
-        methods,
-        output_file,
+    df, methods, output_file,
 ):
     """
     Plot the number of PSMs for each method with available results.
@@ -13,11 +12,9 @@ def plot_num_psms_by_method(
         output_file (str): path to save new dataframe to
     """
 
+
 def plot_num_psms_against_q(
-        df_training,
-        q_cut,
-        methods,
-        output_file,
+    df_training, q_cut, methods, output_file,
 ):
     """
     Plot the number of PSMs for each method with available results.
@@ -29,14 +26,9 @@ def plot_num_psms_against_q(
 
     """
 
+
 def plot_ranks(
-        df,
-        x_name,
-        y_name,
-        use_top_psm,
-        n_psms,
-        output_file,
-        show_plot,
+    df, x_name, y_name, use_top_psm, n_psms, output_file, show_plot,
 ):
     """
     Plot ranks of PSMs from two methods against each other.
@@ -52,10 +44,7 @@ def plot_ranks(
 
 
 def all(
-        df_training,
-        q_cut,
-        methods,
-        output_file,
+    df_training, q_cut, methods, output_file,
 ):
     """
     Main function to plot.

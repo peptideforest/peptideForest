@@ -1,12 +1,7 @@
 from peptideForest import models
 
 
-def get_shifted_psms(
-        df,
-        x_name,
-        y_name,
-        n_return
-):
+def get_shifted_psms(df, x_name, y_name, n_return):
     """
     Make dataframes showing which PSMs were top-targets before training but no longer are,
     and vice-versa.
@@ -26,9 +21,9 @@ def get_shifted_psms(
 
 
 def get_top_targets(
-        df,
-        # [TRISTAN] same here
-        q_cut,
+    df,
+    # [TRISTAN] same here
+    q_cut,
 ):
     """
     Identify which PSMs in a dataframe are top targets (i.e. is the highest ranked target PSM for a given spectrum
@@ -44,11 +39,7 @@ def get_top_targets(
 
 
 def calc_final_q_vals(
-        df,
-        col,
-        frac_tp,
-        top_psm_only,
-        initial_engine,
+    df, col, frac_tp, top_psm_only, initial_engine,
 ):
     """
     Calculate q-value for given score column.
@@ -68,10 +59,10 @@ def calc_final_q_vals(
 
 
 def get_ranks(
-        df,
-        # [TRISTAN] very much removable? fixed "first"
-        methods,
-        from_scores,
+    df,
+    # [TRISTAN] very much removable? fixed "first"
+    methods,
+    from_scores,
 ):
     """
     Add a column with the rank of each PSM for all Score_processed columns.
@@ -88,10 +79,7 @@ def get_ranks(
 
 
 def calc_all_final_q_vals(
-        df,
-        frac_tp,
-        top_psm_only,
-        initial_engine,
+    df, frac_tp, top_psm_only, initial_engine,
 ):
     """
     Calculate the q-values for all score columns
@@ -109,11 +97,11 @@ def calc_all_final_q_vals(
 
 
 def analyse(
-        df_training,
-        initial_engine,
-        # [TRISTAN] ist das immer dasselbe wie q_val_cut was da eigentlich stehen sollte? vorher immer fix auf 0.01; from_scores ist auch == True fix
-        q_cut,
-        from_scores,
+    df_training,
+    initial_engine,
+    # [TRISTAN] ist das immer dasselbe wie q_val_cut was da eigentlich stehen sollte? vorher immer fix auf 0.01; from_scores ist auch == True fix
+    q_cut,
+    from_scores,
 ):
     """
     Main function to analyse results.

@@ -1,9 +1,9 @@
 from peptideForest import prep
 from peptideForest import classifier
 
+
 def get_train_test_sets(
-        df,
-        use_cross_validation,
+    df, use_cross_validation,
 ):
     """
     Split dataframe into multiple sets for training.
@@ -20,11 +20,7 @@ def get_train_test_sets(
 
 
 def get_q_vals(
-        df,
-        score_col,
-        frac_tp,
-        top_psm_only,
-        get_fdr,
+    df, score_col, frac_tp, top_psm_only, get_fdr,
 ):
     """
     Calculate q-value for each PSM based on the score in the column score_col
@@ -42,10 +38,7 @@ def get_q_vals(
     """
 
 
-def find_psms_to_keep(
-        df,
-        score_col
-):
+def find_psms_to_keep(df, score_col):
     """
     Flag PSMs to remove from q-value calculations, when the highest score for a given spectrum is shared by
     two or more PSMs.
@@ -60,10 +53,7 @@ def find_psms_to_keep(
 
 
 def calc_num_psms(
-        df,
-        score_col,
-        q_cut,
-        frac_tp,
+    df, score_col, q_cut, frac_tp,
 ):
     """
     Calculate the number of PSMs with q-value < 1%, using the following criteria:
@@ -83,12 +73,7 @@ def calc_num_psms(
 
 
 def get_train_set(
-        df,
-        score_col,
-        q_cut,
-        frac_tp,
-        train_top_data,
-        sample_frac,
+    df, score_col, q_cut, frac_tp, train_top_data, sample_frac,
 ):
     """
     Return training dataset containing sample of decoys and all target PSMs with q-value less than 1%
@@ -109,9 +94,7 @@ def get_train_set(
 
 # This function was moved here from setup_dataset
 def replace_missing_data_cv(
-        train_j,
-        train_k,
-        test,
+    train_j, train_k, test,
 ):
     """
     Replace missing feature values.
@@ -127,9 +110,9 @@ def replace_missing_data_cv(
 
     """
 
+
 def get_training_model(
-        training_type,
-        hp_dict_in,
+    training_type, hp_dict_in,
 ):
     """
     Select the learning model to use for training.
@@ -149,9 +132,9 @@ def get_training_model(
     Returns:
         clf (Any): selected classifier with hyperparameters and scoring_func function added
     """
+
     def score_psm(
-            clf,
-            data,
+        clf, data,
     ):
         """
         [TRISTAN] find out how this docstring is filled
@@ -168,17 +151,17 @@ def get_training_model(
 
 
 def fit(
-        df_training,
-        classifier,
-        n_train,
-        n_eval,
-        train_top_data,
-        use_cross_validation,
-        feature_cols,
-        hyper_parameters,
-        q_cut,
-        q_cut_train,
-        frac_tp,
+    df_training,
+    classifier,
+    n_train,
+    n_eval,
+    train_top_data,
+    use_cross_validation,
+    feature_cols,
+    hyper_parameters,
+    q_cut,
+    q_cut_train,
+    frac_tp,
 ):
     """
     Fit a given model to the data. Training data consists of targets with q-values < 1%
