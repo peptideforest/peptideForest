@@ -3,6 +3,7 @@ import time
 from peptideForest import runtime, prep
 
 import pandas as pd
+import numpy as np
 
 
 def combine_ursgal_csv_files(
@@ -74,10 +75,50 @@ def extract_features(df):
     old_cols = df.columns
 
     # Get features and a list of feature names
-    df, feature_cols = prep.calc_features(df, old_cols)
+    df = prep.calc_features(df, old_cols)
+
+    feature_cols = list(set(df.columns) - set(old_cols))
+    q_value_cols = [f for f in df.columns if "q-value" in f]
+    feature_cols = [f for f in feature_cols if f not in q_value_cols]
 
     # Replace missing scores with 0
     score_cols = [f for f in df.columns if "Score_processed" in f]
     df[score_cols] = df[score_cols].fillna(0)
 
     return df, old_cols, feature_cols
+
+
+def get_top_target_decoy(df, score_col):
+    """
+    Remove all PSMs except the top target and the top decoy for each spectrum from the dataset.
+    Args:
+        df (pd.DataFrame): dataframe containing feature values
+        score_col (str): column name to rank PSMs by
+
+    Returns:
+        df (pd.DataFrame): input dataframe with non-top targets/decoys removed
+
+    """
+    # Get all the top targets
+    # [TRISTAN] why why why? cant i use df[~df["Is decoy].astype(bool)] -> weil dtype -> rausfinden warum es vorher ging
+    targets = df[df["Is decoy"] == False]
+    targets = targets.sort_values(score_col, ascending=False).drop_duplicates(
+        "Spectrum ID"
+    )
+
+    # Get all the top decoys
+    decoys = df[df["Is decoy"]]
+    decoys = decoys.sort_values(score_col, ascending=False).drop_duplicates(
+        "Spectrum ID"
+    )
+
+    # Determine sample size
+    n_sample = len(decoys)
+
+    decoys = decoys.sample(n=n_sample, replace=False)
+
+    # Join the data together
+    df = pd.concat([targets, decoys])
+    df["Is decoy"] = df["Is decoy"].astype(bool)
+
+    return df

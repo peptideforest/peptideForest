@@ -2,7 +2,7 @@ import re
 import numpy as np
 import pandas as pd
 
-# Regex variables
+# Regex
 ENGINES = {
     "mascot": ("Mascot:Score", False),
     "msgfplus": ("MS-GF:SpecEValue", True),
@@ -472,12 +472,8 @@ def calc_features(
     df = col_features(df)
 
     feature_cols = list(set(df.columns) - set(old_cols))
-    # [TRISTAN] why would there be? and how? this was moved here from extract_features
-    q_value_cols = [f for f in df.columns if "q-value" in f]
-    feature_cols = [f for f in feature_cols if f not in q_value_cols]
-
     df = combine_engine_data(df, feature_cols)
 
-    return df, feature_cols
+    return df
 
     # [TRISTAN] cleavage_site to be included?

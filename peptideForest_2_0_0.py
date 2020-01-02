@@ -15,6 +15,7 @@ def main(
     q_cut_train=0.1,
     train_top_data=True,
     use_cross_validation=True,
+    frac_tp=0.9,
     plot_dir="./plots/",
     plot_prefix="Plot",
     initial_engine="msgfplus",
@@ -35,6 +36,7 @@ def main(
         plot_dir (str, optional): path to save plots to
         plot_prefix (str,optional): filename prefix for generated plots
         initial_engine (str, optional): initial engine
+        frac_tp (float, optional): estimate of fraction of true positives in target dataset
 
     """
 
@@ -71,7 +73,7 @@ def main(
 
     # Extract features from dataframe
     timer["features"]
-    df_training, old_data, feature_cols = peptideForest.setup_dataset.extract_features(
+    df_training, old_cols, feature_cols = peptideForest.setup_dataset.extract_features(
         input_df
     )
     n_features = str(len(feature_cols))
@@ -82,8 +84,30 @@ def main(
         timer["export"]
         df_training.to_csv(output_file.split(".csv")[0] + "-features.csv")
         input_df.to_csv(output_file)
-    # messy code in between
-    # (Tuple) = peptideForest.models.fit(df_training, classifier, n_train, n_eval, train_top_data, use_cross_validation, feature_cols, hyper_parameters, q_cut, q_train)
+
+    # Fit model
+    df_feature_importance = None
+    (
+        clfs,
+        psms,
+        psms_avg,
+        psms_engine,
+        df_training,
+        df_feature_importance,
+    ) = peptideForest.models.fit(
+        df_training=df_training,
+        classifier=classifier,
+        n_train=n_train,
+        n_eval=n_eval,
+        train_top_data=train_top_data,
+        use_cross_validation=use_cross_validation,
+        feature_cols=feature_cols,
+        initial_score_col="Score_processed_{0}".format(initial_engine),
+        hyper_parameters=hyper_parameter_dict,
+        q_cut=q_cut,
+        q_cut_train=q_cut_train,
+        frac_tp=frac_tp,
+    )
     # half of the set is not used again?
     # New function doing all the analyses couple lines are completely useless in the old version (ll. 268-270)
     # df_training = peptideForest.results.analyse(df_training, initial_engine, q_val_cut)
@@ -94,4 +118,4 @@ def main(
 
 
 if __name__ == "__main__":
-    main(output_file="output.csv")
+    main()
