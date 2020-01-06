@@ -6,14 +6,14 @@ def set_random_forest(hp_dict_in=None):
     """
     Define a random forest model.
     Args:
-        hp_dict_in (Dict, optional): dictionary containing hyper parameter values
+        hp_dict_in (Dict, optional): dictionary containing hyperparameter values
 
     Returns:
         clf (Any): RF model
     """
     from sklearn.ensemble import RandomForestClassifier
 
-    # dictionary of default hyper parameter values
+    # dictionary of default hyperparameter values
     hp_dict = {
         "n_estimators": 100,
         "max_depth": None,
@@ -44,14 +44,14 @@ def set_random_forest_reg(hp_dict_in=None):
     """
     Define a random forest regression model.
     Args:
-        hp_dict_in (Dict, optional): dictionary containing hyper parameter values
+        hp_dict_in (Dict, optional): dictionary containing hyperparameter values
 
     Returns:
         clf (Any): RF model, regressor
     """
     from sklearn.ensemble import RandomForestRegressor
 
-    # dictionary of default hyper parameter values
+    # dictionary of default hyperparameter values
     hp_dict = {
         "n_estimators": 100,
         "max_depth": None,
@@ -80,14 +80,14 @@ def set_gradient_boosted_trees(hp_dict_in=None):
     """
     Define a gradient boosted trees model.
     Args:
-        hp_dict_in (Dict, optional): dictionary containing hyper parameter values
+        hp_dict_in (Dict, optional): dictionary containing hyperparameter values
 
     Returns:
         clf (Any): GBT model
     """
     from sklearn.ensemble import GradientBoostingClassifier
 
-    # dictionary of default hyper parameter values
+    # dictionary of default hyperparameter values
     hp_dict = {
         "n_estimators": 100,
         "max_depth": 1,
@@ -129,7 +129,7 @@ def set_support_vector_machine(hp_dict_in=None):
     """
     Define a linear support vector machine.
     Args:
-        hp_dict_in (Dict, optional): dictionary containing hyper parameter values
+        hp_dict_in (Dict, optional): dictionary containing hyperparameter values
 
     Returns:
         clf (Any): support vector machine model

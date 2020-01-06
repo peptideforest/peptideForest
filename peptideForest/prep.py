@@ -64,16 +64,16 @@ def test_sequence_aa_n(
 # Peptides mapping on targets and decoys should be removed
 # Nachtrag: glaube ich habe es jetzt gerafft und das was du wolltest, ist schon wie gewollt vorher passiert
 # in preprocess_df (drop den overlap)
-def remove_ambiguous_peptides(df):
-    """
-    Removes ambiguous peptides from dataframe.
-    Args:
-        df (pd.DataFrame): ursgal dataframe
-    Returns:
-        df (pd.DataFrame): input dataframe with ambiguous peptides removed
-    """
-    df["Protein ID"] = df["Protein ID"].str.replace("decoy_", "")
-    return df
+# def remove_ambiguous_peptides(df):
+#     """
+#     Removes ambiguous peptides from dataframe.
+#     Args:
+#         df (pd.DataFrame): ursgal dataframe
+#     Returns:
+#         df (pd.DataFrame): input dataframe with ambiguous peptides removed
+#     """
+#
+#     return df
 
 
 def parse_protein_ids(protein_id,):
@@ -87,7 +87,8 @@ def parse_protein_ids(protein_id,):
     # [TRISTAN]
     # sep = "<|>" hier drinnen, since provided by ursgal anyways?
     sep = "<|>"
-    prot_id_set = list(protein_id.split(sep))
+    clean = protein_id.replace("decoy_", "").strip()
+    prot_id_set = list(clean.split(sep))
     return prot_id_set
 
 
@@ -254,10 +255,6 @@ def preprocess_df(df,):
     df.drop(
         labels=df[df.Sequence.str.contains("X") == True].index, axis=0, inplace=True
     )
-
-    # [TRISTAN] to be removed and included in parseproteinids if Nachtrag oben True!
-    # Strip "decoy_" from Protein IDs
-    df = remove_ambiguous_peptides(df)
 
     return df
 

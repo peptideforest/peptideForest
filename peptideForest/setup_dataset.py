@@ -1,21 +1,18 @@
-import time
-
 from peptideForest import runtime, prep
 
 import pandas as pd
-import numpy as np
 
 
 def combine_ursgal_csv_files(
-    path_dict, output_file,
+    path_dict, output_file=None,
 ):
     """
     Combine separate ursgal search output csv files and return a dataframe. Also output as new csv file (optional).
     Takes a dictionary of input csv files and their respective engine and name of score column.
 
     Args:
-        path_dict (str): path to ursgal path dict as .json
-        output_file (str): path to save new data frame to, do not save if None (default)
+        path_dict (Dict): ursgal path dict
+        output_file (str, optional): path to save new data frame to, do not save if None (default)
     Returns:
         input_df (pd.DataFrame): combined dataframes
     """
@@ -36,8 +33,8 @@ def combine_ursgal_csv_files(
     for file in path_dict.keys():
         slurp_time = runtime.PFTimer()
         slurp_time["slurp"]
-        # [TRISTAN] added to avoid warning? weil manchmal 2 values and ";"??
-        df = pd.read_csv(file, dtype={"Rank": object})
+        # [TRISTAN] added to avoid warning? weil manchmal 2 values and ";"?? -> dtype={"Rank": object}
+        df = pd.read_csv(file)
         df["engine"] = path_dict[file]["engine"]
         df["Score"] = df[path_dict[file]["score_col"]]
         file_output = file.split("/")[-1]

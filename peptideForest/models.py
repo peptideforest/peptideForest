@@ -10,7 +10,7 @@ from sklearn.exceptions import DataConversionWarning
 
 
 # [TRISTAN] rare case where default set for get_fdr
-def get_q_vals(df, score_col, frac_tp, top_psm_only, get_fdr=True):
+def get_q_vals(df, score_col, frac_tp, top_psm_only, initial_engine=None, get_fdr=True):
     """
     Calculate q-value for each PSM based on the score in the column score_col
     Args:
@@ -19,6 +19,7 @@ def get_q_vals(df, score_col, frac_tp, top_psm_only, get_fdr=True):
         frac_tp (float): estimate of fraction of true positives in target dataset
         # [TRISTAN] ist fix true maybe remove?
         top_psm_only (bool): keep only highest scoring PSM for each spectrum
+        initial_engine (str, optional): name of initial engine
         # [TRISTAN] ist fix false maybe remove?
         get_fdr (bool): if True return the false detection rate as q-value, else return q-values
 
@@ -33,8 +34,14 @@ def get_q_vals(df, score_col, frac_tp, top_psm_only, get_fdr=True):
     ]
     engines = [e.split("Score_processed_")[-1] for e in engines]
 
-    # [TRISTAN] from_method als argument gekürzt
-    df_scores = df.sort_values(score_col, ascending=False).copy(deep=True)
+    not_in_engines = any([e in score_col for e in engines])
+
+    if initial_engine and not not_in_engines:
+        df_scores = df.sort_values(
+            [score_col, f"Score_processed_{from_method}"], ascending=[False, False]
+        ).copy(deep=True)
+    else:
+        df_scores = df.sort_values(score_col, ascending=False).copy(deep=True)
 
     df_scores = find_psms_to_keep(df_scores, score_col)
     df_scores = df_scores[df_scores["keep in"]]
@@ -317,11 +324,11 @@ def get_training_model(training_type="RF", hp_dict_in=None):
             - 'KNN': 'K Nearest Neighbors',
             - 'LR': 'Logistic Regression',
             - 'ADA': 'Ada Boosted Classifier with Decision Trees'
-        hp_dict_in (Dict, optional):    dictionary containing hyper parameters for the model, which are the same
+        hp_dict_in (Dict, optional):    dictionary containing hyperparameters for the model, which are the same
                                         as the scikit-learn parameters.
 
     Returns:
-        clf (Any):  selected classifier with hyper parameters and scoring_func added (for scoring a PSM based
+        clf (Any):  selected classifier with hyperparameters and scoring_func added (for scoring a PSM based
                     on whether it is a top-target)
 
     """
@@ -388,7 +395,7 @@ def fit_model_cv(
     n_train,
     train_top_data,
     feature_cols,
-    hyper_parameters,
+    hyperparameters,
     q_cut_train,
     frac_tp,
     feature_importance,
@@ -406,7 +413,7 @@ def fit_model_cv(
         n_train (int): number of training iterations
         train_top_data (bool): if True only train on top target/decoy per spectrum, if False train on all data
         feature_cols (List): list of features to use when fitting the model
-        hyper_parameters (Dict): dictionary containing hyper parameters for the model
+        hyperparameters (Dict): dictionary containing hyperparameters for the model
         q_cut_train (float):    cut off for q-values below which a target PSM is counted as top-target,
                                 when setting top-targets to train on
         frac_tp (float): estimate of fraction of true positives in target dataset
@@ -455,7 +462,7 @@ def fit_model_cv(
         test.loc[:, feature_cols] = scaler.transform(test.loc[:, feature_cols])
 
         # Get the classifier
-        clf = get_training_model(classifier, hyper_parameters)
+        clf = get_training_model(classifier, hyperparameters)
         clf.fit(train[feature_cols], train["Is decoy"])
         clfs_sub.append([clf, scaler])
 
@@ -503,7 +510,7 @@ def fit_model_at(
     n_train,
     train_top_data,
     feature_cols,
-    hyper_parameters,
+    hyperparameters,
     q_cut_train,
     frac_tp,
     feature_importance,
@@ -521,7 +528,7 @@ def fit_model_at(
         n_train (int): number of training iterations
         train_top_data (bool): if True only train on top target/decoy per spectrum, if False train on all data
         feature_cols (List): list of features to use when fitting the model
-        hyper_parameters (Dict): dictionary containing hyper parameters for the model
+        hyperparameters (Dict): dictionary containing hyperparameters for the model
         q_cut_train (float):    cut off for q-values below which a target PSM is counted as top-target,
                                 when setting top-targets to train on
         frac_tp (float): estimate of fraction of true positives in target dataset
@@ -560,7 +567,7 @@ def fit_model_at(
     test.loc[:, feature_cols] = scaler.transform(test.loc[:, feature_cols])
 
     # Get the classifier
-    clfs_sub = get_training_model(classifier, hyper_parameters)
+    clfs_sub = get_training_model(classifier, hyperparameters)
     clfs_sub.fit(train[feature_cols], train["Is decoy"])
 
     # Add the feature importance
@@ -598,7 +605,7 @@ def fit(
     use_cross_validation,
     feature_cols,
     initial_score_col,
-    hyper_parameters,
+    hyperparameters,
     q_cut,
     q_cut_train,
     frac_tp,
@@ -615,7 +622,7 @@ def fit(
         train_top_data (bool): if True only train on top target/decoy per spectrum, if False train on all data
         use_cross_validation (bool): if True use cross validation
         feature_cols (List): list of features to use when fitting the model
-        hyper_parameters (Dict): dictionary containing hyper parameters for the model
+        hyperparameters (Dict): dictionary containing hyperparameters for the model
         initial_score_col (str):    column to use when initially ordering the data (i.e. a search engine score
                                     column). If None, repeat the method using all search engine score
                                     columns one at a time.
@@ -654,9 +661,9 @@ def fit(
     psms_avg = {"train": [], "test": []}
     df_feature_importance = None
 
-    # Train using either method
+    # Train using either method [TRISTAN] necessary? if only one initial score col
     for initial_score_col in initial_score_cols:
-        print(f"Training from: {initial_score_col}")
+        print(f"\nTraining from: {initial_score_col}")
         if f"Score_processed_{classifier}" in df_training.columns:
             df_training = df_training.drop(f"Score_processed_{classifier}", axis=1)
         warnings.filterwarnings("ignore", category=DataConversionWarning)
@@ -705,7 +712,7 @@ def fit(
                     n_train,
                     train_top_data,
                     feature_cols,
-                    hyper_parameters,
+                    hyperparameters,
                     q_cut_train,
                     frac_tp,
                     feature_importance,
@@ -723,7 +730,7 @@ def fit(
                     n_train,
                     train_top_data,
                     feature_cols,
-                    hyper_parameters,
+                    hyperparameters,
                     q_cut_train,
                     frac_tp,
                     feature_importance,
@@ -777,14 +784,22 @@ def fit(
                 if i_it == 0:
                     print("Iteration\t", "PSMs(train)\t", "PSMs(test)\t")
                 print(
-                    f"{i_it + 1}\t\t\t",
+                    f"{i_it + 1}" + "\t" * 3,
                     psms["train"][i_it],
-                    "\t\t\t",
+                    "\t" * 3,
                     psms["test"][i_it],
                 )
 
             else:
                 print(i_it + 1, psms["train"][i_it], psms["test"][i_it])
+
+        print(
+            "Average" + "\t" * 2,
+            psms_avg["train"][-1],
+            "\t" * 3,
+            psms_avg["test"][-1],
+            "\n",
+        )
 
         sigma = np.std(feature_importance, axis=0)
         feature_importance = np.mean(feature_importance, axis=0)
