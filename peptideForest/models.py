@@ -38,7 +38,7 @@ def get_q_vals(df, score_col, frac_tp, top_psm_only, initial_engine=None, get_fd
 
     if initial_engine and not not_in_engines:
         df_scores = df.sort_values(
-            [score_col, f"Score_processed_{from_method}"], ascending=[False, False]
+            [score_col, f"Score_processed_{initial_engine}"], ascending=[False, False]
         ).copy(deep=True)
     else:
         df_scores = df.sort_values(score_col, ascending=False).copy(deep=True)
@@ -406,7 +406,7 @@ def fit_model_cv(
     old_cols,
 ):
     """
-    Fit model_at.
+    Fit model with cross validation.
     Args:
         df_training (pd.DataFrame): dataframe containing top target and top decoy for each spectrum
         classifier (str): which model to fit
@@ -656,7 +656,6 @@ def fit(
 
     psms_engine = {}
     clfs = []
-    feature_importance = []
     psms = {"train": [], "test": []}
     psms_avg = {"train": [], "test": []}
     df_feature_importance = None
@@ -692,7 +691,9 @@ def fit(
         # Get the original columns
         old_cols = set(df_training.columns)
 
-        # [TRISTAN] necessary?
+        # Initialize feature importance
+        feature_importance = []
+
         for i_it in range(n_iter):
             # Make the training data from targets with q-values < 1% and a fraction of decoys
             if i_it == 0:
@@ -816,5 +817,16 @@ def fit(
         )
         cols_to_drop = [c for c in df_training.columns if "model_score" in c]
         df_training = df_training.drop(cols_to_drop, axis=1)
+
+        df_training[
+            f"Score_{classifier}_from_{initial_score_col}".lower()
+        ] = df_training[f"Score_processed_{classifier}"]
+
+    df_training = df_training.drop(f"Score_processed_{classifier}", axis=1)
+    cols = [
+        f"score_{classifier}_from_{initial_score_col}".lower()
+        for initial_score_col in initial_score_cols
+    ]
+    df_training[f"Score_processed_{classifier}"] = df_training[cols].mean(axis=1)
 
     return clfs, psms, psms_avg, psms_engine, df_training, df_feature_importance

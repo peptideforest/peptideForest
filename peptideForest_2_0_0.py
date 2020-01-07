@@ -51,9 +51,9 @@ def main(
     with open("config/hyperparameters.json") as jd:
         hyperparameters = json.load(jd)
     jd.close()
-    with open("config/ursgal_path_dict.json") as pd:
-        path_dict = json.load(pd)
-    pd.close()
+    with open("config/ursgal_path_dict.json") as upd:
+        path_dict = json.load(upd)
+    upd.close()
 
     # Add core count information
     hyperparameters["RF"]["n_jobs"] = multiprocessing.cpu_count() - 1

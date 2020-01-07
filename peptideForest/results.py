@@ -3,101 +3,6 @@ import numpy as np
 import pandas as pd
 
 
-def get_shifted_psms(df, x_name, y_name, n_return):
-    """
-    Make dataframes showing which PSMs were top-targets before training but no longer are,
-    and vice-versa.
-    Args:
-        df (pd.DataFrame): dataframe with training data and analysed results
-        x_name (str): name of method used for baseline (e.g. search engine name)
-        y_name (str): name of method used for comparison (e.g. ML model name)
-        # [TRISTAN] fixed to false?
-        n_return (int): number of examples to return. Returns the n_return most extreme examples,
-                        i.e. those with the biggest jump in ranking. Default is 10
-
-    Returns:
-        df_new_top_targets (pd.DataFrame): dataframe containing information on the new top targets
-        df_old_top_targets (pd.DataFrame): dataframe containing information on the new old targets
-
-    """
-    col_x = f"rank_{x_name}"
-    tt_x = f"top_target_{x_name}"
-
-    tt_y = f"top_target_{y_name}"
-
-    # Non top targets that are now top targets
-    df_new_top_targets = (
-        df[~df[tt_x] & df[tt_y]].sort_values(col_x, ascending=False).copy(deep=True)
-    )
-    df_new_top_targets = df_new_top_targets.reset_index()
-    print(
-        f"Number non top targets for {x_name} that are now top targets: {len(df_new_top_targets)}"
-    )
-    if n_return is not None:
-        df_new_top_targets = df_new_top_targets.head(n_return)
-
-    # Up_rank_for_spectrum: previously was not top PSM for that spectrum
-    df_new_top_targets["up_rank_for_spectrum"] = False
-    for i in df_new_top_targets.index:
-        spectrum_id = df_new_top_targets.loc[i, "Spectrum ID"]
-        sequence = df_new_top_targets.loc[i, "Sequence"]
-        protein_id = str(df_new_top_targets.loc[i, "Protein ID"])
-        mods = df_new_top_targets.loc[i, "Modifications"]
-        df_spectrum = df[df.loc[:, "Spectrum ID"] == spectrum_id]
-        if (df_spectrum[f"Score_processed_{x_name}"] != 0).all():
-            df_spectrum = df_spectrum.sort_values(
-                f"Score_processed_{x_name}", ascending=False
-            )
-            if any(
-                [
-                    sequence != df_spectrum["Sequence"].values[0],
-                    protein_id != df_spectrum["Protein ID"].astype(str).values[0],
-                    mods != df_spectrum["Modifications"].values[0],
-                ]
-            ):
-                df_new_top_targets.loc[i, "up_rank_for_spectrum"] = True
-
-    # Top targets that are now not top targets
-    df_old_top_targets = (
-        df[df[tt_x] & ~df[tt_y]].sort_values(col_x, ascending=True).copy(deep=True)
-    )
-    df_old_top_targets = df_old_top_targets.reset_index()
-    print(
-        f"Number top targets for {x_name} that are now not top targets: {len(df_old_top_targets)}"
-    )
-    if n_return is not None:
-        df_old_top_targets = df_old_top_targets.head(n_return)
-
-    # Down_rank_for_spectrum: moved down the rankings for this spectrum
-    # New_best_psm_is_top_target: spectrum has new best match that is also a top target
-
-    df_old_top_targets["down_rank_for_spectrum"] = False
-    df_old_top_targets["new_best_psm_is_top_target"] = False
-
-    for i in df_old_top_targets.index:
-        spectrum_id = df_old_top_targets.loc[i, "Spectrum ID"]
-        sequence = df_old_top_targets.loc[i, "Sequence"]
-        protein_id = str(df_old_top_targets.loc[i, "Protein ID"])
-        mods = df_old_top_targets.loc[i, "Modifications"]
-        df_spectrum = df[df.loc[:, "Spectrum ID"] == spectrum_id]
-        if (df_spectrum[f"Score_processed_{x_name}"] != 0).all():
-            df_spectrum = df_spectrum.sort_values(
-                f"Score_processed_{y_name}", ascending=False
-            )
-            if any(
-                [
-                    sequence != df_spectrum["Sequence"].values[0],
-                    protein_id != df_spectrum["Protein ID"].astype(str).values[0],
-                    mods != df_spectrum["Modifications"].values[0],
-                ]
-            ):
-                df_old_top_targets.loc[i, "down_rank_for_spectrum"] = True
-                df_old_top_targets.loc[i, "new_best_psm_is_top_target"] = df_spectrum[
-                    f"top_target_{y_name}"
-                ].values[0]
-
-    return df_new_top_targets, df_old_top_targets
-
 
 def get_top_targets(
     df,
@@ -157,7 +62,7 @@ def calc_final_q_vals(
     q_col = f"q-value_{col}"
     # [TRISTAN] sollte es hier probeleme geen, liegt es an weglassen von from_method aka. initial engine in get_q_vals
     df_scores = models.get_q_vals(
-        df, score_col, frac_tp=frac_tp, top_psm_only=top_psm_only,
+        df, score_col, frac_tp=frac_tp, top_psm_only=top_psm_only, initial_engine=initial_engine
     )
     df[q_col] = 1.0
     df.loc[df_scores.index, q_col] = df_scores["q-value"]
@@ -393,6 +298,9 @@ def get_num_psms_against_q_cut(df, methods, q_val_cut, initial_engine):
     Returns:
         df (pd.DataFrame): dataframe containing number of PSMs at each q-value cut-off for each method
     """
+    # [TRISTAN] tmp
+    df = calc_all_final_q_vals(df, initial_engine=initial_engine, frac_tp=0.9, top_psm_only=True)
+
     # Get q-value list
     if q_val_cut is None:
         q_val_cut = sorted(

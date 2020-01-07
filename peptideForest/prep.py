@@ -401,6 +401,7 @@ def row_features(df, cleavage_site):
             axis=1,
         )
     elif cleavage_site == "N":
+        # [TRISTAN] aa_start unfulfilled?
         df["enzC"] = df.apply(lambda x: test_cleavage_aa(x["Sequence Post AA"]), axis=1)
         df["enzN"] = df.apply(
             lambda x: test_sequence_aa_n(x["Sequence"][0], x["Sequence Start"]), axis=1
