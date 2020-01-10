@@ -9,7 +9,7 @@ from sklearn import model_selection, preprocessing
 from sklearn.exceptions import DataConversionWarning
 
 
-# [TRISTAN] rare case where default set for get_fdr
+# [TRISTAN] rare case where not specified for get_fdr
 def get_q_vals(df, score_col, frac_tp, top_psm_only, initial_engine=None, get_fdr=True):
     """
     Calculate q-value for each PSM based on the score in the column score_col
@@ -17,11 +17,9 @@ def get_q_vals(df, score_col, frac_tp, top_psm_only, initial_engine=None, get_fd
         df (pd.DataFrame): experiment dataframe
         score_col (str): name of column to rank PSMs by
         frac_tp (float): estimate of fraction of true positives in target dataset
-        # [TRISTAN] ist fix true maybe remove?
         top_psm_only (bool): keep only highest scoring PSM for each spectrum
         initial_engine (str, optional): name of initial engine
-        # [TRISTAN] ist fix false maybe remove?
-        get_fdr (bool): if True return the false detection rate as q-value, else return q-values
+        get_fdr (bool, optional): if True return the false detection rate as q-value, else return q-values
 
     Returns:
         df_scores (pd.DataFrame): dataframe containing q-values, score and whether PSM is target or decoy
@@ -228,7 +226,7 @@ def get_top_targets(df, score_col, q_cut, frac_tp):
 
 
 def get_train_set(
-    df, score_col, q_cut, frac_tp, train_top_data, sample_frac=1.0,
+    df, score_col, q_cut, frac_tp, train_top_data, sample_frac,
 ):
     """
     Return training dataset containing sample of decoys and all target PSMs with q-value less than 1%
@@ -238,13 +236,11 @@ def get_train_set(
         q_cut (float): cut off for q-values below which a target PSM is counted as a top-target
         frac_tp (float): estimate of fraction of true positives in target dataset
         train_top_data (bool): if False train on all the data, True only train on top target/decoy per spectrum
-        # [TRISTAN] if to be included muss das noch nach oben vererbt werden
         sample_frac (float): ratio of decoy PSMs to target and decoy PSMs
 
     Returns:
         train (pd.DataFrame): dataframe containing selected target and decoy PSMs
     """
-    # [TRISTAN] prep.get_top_target_decoy(df, score_col=score_col)
     if train_top_data:
         # Take only the top target and top decoy for each spectrum
         df_to_train = setup_dataset.get_top_target_decoy(df, score_col=score_col)
@@ -265,7 +261,6 @@ def get_train_set(
     return train
 
 
-# [TRISTAN] This function was moved here from setup_dataset
 def replace_missing_data_cv(train_j, train_k, test):
     """
     Replace missing delta_scores with minimum value from training data.
@@ -398,6 +393,7 @@ def fit_model_cv(
     hyperparameters,
     q_cut_train,
     frac_tp,
+    sample_frac,
     feature_importance,
     clfs,
     i_it,
@@ -417,6 +413,7 @@ def fit_model_cv(
         q_cut_train (float):    cut off for q-values below which a target PSM is counted as top-target,
                                 when setting top-targets to train on
         frac_tp (float): estimate of fraction of true positives in target dataset
+        sample_frac (float): ratio of decoy PSMs to target and decoy PSMs
         training_data (pd.DataFrame):   list containing data splits. Contains train split (all targets, 50% decoys)
                                         and test split (all targets, other 50% decoys)
         score_col (str): particular original score
@@ -452,6 +449,7 @@ def fit_model_cv(
             frac_tp=frac_tp,
             train_top_data=train_top_data,
             q_cut=q_cut_train,
+            sample_frac=sample_frac,
         )
 
         # Scale the data
@@ -513,6 +511,7 @@ def fit_model_at(
     hyperparameters,
     q_cut_train,
     frac_tp,
+    sample_frac,
     feature_importance,
     clfs,
     i_it,
@@ -532,6 +531,7 @@ def fit_model_at(
         q_cut_train (float):    cut off for q-values below which a target PSM is counted as top-target,
                                 when setting top-targets to train on
         frac_tp (float): estimate of fraction of true positives in target dataset
+        sample_frac (float): ratio of decoy PSMs to target and decoy PSMs
         training_data (pd.DataFrame):   list containing data splits. Contains train split (all targets, 50% decoys)
                                         and test split (all targets, other 50% decoys)
         score_col (str): particular original score
@@ -557,6 +557,7 @@ def fit_model_at(
         frac_tp=frac_tp,
         train_top_data=train_top_data,
         q_cut=q_cut_train,
+        sample_frac=sample_frac,
     )
     test = training_data[1].copy(deep=True)
 
@@ -609,6 +610,7 @@ def fit(
     q_cut,
     q_cut_train,
     frac_tp,
+    sample_frac,
 ):
     """
     Fit a given model to the data. Training data consists of targets with q-values < 1%
@@ -630,6 +632,7 @@ def fit(
         q_cut_train (float):    cut off for q-values below which a target PSM is counted as top-target,
                                 when setting top-targets to train on
         frac_tp (float): estimate of fraction of true positives in target dataset
+        sample_frac (float): ratio of decoy PSMs to target and decoy PSMs
     Returns:
         clfs (Dict):    dictionary containing a list of classifiers for each initial_score_col, that are fitted
                         to data at each iteration, with scalers for normalizing data
@@ -641,7 +644,6 @@ def fit(
         df (pd.DataFrame): input dataframe with score column added
         feature_importance (Dict): dictionary of dataframe containing feature importance for each initial_score_col
     """
-    # [TRISTAN] fit_model, fit_model_at and fit_model_cv in now partly one combined function
     if initial_score_col is None:
         initial_score_cols = [
             score_col for score_col in feature_cols if "Score_processed_" in score_col

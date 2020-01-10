@@ -3,11 +3,8 @@ import numpy as np
 import pandas as pd
 
 
-
 def get_top_targets(
-    df,
-    # [TRISTAN] Hier war ne fixed variable, which i replaced -> q_cut, does this make sense?
-    q_cut,
+    df, q_cut,
 ):
     """
     Identify which PSMs in a dataframe are top targets (i.e. is the highest ranked target PSM for a given spectrum
@@ -60,9 +57,12 @@ def calc_final_q_vals(
         col = col.split("Score_processed_")[-1]
     score_col = f"Score_processed_{col}"
     q_col = f"q-value_{col}"
-    # [TRISTAN] sollte es hier probeleme geen, liegt es an weglassen von from_method aka. initial engine in get_q_vals
     df_scores = models.get_q_vals(
-        df, score_col, frac_tp=frac_tp, top_psm_only=top_psm_only, initial_engine=initial_engine
+        df,
+        score_col,
+        frac_tp=frac_tp,
+        top_psm_only=top_psm_only,
+        initial_engine=initial_engine,
     )
     df[q_col] = 1.0
     df.loc[df_scores.index, q_col] = df_scores["q-value"]
@@ -246,7 +246,7 @@ def get_num_psms_by_method(df, methods):
         methods = [c for c in df.columns if "top_target" in c]
         methods = [c for c in methods if "ursgal" not in c and "from" not in c]
 
-    # [TRISTAN] already performed
+    # [TRISTAN] already performed or do we want w/ q vals? however pointless since otherwise specified?
     # # calculate q-values
     # df = calc_all_final_q_vals(df, initial_engine=initial_engine)
     # # flag which are top targets
@@ -299,7 +299,9 @@ def get_num_psms_against_q_cut(df, methods, q_val_cut, initial_engine):
         df (pd.DataFrame): dataframe containing number of PSMs at each q-value cut-off for each method
     """
     # [TRISTAN] tmp
-    df = calc_all_final_q_vals(df, initial_engine=initial_engine, frac_tp=0.9, top_psm_only=True)
+    df = calc_all_final_q_vals(
+        df, initial_engine=initial_engine, frac_tp=0.9, top_psm_only=True
+    )
 
     # Get q-value list
     if q_val_cut is None:

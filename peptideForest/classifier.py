@@ -1,4 +1,3 @@
-# [TRISTAN] remove all not needed?
 ml_methods = ["RF", "RF-reg", "GBT", "SVM", "GNB", "KNN", "LR", "ADA", "percolator"]
 
 
@@ -13,7 +12,7 @@ def set_random_forest(hp_dict_in=None):
     """
     from sklearn.ensemble import RandomForestClassifier
 
-    # dictionary of default hyperparameter values
+    # Dictionary of default hyperparameter values
     hp_dict = {
         "n_estimators": 100,
         "max_depth": None,
@@ -51,7 +50,7 @@ def set_random_forest_reg(hp_dict_in=None):
     """
     from sklearn.ensemble import RandomForestRegressor
 
-    # dictionary of default hyperparameter values
+    # Dictionary of default hyperparameter values
     hp_dict = {
         "n_estimators": 100,
         "max_depth": None,
@@ -87,7 +86,7 @@ def set_gradient_boosted_trees(hp_dict_in=None):
     """
     from sklearn.ensemble import GradientBoostingClassifier
 
-    # dictionary of default hyperparameter values
+    # Dictionary of default hyperparameter values
     hp_dict = {
         "n_estimators": 100,
         "max_depth": 1,

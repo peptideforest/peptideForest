@@ -25,8 +25,8 @@ def combine_ursgal_csv_files(
         "Spectrum Title",
         "Mass Difference",
         "Raw data location",
-        "Rank",  # [TRISTAN] note: only XTandem, which doesn have rank .... will rename it in the next release?
-        "Calc m/z",  # too buggy
+        "Rank",
+        "Calc m/z",
     ]
 
     # Read in all files specified in path_dict, drop columns and append to summarised dataframe
@@ -51,7 +51,6 @@ def combine_ursgal_csv_files(
     return input_df
 
 
-# [TRISTAN] defaults allow for reduction: input; combine_eng=True; keep_ursgal = false
 def extract_features(df):
     """
     Calculate features from dataframe containing raw data from a single experiment.
@@ -63,11 +62,6 @@ def extract_features(df):
         old_cols (List): columns initially in the dataframe
         feature_cols (List): column names of newly calculated features
     """
-    # [TRISTAN]
-    # output_df = input_df
-    # combine make_dataset and get_features
-    # prep.calc_features
-
     # Save columns
     old_cols = df.columns
 

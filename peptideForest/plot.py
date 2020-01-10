@@ -25,7 +25,7 @@ def plot_num_psms_by_method(df, methods, output_file, dpi, show_plot):
     plt.figure(num=None, figsize=(13, 8), dpi=dpi, facecolor="w", edgecolor="k")
     ax = sns.barplot(x="method", y="n_psms", data=df_num_psms)
 
-    # Print values [TRISTAN] now fixed
+    # Print values
     for i, n_psms in enumerate(df_num_psms["n_psms"].values):
         ax.text(i, n_psms + 200, n_psms, ha="center", fontsize=16)
 
@@ -267,7 +267,6 @@ def all(
     df_training,
     classifier,
     methods,
-    output_file,
     all_engines_truncated,
     initial_engine,
     plot_prefix,
@@ -283,7 +282,6 @@ def all(
         methods (List): list of methods to use, if None, use all methods
         all_engines_truncated (List): List containing truncated engine names
         initial_engine (str): name of initial engine
-        output_file (str): path to save new dataframe to
         dpi (int): plotting resolution
 
     """
@@ -307,7 +305,7 @@ def all(
         initial_engine=initial_engine,
     )
 
-    # [TRISTAN] remove show_plots; add use_top_psm/n_psms
+    # [TRISTAN] remove show_plots? add use_top_psm/n_psms?
     for e1, e2 in itertools.permutations(all_engines_truncated + [classifier], 2):
         plot_ranks(
             df_training,
@@ -316,6 +314,6 @@ def all(
             use_top_psm=True,
             n_psms=3,
             output_file=os.path.join(plot_dir, f"{plot_prefix}_{e1}_vs_{e2}.pdf"),
-            show_plot=False,
+            show_plot=show_plot,
             dpi=dpi,
         )

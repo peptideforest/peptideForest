@@ -16,6 +16,7 @@ def main(
     train_top_data=True,
     use_cross_validation=True,
     frac_tp=0.9,
+    sample_frac=1.0,
     plot_dir="./plots/",
     plot_prefix="Plot",
     initial_engine="msgfplus",
@@ -39,6 +40,7 @@ def main(
         plot_prefix (str,optional): filename prefix for generated plots
         initial_engine (str, optional): name of initial engine
         frac_tp (float, optional): estimate of fraction of true positives in target dataset
+        sample_frac (float, optional): ratio of decoy PSMs to target and decoy PSMs
         show_plots (bool, optional): display plots
         dpi (int, optional): plotting resolution
     """
@@ -47,7 +49,7 @@ def main(
     totaltimer = peptideForest.runtime.PFTimer()
     totaltimer["total_run_time"]
 
-    # Import hyperparameter and path dict from .json file
+    # Import hyperparameter and path adict from .json file
     with open("config/hyperparameters.json") as jd:
         hyperparameters = json.load(jd)
     jd.close()
@@ -106,7 +108,7 @@ def main(
         print("Exported dataframe in {export}".format(**timer))
 
     # Fit model
-    # [TRISTAN] i removed a lot of stuff here. cannot have two?
+    # [TRISTAN] i removed a lot of stuff here. why were dicts used? is only run one at a time.
     timer["fit_model"]
     df_training["Is decoy"] = df_training["Is decoy"].astype(bool)
     (
@@ -129,6 +131,7 @@ def main(
         q_cut=q_cut,
         q_cut_train=q_cut_train,
         frac_tp=frac_tp,
+        sample_frac=sample_frac,
     )
 
     print("Fitted model in {fit_model}".format(**timer))
@@ -161,7 +164,7 @@ def main(
         initial_engine=initial_engine,
     )
 
-    # Get shifted PSMs
+    # Get shifted PSMs [TRISTAN] Soll ich das wieder zurück in basic schieben?
     peptideForest.results.get_deltas(
         df_training,
         all_engines_truncated=all_engines_truncated,

@@ -137,7 +137,6 @@ def calc_delta_score_i(
     Args:
         df (pd.DataFrame): ursgal dataframe
         i (int): rank to compare to (i.e. i=2 -> subtract score of 2nd ranked PSM)
-        # [TRISTAN] do we want min_data??
         min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
     Returns:
         df (pd.DataFrame): ursgal dataframe with delta_score_i added
@@ -207,7 +206,7 @@ def get_top_targets_decoys(df,):
         # Merge them together
         df_engine = pd.concat([targets, decoys]).sort_index()
 
-        # [TRISTAN] see above condition # if balance_dataset:
+        # [TRISTAN] see above # if balance_dataset:
         # also see commented line below which is redundant?
         # if balance_dataset:
         #     # Only keep those where we have one target and one decoy
@@ -465,7 +464,6 @@ def calc_features(
         df (pd.DataFrame): input dataframe with added features for each PSM
     """
     df = preprocess_df(df)
-    # [TRISTAN] maybe add another config file for this kind of stuff? import once @start global?
     df = row_features(df, cleavage_site="C")
     df = col_features(df)
 
