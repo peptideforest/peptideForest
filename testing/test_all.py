@@ -11,13 +11,13 @@ def test_combine_ursgal_csv_files():
     j.close()
 
     test_combine_ursgal = setup_dataset.combine_ursgal_csv_files(path_dict=path_dict)
-    reference_combine_ursgal = pd.read_pickle("ref_data/post_combine_ursgal.pkl")
+    reference_combine_ursgal = pd.read_pickle("ref_data/ref_post_combine_ursgal.pkl")
     assert test_combine_ursgal.equals(reference_combine_ursgal)
 
 
 def test_extract_features():
 
-    input_df = pd.read_pickle("ref_data/post_combine_ursgal.pkl")
+    input_df = pd.read_pickle("ref_data/ref_post_combine_ursgal.pkl")
 
     test_df_training, test_old_cols, test_feature_cols = setup_dataset.extract_features(
         input_df
@@ -87,7 +87,7 @@ def test_extract_features():
         "Score_processed_msfragger",
         "abs delta m/z",
     ]
-    ref_df_training = pd.read_pickle("ref_data/post_extract_features.pkl")
+    ref_df_training = pd.read_pickle("ref_data/ref_post_extract_features.pkl")
 
     equal_df_training = test_df_training.equals(ref_df_training)
     equal_old_cols = set(test_old_cols) == set(ref_old_cols)
@@ -98,7 +98,7 @@ def test_extract_features():
 
 def test_analysis():
 
-    df_training = pd.read_pickle("ref_data/post_fit_model.pkl")
+    df_training = pd.read_pickle("ref_data/ref_post_fit_model.pkl")
 
     df_training = results.basic(
         df_training,
@@ -108,7 +108,7 @@ def test_analysis():
         frac_tp=0.9,
         top_psm_only=True,
     )
-    ref_df_training = pd.read_pickle("ref_data/post_analysis.pkl")
+    ref_df_training = pd.read_pickle("ref_data/ref_post_analysis.pkl")
 
     # Since in find_psms_to_keep one decoy is dropped at random if both PSMs happen to be decoys
     # [TRISTAN] only appears to happen for mascot and RF-reg?
@@ -125,7 +125,7 @@ def test_analysis():
 
 def test_get_num_psms_by_method():
 
-    df = pd.read_pickle("ref_data/post_analysis.pkl")
+    df = pd.read_pickle("ref_data/ref_post_analysis.pkl")
     df = results.get_num_psms_by_method(df, methods=None)
 
     ref_df = pd.read_pickle("ref_data/ref_num_psms_by_method.pkl")
@@ -135,7 +135,7 @@ def test_get_num_psms_by_method():
 
 def test_get_num_psms_against_q():
 
-    df = pd.read_pickle("ref_data/post_analysis.pkl")
+    df = pd.read_pickle("ref_data/ref_post_analysis.pkl")
     df = results.get_num_psms_against_q_cut(
         df, methods=None, q_val_cut=None, initial_engine="msgfplus"
     )
@@ -147,7 +147,7 @@ def test_get_num_psms_against_q():
 
 def test_get_ranks():
 
-    df = pd.read_pickle("ref_data/post_analysis.pkl")
+    df = pd.read_pickle("ref_data/ref_post_analysis.pkl")
     equality = []
     engines = ["mascot", "omssa", "msgfplus", "xtandem", "msfragger", "RF-reg"]
 
@@ -164,7 +164,7 @@ def test_get_ranks():
 
 def test_get_shifted_psms():
 
-    df_training = pd.read_pickle("ref_data/post_analysis.pkl")
+    df_training = pd.read_pickle("ref_data/ref_post_analysis.pkl")
     engines = ["mascot", "omssa", "msgfplus", "xtandem", "msfragger"]
     equality = []
 

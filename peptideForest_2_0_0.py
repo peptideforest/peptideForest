@@ -1,7 +1,9 @@
 # Peptide Forest 2.0.0
 import json
 import multiprocessing
+import os
 import pprint
+
 import peptideForest
 
 
@@ -66,7 +68,7 @@ def main(
     print(f"Peptide Forest initialised with classifier: {classifier}\n")
     print("Using hyperparameters:")
     pprint.pprint(hyperparameter_dict)
-    print("\n")
+    print()
 
     # Load data and combine in one dataframe
     input_df = peptideForest.setup_dataset.combine_ursgal_csv_files(
@@ -151,12 +153,14 @@ def main(
     )
 
     # Plot results:
+    if os.path.exists(plot_dir) is False:
+        os.mkdir(plot_dir)
+
     peptideForest.plot.all(
         df_training,
         classifier=classifier,
         all_engines_truncated=all_engines_truncated,
         methods=None,
-        output_file=output_file,
         plot_prefix=plot_prefix,
         plot_dir=plot_dir,
         show_plot=show_plots,
