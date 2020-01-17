@@ -9,7 +9,6 @@ from sklearn import model_selection, preprocessing
 from sklearn.exceptions import DataConversionWarning
 
 
-# [TRISTAN] rare case where not specified for get_fdr
 def get_q_vals(df, score_col, frac_tp, top_psm_only, initial_engine=None, get_fdr=True):
     """
     Calculate q-value for each PSM based on the score in the column score_col
@@ -339,11 +338,11 @@ def get_training_model(training_type="RF", hp_dict_in=None):
         "ADA": "Ada Boosted Classifier with Decision Trees",
     }
 
-    # [TRISTAN] hier ValueError raisen?
     if training_type not in training_types.keys():
-        print(f"{training_type} not supported. Select one of: ")
-        print("\n".join("{}:- for {}".format(k, v) for k, v in training_types.items()))
-        return None
+        raise ValueError(
+            f"{training_type} not supported. Select one of: ",
+            "\n".join("{0}:- for {1}".format(k, v) for k, v in training_types.items()),
+        )
 
     if training_type == "RF":
         # set model to be Random Forest Classifier
@@ -644,17 +643,6 @@ def fit(
         df (pd.DataFrame): input dataframe with score column added
         feature_importance (Dict): dictionary of dataframe containing feature importance for each initial_score_col
     """
-    if initial_score_col is None:
-        initial_score_cols = [
-            score_col for score_col in feature_cols if "Score_processed_" in score_col
-        ]
-        initial_score_cols = [
-            score_col
-            for score_col in initial_score_cols
-            if all(ml_method not in score_col for ml_method in classifier.ml_methods)
-        ]
-    else:
-        initial_score_cols = [initial_score_col]
 
     psms_engine = {}
     clfs = []
@@ -662,175 +650,168 @@ def fit(
     psms_avg = {"train": [], "test": []}
     df_feature_importance = None
 
-    # Train using either method [TRISTAN] necessary? if only one initial score col
-    for initial_score_col in initial_score_cols:
-        print(f"\nTraining from: {initial_score_col}")
-        if f"Score_processed_{classifier}" in df_training.columns:
-            df_training = df_training.drop(f"Score_processed_{classifier}", axis=1)
-        warnings.filterwarnings("ignore", category=DataConversionWarning)
+    # Train using either method
+    print(f"\nTraining from: {initial_score_col}")
+    if f"Score_processed_{classifier}" in df_training.columns:
+        df_training = df_training.drop(f"Score_processed_{classifier}", axis=1)
+    warnings.filterwarnings("ignore", category=DataConversionWarning)
 
-        # Split the training data
-        training_data = get_train_test_sets(
-            df_training, use_cross_validation=use_cross_validation
+    # Split the training data
+    training_data = get_train_test_sets(
+        df_training, use_cross_validation=use_cross_validation
+    )
+
+    # Get number of PSMs with q-value<1% using search engine score
+    if use_cross_validation is True:
+        psms_engine["all_data"] = calc_num_psms(
+            df_training, initial_score_col, q_cut=q_cut, frac_tp=frac_tp
+        )
+    else:
+        psms_engine["train"] = calc_num_psms(
+            training_data[0], initial_score_col, q_cut=q_cut, frac_tp=frac_tp
+        )
+        psms_engine["test"] = calc_num_psms(
+            training_data[1], initial_score_col, q_cut=q_cut, frac_tp=frac_tp
         )
 
-        # Get number of PSMs with q-value<1% using search engine score
-        if use_cross_validation is True:
-            psms_engine["all_data"] = calc_num_psms(
-                df_training, initial_score_col, q_cut=q_cut, frac_tp=frac_tp
-            )
+    # Set the total number of iterations
+    n_iter = n_train + n_eval
+
+    # Get the original columns
+    old_cols = set(df_training.columns)
+
+    # Initialize feature importance
+    feature_importance = []
+
+    for i_it in range(n_iter):
+        # Make the training data from targets with q-values < 1% and a fraction of decoys
+        if i_it == 0:
+            # Rank by original score
+            score_col = initial_score_col
+            df_training["model_score_all"] = [[]] * len(df_training)
+            df_training["model_score_train_all"] = [[]] * len(df_training)
         else:
-            psms_engine["train"] = calc_num_psms(
-                training_data[0], initial_score_col, q_cut=q_cut, frac_tp=frac_tp
+            # Rank by new score
+            score_col = "model_score_train"
+
+        # Use of cross validation depending on set parameter
+        if use_cross_validation is True:
+            clfs, df_training, feature_importance = fit_model_cv(
+                df_training,
+                classifier,
+                n_train,
+                train_top_data,
+                feature_cols,
+                hyperparameters,
+                q_cut_train,
+                frac_tp,
+                sample_frac,
+                feature_importance,
+                clfs,
+                i_it,
+                score_col,
+                training_data,
+                old_cols,
             )
-            psms_engine["test"] = calc_num_psms(
-                training_data[1], initial_score_col, q_cut=q_cut, frac_tp=frac_tp
+
+        else:
+            clfs, df_training, feature_importance = fit_model_at(
+                df_training,
+                classifier,
+                n_train,
+                train_top_data,
+                feature_cols,
+                hyperparameters,
+                q_cut_train,
+                frac_tp,
+                sample_frac,
+                feature_importance,
+                clfs,
+                i_it,
+                score_col,
+                training_data,
             )
 
-        # Set the total number of iterations
-        n_iter = n_train + n_eval
-
-        # Get the original columns
-        old_cols = set(df_training.columns)
-
-        # Initialize feature importance
-        feature_importance = []
-
-        for i_it in range(n_iter):
-            # Make the training data from targets with q-values < 1% and a fraction of decoys
-            if i_it == 0:
-                # Rank by original score
-                score_col = initial_score_col
-                df_training["model_score_all"] = [[]] * len(df_training)
-                df_training["model_score_train_all"] = [[]] * len(df_training)
-            else:
-                # Rank by new score
-                score_col = "model_score_train"
-
-            # Use of cross validation depending on set parameter
-            if use_cross_validation is True:
-                clfs, df_training, feature_importance = fit_model_cv(
-                    df_training,
-                    classifier,
-                    n_train,
-                    train_top_data,
-                    feature_cols,
-                    hyperparameters,
-                    q_cut_train,
-                    frac_tp,
-                    sample_frac,
-                    feature_importance,
-                    clfs,
-                    i_it,
-                    score_col,
-                    training_data,
-                    old_cols,
-                )
-
-            else:
-                clfs, df_training, feature_importance = fit_model_at(
-                    df_training,
-                    classifier,
-                    n_train,
-                    train_top_data,
-                    feature_cols,
-                    hyperparameters,
-                    q_cut_train,
-                    frac_tp,
-                    sample_frac,
-                    feature_importance,
-                    clfs,
-                    i_it,
-                    score_col,
-                    training_data,
-                )
-
-            # start averaging the scores after the initial training iterations are done
-            if i_it >= n_train:
-                df_training.loc[:, "model_score_all"] += df_training[
-                    "model_score"
-                ].apply(lambda x: [x])
-                df_training.loc[:, "model_score_avg"] = df_training[
-                    "model_score_all"
-                ].apply(np.mean)
-                df_training.loc[:, "model_score_train_all"] += df_training[
-                    "model_score_train"
-                ].apply(lambda x: [x])
-                df_training.loc[:, "model_score_train_avg"] = df_training[
-                    "model_score_train_all"
-                ].apply(np.mean)
-
-            # see how many PSMs are below 1% in the target set
-            psms["test"].append(
-                calc_num_psms(df_training, "model_score", q_cut=q_cut, frac_tp=frac_tp)
+        # start averaging the scores after the initial training iterations are done
+        if i_it >= n_train:
+            df_training.loc[:, "model_score_all"] += df_training["model_score"].apply(
+                lambda x: [x]
             )
-            psms["train"].append(
+            df_training.loc[:, "model_score_avg"] = df_training[
+                "model_score_all"
+            ].apply(np.mean)
+            df_training.loc[:, "model_score_train_all"] += df_training[
+                "model_score_train"
+            ].apply(lambda x: [x])
+            df_training.loc[:, "model_score_train_avg"] = df_training[
+                "model_score_train_all"
+            ].apply(np.mean)
+
+        # see how many PSMs are below 1% in the target set
+        psms["test"].append(
+            calc_num_psms(df_training, "model_score", q_cut=q_cut, frac_tp=frac_tp)
+        )
+        psms["train"].append(
+            calc_num_psms(
+                df_training, "model_score_train", q_cut=q_cut, frac_tp=frac_tp
+            )
+        )
+
+        if i_it >= n_train:
+            psms_avg["test"].append(
                 calc_num_psms(
-                    df_training, "model_score_train", q_cut=q_cut, frac_tp=frac_tp
+                    df_training, "model_score_avg", q_cut=q_cut, frac_tp=frac_tp
+                )
+            )
+            psms_avg["train"].append(
+                calc_num_psms(
+                    df_training, "model_score_train_avg", q_cut=q_cut, frac_tp=frac_tp,
                 )
             )
 
-            if i_it >= n_train:
-                psms_avg["test"].append(
-                    calc_num_psms(
-                        df_training, "model_score_avg", q_cut=q_cut, frac_tp=frac_tp
-                    )
-                )
-                psms_avg["train"].append(
-                    calc_num_psms(
-                        df_training,
-                        "model_score_train_avg",
-                        q_cut=q_cut,
-                        frac_tp=frac_tp,
-                    )
-                )
+        if use_cross_validation is True:
+            if i_it == 0:
+                print("Iteration\t", "PSMs(train)\t", "PSMs(test)\t")
+            print(
+                f"{i_it + 1}" + "\t" * 3,
+                psms["train"][i_it],
+                "\t" * 3,
+                psms["test"][i_it],
+            )
 
-            if use_cross_validation is True:
-                if i_it == 0:
-                    print("Iteration\t", "PSMs(train)\t", "PSMs(test)\t")
-                print(
-                    f"{i_it + 1}" + "\t" * 3,
-                    psms["train"][i_it],
-                    "\t" * 3,
-                    psms["test"][i_it],
-                )
+        else:
+            print(i_it + 1, psms["train"][i_it], psms["test"][i_it])
 
-            else:
-                print(i_it + 1, psms["train"][i_it], psms["test"][i_it])
+    print(
+        "Average" + "\t" * 2,
+        psms_avg["train"][-1],
+        "\t" * 3,
+        psms_avg["test"][-1],
+        "\n",
+    )
 
-        print(
-            "Average" + "\t" * 2,
-            psms_avg["train"][-1],
-            "\t" * 3,
-            psms_avg["test"][-1],
-            "\n",
-        )
+    sigma = np.std(feature_importance, axis=0)
+    feature_importance = np.mean(feature_importance, axis=0)
+    df_feature_importance = pd.DataFrame(
+        {"feature_importance": feature_importance, "standard deviation": sigma},
+        index=feature_cols,
+    )
+    df_feature_importance = df_feature_importance.sort_values(
+        "feature_importance", ascending=False
+    )
 
-        sigma = np.std(feature_importance, axis=0)
-        feature_importance = np.mean(feature_importance, axis=0)
-        df_feature_importance = pd.DataFrame(
-            {"feature_importance": feature_importance, "standard deviation": sigma},
-            index=feature_cols,
-        )
-        df_feature_importance = df_feature_importance.sort_values(
-            "feature_importance", ascending=False
-        )
+    df_training = df_training.rename(
+        {"model_score_avg": f"Score_processed_{classifier}"}, axis=1
+    )
+    cols_to_drop = [c for c in df_training.columns if "model_score" in c]
+    df_training = df_training.drop(cols_to_drop, axis=1)
 
-        df_training = df_training.rename(
-            {"model_score_avg": f"Score_processed_{classifier}"}, axis=1
-        )
-        cols_to_drop = [c for c in df_training.columns if "model_score" in c]
-        df_training = df_training.drop(cols_to_drop, axis=1)
-
-        df_training[
-            f"Score_{classifier}_from_{initial_score_col}".lower()
-        ] = df_training[f"Score_processed_{classifier}"]
+    df_training[f"Score_{classifier}_from_{initial_score_col}".lower()] = df_training[
+        f"Score_processed_{classifier}"
+    ]
 
     df_training = df_training.drop(f"Score_processed_{classifier}", axis=1)
-    cols = [
-        f"score_{classifier}_from_{initial_score_col}".lower()
-        for initial_score_col in initial_score_cols
-    ]
+    cols = [f"score_{classifier}_from_{initial_score_col}".lower()]
     df_training[f"Score_processed_{classifier}"] = df_training[cols].mean(axis=1)
 
     return clfs, psms, psms_avg, psms_engine, df_training, df_feature_importance

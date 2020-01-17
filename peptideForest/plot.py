@@ -46,7 +46,14 @@ def plot_num_psms_by_method(df, methods, output_file, dpi, show_plot):
 
 
 def plot_num_psms_against_q(
-    df_training, q_val_cut, initial_engine, methods, output_file, show_plot, dpi
+    df_training,
+    q_val_cut,
+    initial_engine,
+    methods,
+    all_engines_truncated,
+    output_file,
+    show_plot,
+    dpi,
 ):
     """
     Plot the number of PSMs for each method with available results.
@@ -55,6 +62,7 @@ def plot_num_psms_against_q(
         q_val_cut (float): q-value used to identify top targets
         initial_engine (str): name of initial engine
         methods (List): list of methods to use, if None, use all methods
+        all_engines_truncated (List): List containing truncated engine names
         output_file (str): path to save new dataframe to
         show_plot (bool): display plot
         dpi (int): plotting resolution
@@ -67,7 +75,11 @@ def plot_num_psms_against_q(
 
     # Get dataframe for number of PSMs as a function of q-value
     df_num_psms_q = results.get_num_psms_against_q_cut(
-        df_training, methods=methods, q_val_cut=q_val_cut, initial_engine=initial_engine
+        df_training,
+        methods=methods,
+        q_val_cut=q_val_cut,
+        initial_engine=initial_engine,
+        all_engines_truncated=all_engines_truncated,
     )
 
     # Markers to be used for plotting
@@ -116,12 +128,6 @@ def plot_num_psms_against_q(
     if show_plot:
         plt.show()
 
-    # # re-calculate the top-targets using q_cut = 1% [TRISTAN] ????
-    # cols = [c for c in df if "top_target_" in c]
-    # df = df.drop(cols, axis=1)
-    # df = get_top_targets(df, q_val_cut=0.01)
-    # # ^---- why ?
-
 
 def plot_ranks(df, x_name, y_name, use_top_psm, n_psms, output_file, show_plot, dpi):
     """
@@ -151,7 +157,7 @@ def plot_ranks(df, x_name, y_name, use_top_psm, n_psms, output_file, show_plot, 
         df_plot = df.sort_values(
             f"Score_processed_{y_name}", ascending=False
         ).drop_duplicates("Spectrum ID")
-        df_plot = results.get_ranks(df_plot, from_scores=True)
+        df_plot = results.get_ranks(df_plot)
     else:
         df_plot = df.copy(deep=True)
 
@@ -299,6 +305,7 @@ def all(
         df_training,
         q_val_cut=None,
         methods=methods,
+        all_engines_truncated=all_engines_truncated,
         output_file=os.path.join(plot_dir, f"{plot_prefix}_num_psms_vs_q.pdf"),
         show_plot=show_plot,
         dpi=dpi,

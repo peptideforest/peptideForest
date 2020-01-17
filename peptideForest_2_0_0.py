@@ -1,16 +1,15 @@
 # Peptide Forest 2.0.0
+import peptideForest
 import json
 import multiprocessing
 import os
 import pprint
 
-import peptideForest
 
-
-# [TRISTAN] really maybe add: cleavage_site
 def main(
     output_file=None,
     classifier="RF-reg",
+    enzyme="trypsin",
     n_train=5,
     n_eval=5,
     q_cut=0.01,
@@ -31,6 +30,7 @@ def main(
     Args:
         output_file (str, optional): path to save new dataframe to, do not save if None (default)
         classifier (str, optional): name of the classifier to use
+        enzyme (str, optional): name of the enzyme used during sample preparation
         n_train (int, optional): number of training iterations
         n_eval (int, optional): number of evaluation iterations
         q_cut (float, optional): cut-off for q-values below which a target PSM is counted as top-target
@@ -70,6 +70,9 @@ def main(
     pprint.pprint(hyperparameter_dict)
     print()
 
+    if enzyme != "trypsin":
+        raise ValueError("Enzymes other than trypsine not implemented yet.")
+
     # Load data and combine in one dataframe
     input_df = peptideForest.setup_dataset.combine_ursgal_csv_files(
         path_dict, output_file
@@ -90,6 +93,7 @@ def main(
             f"Too few idents to run machine learning. DataFrame has only {n_rows_df} rows"
         )
 
+    # [TRISTAN] evtl. nicht truncaten sondern mit versionsnummer übernehmen aber alles andere entsprechened fixen
     all_engines = list(input_df["engine"].unique())
     all_engines_truncated = []
     for e in all_engines:
@@ -110,7 +114,6 @@ def main(
         print("Exported dataframe in {export}".format(**timer))
 
     # Fit model
-    # [TRISTAN] i removed a lot of stuff here. why were dicts used? is only run one at a time.
     timer["fit_model"]
     df_training["Is decoy"] = df_training["Is decoy"].astype(bool)
     (
@@ -143,13 +146,16 @@ def main(
 
     timer["analysis"]
     # Analyse results
-    df_training = peptideForest.results.basic(
+    df_training = peptideForest.results.analyse(
         df_training,
         initial_engine,
         q_cut,
-        from_scores=True,
         frac_tp=frac_tp,
         top_psm_only=True,
+        all_engines_truncated=all_engines_truncated,
+        plot_prefix=plot_prefix,
+        plot_dir=plot_dir,
+        classifier=classifier,
     )
 
     # Plot results:
@@ -168,22 +174,25 @@ def main(
         initial_engine=initial_engine,
     )
 
-    # Get shifted PSMs [TRISTAN] Soll ich das wieder zurück in basic schieben?
-    peptideForest.results.get_deltas(
-        df_training,
-        all_engines_truncated=all_engines_truncated,
-        plot_prefix=plot_prefix,
-        plot_dir=plot_dir,
-        classifier=classifier,
-    )
+    # # Get shifted PSMs [TRISTAN] Soll ich das wieder zurück in basic schieben?
+    # peptideForest.results.get_deltas(
+    #     df_training,
+    #     all_engines_truncated=all_engines_truncated,
+    #     plot_prefix=plot_prefix,
+    #     plot_dir=plot_dir,
+    #     classifier=classifier,
+    # )
 
-    print("Finished analysing results and plotting in {analysis}".format(**timer))
-    timer["writing_output"]
-    df_training.to_csv(output_file, index=False)
-    print("Wrote output csv to", output_file, "in {writing_output}".format(**timer))
+    print("\nFinished analysing results and plotting in {analysis}".format(**timer))
+    if output_file:
+        timer["writing_output"]
+        df_training.to_csv(output_file, index=False)
+        print(
+            "\nWrote output csv to", output_file, "in {writing_output}".format(**timer)
+        )
 
-    print("Complete run time: {total_run_time}".format(**totaltimer))
+    print("\nComplete run time: {total_run_time}".format(**totaltimer))
 
 
 if __name__ == "__main__":
-    main(plot_prefix="")
+    main()

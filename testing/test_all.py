@@ -2,6 +2,8 @@ import json
 import pandas as pd
 import collections
 import itertools
+import io
+import sys
 from peptideForest import setup_dataset, results
 
 
@@ -58,8 +60,8 @@ def test_extract_features():
         "Sequence Stop",
         "Spectrum ID",
         "Unnamed: 0",
-        "X\!Tandem:expect",
-        "X\!Tandem:hyperscore",
+        r"X\!Tandem:expect",
+        r"X\!Tandem:hyperscore",
         "engine",
         "rank",
         "uCalc m/z",
@@ -187,6 +189,9 @@ def test_get_shifted_psms():
 
 
 def test_all():
+    mute_console = io.StringIO()
+    sys.stdout = mute_console
+
     test_combine_ursgal_csv_files()
     test_extract_features()
     test_analysis()
@@ -194,3 +199,5 @@ def test_all():
     test_get_num_psms_against_q()
     test_get_ranks()
     test_get_shifted_psms()
+
+    sys.stdout = sys.__stdout__

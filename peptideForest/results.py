@@ -100,42 +100,26 @@ def calc_all_final_q_vals(
     return df
 
 
-def get_ranks(
-    df,
-    from_scores,
-    # [TRISTAN] very much removable? fixed "first"
-    method="first",
-):
+def get_ranks(df,):
     """
     Add a column with the rank of each PSM for all Score_processed columns.
     Args:
         df (pd.DataFrame): dataframe with scores for each PSM
-        from_scores (bool): rank by scores if True, rank by q-values if False
-        method (str, optional):     method to use (based on pandas rank method). Default is "first", such that
-                                    PSMs with the same score are ranked on the order they appear in the dataframe
 
     Returns:
         df (pd.DataFrame): same dataframe with new columns indicating the ranks
 
     """
-    if from_scores:
-        # Get the column names
-        cols_score = df.columns[df.columns.str[0:16] == "Score_processed_"]
-        cols_rank = ["rank" + c.split("Score_processed")[-1] for c in cols_score]
-        # Get the rank for each score_processed column
-        for col_score, col_rank in zip(cols_score, cols_rank):
-            df[col_rank] = df[col_score].rank(ascending=False, method=method)
-    else:
-        # Get the column names
-        cols_q_val = df.columns[df.columns.str[0:8] == "q-value_"]
-        cols_rank = ["rank" + c.split("q-value")[-1] for c in cols_q_val]
-        # Get the rank for each score_processed column
-        for col_q_val, col_rank in zip(cols_q_val, cols_rank):
-            df[col_rank] = df[col_q_val].rank(ascending=True, method=method)
+    # Get the column names
+    cols_score = df.columns[df.columns.str[0:16] == "Score_processed_"]
+    cols_rank = ["rank" + c.split("Score_processed")[-1] for c in cols_score]
+    # Get the rank for each score_processed column
+    for col_score, col_rank in zip(cols_score, cols_rank):
+        df[col_rank] = df[col_score].rank(ascending=False, method="first")
+
     return df
 
 
-# [TRISTAN] n_return nach oben vererben
 def get_shifted_psms(df, x_name, y_name, n_return):
     """
     Make dataframes showing which PSMs were top targets before training but no longer are and vise-vera.
@@ -143,8 +127,6 @@ def get_shifted_psms(df, x_name, y_name, n_return):
         df (pd.DataFrame): dataframe with training data and analysed results
         x_name (str): name of method used for baseline (e.g. search engine name)
         y_name (str): name of method used for comparison (e.g. ML model name)
-        n_return (int): number of examples to return. Returns the most extreme examples, i.e. those with the biggest
-                        delta in rating.
 
     Returns:
         df_new_top_targets (pd.DataFrame): dataframe containing information on the new top targets
@@ -163,8 +145,6 @@ def get_shifted_psms(df, x_name, y_name, n_return):
     print(
         f"Number non top targets for {x_name} that are now top targets: {len(df_new_top_targets)}"
     )
-    if n_return is not None:
-        df_new_top_targets = df_new_top_targets.head(n_return)
 
     # up_rank_for_spectrum: previously was not top PSM for that spectrum
     df_new_top_targets["up_rank_for_spectrum"] = False
@@ -246,11 +226,6 @@ def get_num_psms_by_method(df, methods):
         methods = [c for c in df.columns if "top_target" in c]
         methods = [c for c in methods if "ursgal" not in c and "from" not in c]
 
-    # [TRISTAN] already performed or do we want w/ q vals? however pointless since otherwise specified?
-    # # calculate q-values
-    # df = calc_all_final_q_vals(df, initial_engine=initial_engine)
-    # # flag which are top targets
-    # df = get_top_targets(df, q_val_cut=q_val_cut)
     df_num_psms = df[
         [c for c in df.columns if "top_target_" in c and c in methods]
     ].sum()
@@ -286,7 +261,9 @@ def get_num_psms_by_method(df, methods):
     return df_num_psms
 
 
-def get_num_psms_against_q_cut(df, methods, q_val_cut, initial_engine):
+def get_num_psms_against_q_cut(
+    df, methods, q_val_cut, initial_engine, all_engines_truncated
+):
     """
     Returns a dataframe containing number of top target PSMs against q-value used as cut-off to identify top targets.
     Args:
@@ -294,6 +271,8 @@ def get_num_psms_against_q_cut(df, methods, q_val_cut, initial_engine):
         methods (List): list of methods to use. If None, use all methods
         q_val_cut (float): list of q-values to use, default is None (use values between 1e-4 and 1e-1)
         initial_engine (str): name of initial engine
+        all_engines_truncated (List): List containing truncated engine names
+
 
     Returns:
         df (pd.DataFrame): dataframe containing number of PSMs at each q-value cut-off for each method
@@ -319,10 +298,8 @@ def get_num_psms_against_q_cut(df, methods, q_val_cut, initial_engine):
         index=[str(q) for q in q_val_cut],
         columns=methods + ["top_target_any-engine", "top_target_all-engines"],
     )
-    # Get a list of the engine columns [TRISTAN] thats not all  though?
-    engine_cols = [
-        f"top_target_{m}" for m in ["msgfplus", "mascot", "xtandem", "omssa"]
-    ]
+    # Get a list of the engine columns [TRISTAN] thats not all  though? -> übergebe all engines truncated
+    engine_cols = [f"top_target_{m}" for m in all_engines_truncated]
     for cut in q_val_cut:
         # Get the top-targets for this q_value_cut-off
         df = get_top_targets(df, q_cut=cut)
@@ -343,14 +320,16 @@ def get_num_psms_against_q_cut(df, methods, q_val_cut, initial_engine):
     return df_num_psms_q
 
 
-def basic(
+def analyse(
     df_training,
     initial_engine,
-    # [TRISTAN] ist das immer dasselbe wie q_val_cut was da eigentlich stehen sollte? vorher immer fix auf 0.01; from_scores ist auch == True fix
     q_cut,
     frac_tp,
     top_psm_only,
-    from_scores=True,
+    all_engines_truncated,
+    plot_prefix,
+    plot_dir,
+    classifier,
 ):
     """
     Main function to analyse results.
@@ -360,7 +339,10 @@ def basic(
         q_cut (float): q-value to use as cut off
         frac_tp (float): estimate of fraction of true positives in target dataset
         top_psm_only (bool): keep only highest scoring PSM for each spectrum
-        from_scores (bool): rank by scores if True, rank by q-values if False
+        all_engines_truncated (List): List containing truncated engine names
+        plot_prefix (str): output file prefix
+        plot_dir (str): directory to save plots to
+        classifier (str): name of classifier
 
     Returns:
         df_training (pd.DataFrame): dataframe with columns added for q-values, ranks and top target
@@ -378,23 +360,8 @@ def basic(
     df_training = get_top_targets(df_training, q_cut)
 
     # Get ranks
-    df_training = get_ranks(df_training, from_scores=from_scores)
+    df_training = get_ranks(df_training)
 
-    return df_training
-
-
-def get_deltas(df_training, all_engines_truncated, plot_dir, plot_prefix, classifier):
-    """
-    Find differences between PSM top target designation before and after use of
-    ML method (i.e. no longer match/new match).
-    Args:
-        df_training: input dataframe
-        all_engines_truncated (List): List containing truncated engine names
-        plot_prefix (str): output file prefix
-        plot_dir (str): directory to save plots to
-        classifier (str): name of classifier
-    """
-    # Get shifted PSMs
     for e1 in all_engines_truncated:
         df_new_top_targets, df_old_top_targets = get_shifted_psms(
             df_training, e1, classifier, n_return=None
@@ -405,3 +372,29 @@ def get_deltas(df_training, all_engines_truncated, plot_dir, plot_prefix, classi
         df_old_top_targets.to_csv(
             plot_dir + f"{plot_prefix}_{classifier}_{e1}_old_top_target.csv"
         )
+
+    return df_training
+
+
+# def get_deltas(df_training, all_engines_truncated, plot_dir, plot_prefix, classifier):
+#     """
+#     Find differences between PSM top target designation before and after use of
+#     ML method (i.e. no longer match/new match).
+#     Args:
+#         df_training: input dataframe
+#         all_engines_truncated (List): List containing truncated engine names
+#         plot_prefix (str): output file prefix
+#         plot_dir (str): directory to save plots to
+#         classifier (str): name of classifier
+#     """
+#     # Get shifted PSMs
+#     for e1 in all_engines_truncated:
+#         df_new_top_targets, df_old_top_targets = get_shifted_psms(
+#             df_training, e1, classifier, n_return=None
+#         )
+#         df_new_top_targets.to_csv(
+#             plot_dir + f"{plot_prefix}_{classifier}_{e1}_new_top_targets.csv"
+#         )
+#         df_old_top_targets.to_csv(
+#             plot_dir + f"{plot_prefix}_{classifier}_{e1}_old_top_target.csv"
+#         )

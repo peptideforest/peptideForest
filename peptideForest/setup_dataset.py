@@ -33,8 +33,8 @@ def combine_ursgal_csv_files(
     for file in path_dict.keys():
         slurp_time = runtime.PFTimer()
         slurp_time["slurp"]
-        # [TRISTAN] added to avoid warning? weil manchmal 2 values and ";"?? -> dtype={"Rank": object}
-        df = pd.read_csv(file)
+        # dtype for column 'Rank' specified to avoid mixed dtypes warning on import
+        df = pd.read_csv(file, dtype={"Rank": object})
         df["engine"] = path_dict[file]["engine"]
         df["Score"] = df[path_dict[file]["score_col"]]
         file_output = file.split("/")[-1]
@@ -91,7 +91,6 @@ def get_top_target_decoy(df, score_col):
 
     """
     # Get all the top targets
-    # [TRISTAN] why why why? cant i use df[~df["Is decoy].astype(bool)] -> weil dtype -> rausfinden warum es vorher ging
     targets = df[df["Is decoy"] == False]
     targets = targets.sort_values(score_col, ascending=False).drop_duplicates(
         "Spectrum ID"
@@ -103,10 +102,10 @@ def get_top_target_decoy(df, score_col):
         "Spectrum ID"
     )
 
-    # Determine sample size
-    n_sample = len(decoys)
-
-    decoys = decoys.sample(n=n_sample, replace=False)
+    # Determine sample size [TRISTAN] schau mal ob man das rauswerfen kann und wenn nicht was es überhaupt macht kann probably weg
+    # n_sample = len(decoys)
+    #
+    # decoys = decoys.sample(n=n_sample, replace=False)
 
     # Join the data together
     df = pd.concat([targets, decoys])

@@ -26,7 +26,6 @@ def test_cleavage_aa(
     Returns:
         (bool): True if amino acid is consistent with cleavage site, False otherwise
     """
-    # [TRISTAN] i tested this. but verify i didnt break it?
     all_aas = set(re.split(AA_DELIM_REGEX, aa_field))
     return any(aa in CLEAVAGE_SITES for aa in all_aas) or aa_start in ["1", "2"]
 
@@ -60,22 +59,6 @@ def test_sequence_aa_n(
     return aa in CLEAVAGE_SITES or aa_start in ["1", "2"]
 
 
-# [TRISTAN] new but does it do the job? i really dont think so
-# Peptides mapping on targets and decoys should be removed
-# Nachtrag: glaube ich habe es jetzt gerafft und das was du wolltest, ist schon wie gewollt vorher passiert
-# in preprocess_df (drop den overlap)
-# def remove_ambiguous_peptides(df):
-#     """
-#     Removes ambiguous peptides from dataframe.
-#     Args:
-#         df (pd.DataFrame): ursgal dataframe
-#     Returns:
-#         df (pd.DataFrame): input dataframe with ambiguous peptides removed
-#     """
-#
-#     return df
-
-
 def parse_protein_ids(protein_id,):
     """
     Turns ursgal dataframe column "Protein ID" into a list of all protein IDs.
@@ -85,7 +68,7 @@ def parse_protein_ids(protein_id,):
         prot_id_set (: True if start/end is consistent with cleavage site, False otherwise
     """
     # [TRISTAN]
-    # sep = "<|>" hier drinnen, since provided by ursgal anyways?
+    # sep = "<|>" hier drinnen, since provided by ursgal anyways? -> Doch und Decoy in config.json oder so
     sep = "<|>"
     clean = protein_id.replace("decoy_", "").strip()
     prot_id_set = list(clean.split(sep))
@@ -146,7 +129,7 @@ def calc_delta_score_i(
 
     # Initialize to nan (for PSMs from different engines)
     df[col] = np.nan
-    # [TRISTAN] what is meant?:^--- this delta should be be on engine level
+    # [TRISTAN] what is meant?:^--- this delta should be be on engine level -> extra parameter
 
     for engine in df["engine"].unique():
 
@@ -206,7 +189,7 @@ def get_top_targets_decoys(df,):
         # Merge them together
         df_engine = pd.concat([targets, decoys]).sort_index()
 
-        # [TRISTAN] see above # if balance_dataset:
+        # [TRISTAN] see above # if balance_dataset: --> Kann weg
         # also see commented line below which is redundant?
         # if balance_dataset:
         #     # Only keep those where we have one target and one decoy
@@ -228,7 +211,7 @@ def get_top_targets_decoys(df,):
 def preprocess_df(df,):
     """
     Preprocess ursgal dataframe:
-    # [TRISTAN]: Does it though? Commented out? Map amino acid isomers to single value (I);
+    # [TRISTAN]: Does it though? Commented out? Map amino acid isomers to single value (I); --> Kann weg aber in docstring -> sanity check
     Remove decoy PSMs overlapping with targets and fill missing modifications (None).
     Sequences containing 'X' are removed.
     Operations are performed inplace on dataframe!
@@ -237,11 +220,13 @@ def preprocess_df(df,):
     Returns:
         df (pd.DataFrame): preprocessed dataframe
     """
+    # df['Sequence'] = df['Sequence'].str.replace('L', 'I')
+
     # [TRISTAN] critical change but as discussed is probably correct
     decoys = df[df["Is decoy"]]
     targets = df[~df["Is decoy"]]
 
-    # Overlaps in Sequences between targets and decoys are removed
+    # Overlaps in Sequences between targets and decoys are removed -> Warning droppen [TRISTAN]
     df.drop(
         decoys[decoys["Sequence"].isin(targets["Sequence"].unique())].index,
         inplace=True,
@@ -308,7 +293,6 @@ def combine_engine_data(
             "ln abs delta m/z",
         ]
     )
-    # [TRISTAN] keep_ursgal removed
 
     # Get a list of columns that should be the same for each engine
     cols_same = list(sorted([f for f in feature_cols if f not in cols_single]))
@@ -368,7 +352,6 @@ def row_features(df, cleavage_site):
     Returns:
         df (pd.DataFrame): input dataframe with added row-level features for each PSM
     """
-    # [TRISTAN] get_stats now called from within here
     stats = get_stats(df)
 
     # Calculate processed score
@@ -389,7 +372,7 @@ def row_features(df, cleavage_site):
         lambda x: np.log(x) if x != 0 else log_min
     )
 
-    # [TRISTAN] Add columns indicating cleavage site consistency
+    # [TRISTAN] Add columns indicating cleavage site consistency -> only works with trypsin for now add comment / hier muss noch exception else dazu
     if cleavage_site == "C":
         df["enzN"] = df.apply(
             lambda x: test_cleavage_aa(x["Sequence Pre AA"], x["Sequence Start"]),
@@ -399,12 +382,6 @@ def row_features(df, cleavage_site):
             lambda x: test_sequence_aa_c(x["Sequence"][-1], x["Sequence Post AA"]),
             axis=1,
         )
-    elif cleavage_site == "N":
-        # [TRISTAN] aa_start unfulfilled?
-        df["enzC"] = df.apply(lambda x: test_cleavage_aa(x["Sequence Post AA"]), axis=1)
-        df["enzN"] = df.apply(
-            lambda x: test_sequence_aa_n(x["Sequence"][0], x["Sequence Start"]), axis=1
-        )
 
     df["enzInt"] = df.apply(
         lambda row: sum(1 for aa in row["Sequence"] if aa in CLEAVAGE_SITES), axis=1
@@ -412,7 +389,7 @@ def row_features(df, cleavage_site):
     df["PepLen"] = df["Sequence"].apply(len)
     df["CountProt"] = df["Protein ID"].apply(parse_protein_ids).apply(len)
 
-    # Get maximum charge to use for columns / [TRISTAN] removed option to set max_charge
+    # Get maximum charge to use for columns
     max_charge = df["Charge"].max(axis=0)
 
     # Create categorical charge columns
@@ -441,11 +418,6 @@ def col_features(df,):
     # If < min_data have three scores for both target and decoys, don't calculate.
     df = calc_delta_score_i(df, i=3, min_data=0.7)
 
-    # [TRISTAN] ist immer False
-    # Get the top target and top decoy for each spectrum
-    # if only_top:
-    #     df = get_top_targets_decoys(df)
-
     # log of the number of times the peptide sequence for a spectrum is found in the set
     df["lnNumPep"] = df.groupby("Sequence")["Sequence"].transform("count").apply(np.log)
 
@@ -472,4 +444,4 @@ def calc_features(
 
     return df
 
-    # [TRISTAN] cleavage_site to be included?
+    # [TRISTAN] cleavage_site to be included? -> erledigt
