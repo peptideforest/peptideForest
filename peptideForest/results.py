@@ -370,7 +370,7 @@ def analyse(
             plot_dir + f"{plot_prefix}_{classifier}_{e1}_new_top_targets.csv"
         )
         df_old_top_targets.to_csv(
-            plot_dir + f"{plot_prefix}_{classifier}_{e1}_old_top_target.csv"
+            plot_dir + f"{plot_prefix}_{classifier}_{e1}_old_top_targets.csv"
         )
 
     return df_training

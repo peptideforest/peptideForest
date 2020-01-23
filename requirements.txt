@@ -3,4 +3,6 @@ matplotlib
 scikit-learn
 numpy
 pandas
+click
+pytest
 

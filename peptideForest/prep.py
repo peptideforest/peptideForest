@@ -10,7 +10,7 @@ ENGINES = {
     "xtandem": (r"X\!Tandem:hyperscore", False),
     "msfragger": (r"MSFragger:Hyperscore", False),
 }
-AA_DELIM_REGEX = re.compile(r"<\|>|;")
+DELIM_REGEX = re.compile(r"<\|>|;")
 PROTON = 1.00727646677
 CLEAVAGE_SITES = {"R", "K", "-"}
 
@@ -26,37 +26,38 @@ def test_cleavage_aa(
     Returns:
         (bool): True if amino acid is consistent with cleavage site, False otherwise
     """
-    all_aas = set(re.split(AA_DELIM_REGEX, aa_field))
+    all_aas = set(re.split(DELIM_REGEX, aa_field))
     return any(aa in CLEAVAGE_SITES for aa in all_aas) or aa_start in ["1", "2"]
 
 
 def test_sequence_aa_c(
-    aa, pre_post_aa,
+    aa, post_aa,
 ):
     """
     Test whether start/end of sequence is consistent with enzyme cleavage site, or if it is cut at end.
     Args:
         aa (str): start/end of sequence
-        pre_post_aa (str): (multiple) pre/post amino acids
+        post_aa (str): (multiple) pre/post amino acids
     Returns:
         (bool): True if start/end is consistent with cleavage site, False otherwise
     """
-    return aa in CLEAVAGE_SITES or "-" in pre_post_aa
+    all_post_aas = set(re.split(DELIM_REGEX, post_aa))
+    return aa in CLEAVAGE_SITES or "-" in all_post_aas
 
 
 # only if cleavage site included
-def test_sequence_aa_n(
-    aa, aa_start,
-):
-    """
-    Test whether start/end of sequence is consistent with enzyme cleavage site, or if it is cut at end.
-    Args:
-        aa (str): start/end of sequence
-        aa_start (str): start of sequence
-    Returns:
-        (bool): True if start/end is consistent with cleavage site, False otherwise
-    """
-    return aa in CLEAVAGE_SITES or aa_start in ["1", "2"]
+# def test_sequence_aa_n(
+#     aa, aa_start,
+# ):
+#     """
+#     Test whether start/end of sequence is consistent with enzyme cleavage site, or if it is cut at end.
+#     Args:
+#         aa (str): start/end of sequence
+#         aa_start (str): start of sequence
+#     Returns:
+#         (bool): True if start/end is consistent with cleavage site, False otherwise
+#     """
+#     return aa in CLEAVAGE_SITES or aa_start in [1, 2]
 
 
 def parse_protein_ids(protein_id,):
@@ -69,13 +70,15 @@ def parse_protein_ids(protein_id,):
     """
     # [TRISTAN]
     # sep = "<|>" hier drinnen, since provided by ursgal anyways? -> Doch und Decoy in config.json oder so
-    sep = "<|>"
-    clean = protein_id.replace("decoy_", "").strip()
-    prot_id_set = list(clean.split(sep))
+    # sep = "<|>"
+    # clean = protein_id.replace("decoy_", "").strip()
+    # CF: added DELIM_REGEX ... should be DELIM_REGEX in general and part of parameters
+    prot_id_set = set(re.split(DELIM_REGEX, protein_id))
+    # list(protein_id.split(sep))
     return prot_id_set
 
 
-def transform_score(score, engine, minimum_score):
+def transform_score(score, score_stats):
     """
     Transforms a score to a base 10 logarithmic range.
     Args:
@@ -85,28 +88,37 @@ def transform_score(score, engine, minimum_score):
     Returns:
         score (float): transformed score
     """
-    if "_" in engine:
-        eng = engine.split("_")[0]
-    else:
-        eng = engine
+    # if "_" in engine:
+    #     eng = engine.split("_")[0]
+    # else:
+    #     eng = engine
 
-    if eng not in ENGINES:
-        raise ValueError(f"Engine {engine} not known")
+    # if eng not in ENGINES:
+    #     raise ValueError(f"Engine {engine} not known")
 
-    elif ENGINES[eng][1]:
-
-        if score > 0:
-            if score >= 1e-30:
-                transformed_score = -np.log10(score)
-            else:
-                # score can get very small, set to -log10(1e-30) if less than 1e-30
-                transformed_score = 30.0
+    # elif ENGINES[eng][1]:
+    if score_stats["max_score"] < 1:
+        if score <= score_stats["min_score"]:
+            transformed_score = -np.log10(score_stats["min_score"])
         else:
-            transformed_score = minimum_score
+            # score can get very small, set to -log10(1e-30) if less than 1e-30
+            transformed_score = -np.log10(score)
 
-        return transformed_score
+    else:
+        transformed_score = score
+    return transformed_score
+    # if score > 0:
+    #     if score >= 1e-30:
+    #         transformed_score = -np.log10(score)
+    #     else:
+    #         # score can get very small, set to -log10(1e-30) if less than 1e-30
+    #         transformed_score = 30.0
+    # else:
+    #     transformed_score = minimum_score
 
-    return score
+    # return transformed_score
+
+    # return score
 
 
 def calc_delta_score_i(
@@ -208,7 +220,7 @@ def get_top_targets_decoys(df,):
     return df
 
 
-def preprocess_df(df,):
+def preprocess_df(df):
     """
     Preprocess ursgal dataframe:
     # [TRISTAN]: Does it though? Commented out? Map amino acid isomers to single value (I); --> Kann weg aber in docstring -> sanity check
@@ -221,19 +233,25 @@ def preprocess_df(df,):
         df (pd.DataFrame): preprocessed dataframe
     """
     # df['Sequence'] = df['Sequence'].str.replace('L', 'I')
+    # Fill missing modifications
+    df["Modifications"].fillna("None", inplace=True)
 
-    # [TRISTAN] critical change but as discussed is probably correct
     decoys = df[df["Is decoy"]]
     targets = df[~df["Is decoy"]]
 
     # Overlaps in Sequences between targets and decoys are removed -> Warning droppen [TRISTAN]
+    # CF: wrong .. original implementation is keeping the target 
+    # df.drop(
+    #     decoys[decoys["Sequence"].isin(targets["Sequence"].unique())].index,
+    #     inplace=True,
+    # )
+    # CF: corrected: 
+    seqs_in_both = set(targets['Sequence']) & set(decoys['Sequence'])
     df.drop(
-        decoys[decoys["Sequence"].isin(targets["Sequence"].unique())].index,
-        inplace=True,
+        df[df['Sequence'].isin(seqs_in_both)].index,
+        axis=0, 
+        inplace=True
     )
-
-    # Fill missing modifications
-    df["Modifications"].fillna("None", inplace=True)
 
     # Remove Sequences with "X"
     df.drop(
@@ -246,23 +264,35 @@ def preprocess_df(df,):
 def get_stats(df):
     """
     Calculate minimum scores across all PSMs for all engines.
+    Ingnores OMSSA scores lower than 1e-30
     Args:
         df (pd.DataFrame): ursgal dataframe
+    
     Returns:
         (Dict of str: Any): Dict of engines containing dict of min scores.
     """
+    # fixed code - thanks to test [cf]
+
     stats = {}
     engines = df["engine"].unique()
-
+    # df['Score_-log10'] = -np.log10(df['Score'])
     for engine in engines:
         stats[engine] = {}
         engine_df = df[df["engine"] == engine]
 
+        # print(engine_df)
         # Minimum score (transformed)
-        stats[engine]["min_score"] = -np.log10(
-            engine_df.loc[engine_df["Score"] > 1e-30, "Score"].min()
-        )
-
+        # CF: wrong does not set miniumum value to 1e-30 for OMSSA
+        # stats[engine]["min_score"] = -np.log10(
+        #     engine_df.loc[engine_df["Score"] >= 1e-30, "Score"].min()
+        # )
+        # CF": corrected:
+        # 1e-30 and omssa only
+        if engine == "omssa" and engine_df.Score.min() < 1e-30:
+            stats[engine]["min_score"] = 1e-30
+        else:
+            stats[engine]["min_score"] = engine_df.Score.min()
+        stats[engine]["max_score"] = engine_df.Score.max()
     return stats
 
 
@@ -342,13 +372,14 @@ def combine_engine_data(
     return df_combine
 
 
-def row_features(df, cleavage_site):
+def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
     """
     Calculate row-level features from unified ursgal dataframe.
     Features are added as columns inplace in dataframe.
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
-        cleavage_site (str): enzyme cleavage site
+        cleavage_site (str): enzyme cleavage site (Currently on C implemented and tested)
+        proton (float): used for mass calculation and is kwargs for testing purpose
     Returns:
         df (pd.DataFrame): input dataframe with added row-level features for each PSM
     """
@@ -357,22 +388,29 @@ def row_features(df, cleavage_site):
     # Calculate processed score
     df["Score_processed"] = df.apply(
         lambda row: transform_score(
-            row["Score"], row["engine"], stats[row["engine"]]["min_score"]
+            row["Score"], stats[row["engine"]]
         ),
         axis=1,
     )
 
-    df["Mass"] = (df["Exp m/z"] * df["Charge"]) - (df["Charge"] - 1) * PROTON
-    df["delta m/z"] = df["uCalc m/z"] - df["Exp m/z"]
+    # df["Mass"] = (df["uCalc m/z"] * df["Charge"]) - (df["Charge"] * proton)
+    # df["Mass"] = (df["uCalc m/z"] * df["Charge"]) - (df["Charge"] * proton)
+    # CF: switched to uCalc
+    df["Mass"] = (df["uCalc m/z"] - proton) * df['Charge']
+    df["delta m/z"] = df["Accuracy (ppm)"]
     df["abs delta m/z"] = df["delta m/z"].apply(np.absolute)
 
-    # Get the log of delta mass and replace values that give log(0) with minimum
-    log_min = np.log(df.loc[df["abs delta m/z"] > 0, "abs delta m/z"].min())
-    df["ln abs delta m/z"] = df["abs delta m/z"].apply(
-        lambda x: np.log(x) if x != 0 else log_min
-    )
+    # # Get the log of delta mass and replace values that give log(0) with minimum
+    # log_min = np.log(df.loc[df["abs delta m/z"] > 0, "abs delta m/z"].min())
+    # df["ln abs delta m/z"] = df["abs delta m/z"].apply(
+    #     lambda x: np.log(x) if x != 0 else log_min
+    # )
 
-    # [TRISTAN] Add columns indicating cleavage site consistency -> only works with trypsin for now add comment / hier muss noch exception else dazu
+    df["ln(abs delta m/z + 1)"] = np.log(df["abs delta m/z"] + 1)
+    df["ln abs delta m/z"] = df["ln(abs delta m/z + 1)"] 
+    # ^---- For compatibility sake
+
+    # # [TRISTAN] Add columns indicating cleavage site consistency -> only works with trypsin for now add comment / hier muss noch exception else dazu
     if cleavage_site == "C":
         df["enzN"] = df.apply(
             lambda x: test_cleavage_aa(x["Sequence Pre AA"], x["Sequence Start"]),
@@ -383,20 +421,24 @@ def row_features(df, cleavage_site):
             axis=1,
         )
 
-    df["enzInt"] = df.apply(
-        lambda row: sum(1 for aa in row["Sequence"] if aa in CLEAVAGE_SITES), axis=1
-    )
+    df['enzInt'] = df['Sequence'].str.count(r"[R|K]")
+    # df["enzInt"] = df.apply(
+    #     lambda row: sum(1 for aa in row["Sequence"] if aa in CLEAVAGE_SITES), axis=1
+    # )
     df["PepLen"] = df["Sequence"].apply(len)
     df["CountProt"] = df["Protein ID"].apply(parse_protein_ids).apply(len)
 
-    # Get maximum charge to use for columns
-    max_charge = df["Charge"].max(axis=0)
+    # # Get maximum charge to use for columns
+    if max_charge is None:
+        max_charge = df["Charge"].max()
 
-    # Create categorical charge columns
-    for i in range(max_charge):
-        df[f"Charge{i+1}"] = df["Charge"] == i + 1
-    df[f">Charge{max_charge+1}"] = df["Charge"] > max_charge
-
+    # # Create categorical charge columns
+    for i in range(1, max_charge):
+        # pd.to_numeric(df['Sequence Start'], downcast="integer")
+        df[f"Charge{i}"] = (df["Charge"] == i).astype(int)
+        df[f"Charge{i}"] = df[f"Charge{i}"].astype('category')
+    df[f">Charge{max_charge}"] = (df["Charge"] >= max_charge).astype(int)
+    print(df.describe())
     return df
 
 

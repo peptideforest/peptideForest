@@ -1,7 +1,8 @@
+import peptideForest
 from peptideForest import runtime, prep
 
 import pandas as pd
-
+import logging
 
 def combine_ursgal_csv_files(
     path_dict, output_file=None,
@@ -20,15 +21,6 @@ def combine_ursgal_csv_files(
     # List of separate dataframes
     dfs = []
 
-    # Name columns to be disregarded
-    cols_to_drop = [
-        "Spectrum Title",
-        "Mass Difference",
-        "Raw data location",
-        "Rank",
-        "Calc m/z",
-    ]
-
     # Read in all files specified in path_dict, drop columns and append to summarised dataframe
     for file in path_dict.keys():
         slurp_time = runtime.PFTimer()
@@ -38,13 +30,25 @@ def combine_ursgal_csv_files(
         df["engine"] = path_dict[file]["engine"]
         df["Score"] = df[path_dict[file]["score_col"]]
         file_output = file.split("/")[-1]
-        print(f"Slurping in df for {file_output} in", "{slurp}".format(**slurp_time))
+        msg = f"Slurping in df for {file_output} in {slurp_time['slurp']}"
+        logging.debug(msg)
 
-        df.drop(columns=cols_to_drop, errors="ignore", inplace=True)
+        df.drop(
+            columns=peptideForest.knowledge_base.parameteres['columns_to_be_removed_from_input_csvs'],
+            errors="ignore", 
+            inplace=True
+        )
         dfs.append(df)
 
     input_df = pd.concat(dfs, sort=True).reset_index(drop=True)
 
+    # CF: cast columns based on .... kb?
+    # 
+    input_df['Sequence Post AA'].fillna("-", inplace=True)
+    input_df['Sequence Pre AA'].fillna("-", inplace=True)
+    input_df['Sequence Start'] = input_df['Sequence Start'].apply(str)
+    input_df['Sequence Stop'] = input_df['Sequence Stop'].apply(str)
+    input_df['Charge'] = pd.to_numeric(input_df['Charge'], downcast="integer")
     if output_file is not None:
         input_df.to_csv(output_file)
 

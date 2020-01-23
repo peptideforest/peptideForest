@@ -1,11 +1,15 @@
 # Peptide Forest 2.0.0
-import peptideForest
+import logging
 import json
 import multiprocessing
 import os
 import pprint
+import click
 
+import peptideForest
 
+@click.command()
+@click.option('--output_file', '-o', required=False, help='Outfile file in csv format for data after training')
 def main(
     output_file=None,
     classifier="RF-reg",
@@ -21,8 +25,9 @@ def main(
     plot_dir="./plots/",
     plot_prefix="Plot",
     initial_engine="msgfplus",
-    show_plots="True",
+    show_plots=False,
     dpi=300,
+    logging_level=None,
 ):
     """
     Extract features from training set, impute missing values, fit model and make prediction.
@@ -46,6 +51,7 @@ def main(
         show_plots (bool, optional): display plots
         dpi (int, optional): plotting resolution
     """
+    logging.basicConfig(level=peptideForest.logging_level_to_constants[logging_level])
 
     timer = peptideForest.runtime.PFTimer()
     totaltimer = peptideForest.runtime.PFTimer()
@@ -54,10 +60,10 @@ def main(
     # Import hyperparameter and path adict from .json file
     with open("config/hyperparameters.json") as jd:
         hyperparameters = json.load(jd)
-    jd.close()
+
     with open("config/ursgal_path_dict.json") as upd:
         path_dict = json.load(upd)
-    upd.close()
+
 
     # Add core count information
     hyperparameters["RF"]["n_jobs"] = multiprocessing.cpu_count() - 1
@@ -141,8 +147,12 @@ def main(
 
     print("Fitted model in {fit_model}".format(**timer))
     print("\nFeature importance:")
-    print("Score_processed_{0}".format(initial_engine))
+    print("Innitial engine: Score_processed_{0}".format(initial_engine))
     print(df_feature_importance.head(), "\n")
+
+    # Plot results:
+    if os.path.exists(plot_dir) is False:
+        os.mkdir(plot_dir)
 
     timer["analysis"]
     # Analyse results
@@ -158,9 +168,6 @@ def main(
         classifier=classifier,
     )
 
-    # Plot results:
-    if os.path.exists(plot_dir) is False:
-        os.mkdir(plot_dir)
 
     peptideForest.plot.all(
         df_training,
@@ -184,7 +191,7 @@ def main(
     # )
 
     print("\nFinished analysing results and plotting in {analysis}".format(**timer))
-    if output_file:
+    if output_file is not None:
         timer["writing_output"]
         df_training.to_csv(output_file, index=False)
         print(

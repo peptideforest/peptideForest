@@ -452,6 +452,7 @@ def fit_model_cv(
         )
 
         # Scale the data
+        # print("Feature Columns", feature_cols)
         scaler = preprocessing.StandardScaler().fit(train.loc[:, feature_cols])
         train.loc[:, feature_cols] = scaler.transform(train.loc[:, feature_cols])
         train_j.loc[:, feature_cols] = scaler.transform(train_j.loc[:, feature_cols])
