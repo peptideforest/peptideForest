@@ -442,7 +442,7 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
     return df
 
 
-def col_features(df,):
+def col_features(df, min_data=0.7):
     """
     Calculate col-level features from unified ursgal dataframe.
     Features are added as columns inplace in dataframe.
