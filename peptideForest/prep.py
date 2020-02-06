@@ -138,9 +138,11 @@ def calc_delta_score_i(
     """
     # Name of the new column
     col = f"delta_score_{i}"
+    decoy_state = col + "_to_decoy"
 
     # Initialize to nan (for PSMs from different engines)
     df[col] = np.nan
+    df[decoy_state] = np.nan
     # [TRISTAN] what is meant?:^--- this delta should be be on engine level -> extra parameter
 
     for engine in df["engine"].unique():
@@ -157,10 +159,18 @@ def calc_delta_score_i(
                 df_engine["Spectrum ID"].isin(psm_counts[psm_counts >= i].index), :
             ].index
             ith_best = df_engine.loc[inds, :].groupby("Spectrum ID")
-            ith_best = ith_best["Score_processed"].transform(
-                lambda x: x.nlargest(i).min()
+            ith_best_indices = ith_best["Score_processed"].transform(
+                lambda x: x.nlargest(i).idxmin()
             )
-            df.loc[inds, col] = df.loc[inds, "Score_processed"] - ith_best
+
+            ith_best_value = df.loc[ith_best_indices]["Score_processed"]
+            ith_best_is_decoy = df.loc[ith_best_indices]["Is decoy"]
+            ith_best_value.index = inds
+            ith_best_is_decoy.index = inds
+
+            df.loc[inds, col] = df.loc[inds, "Score_processed"] - ith_best_value
+            df.loc[inds, decoy_state] = ith_best_is_decoy
+
             mean_val = df.loc[inds, col].mean()
             # Replace missing with mean
             inds = df_engine.loc[
@@ -317,6 +327,8 @@ def combine_engine_data(
             "Score_processed",
             "delta_score_2",
             "delta_score_3",
+            "delta_score_2_to_decoy",
+            "delta_score_3_to_decoy",
             "Mass",
             "delta m/z",
             "abs delta m/z",

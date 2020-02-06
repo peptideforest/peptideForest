@@ -33,7 +33,7 @@ def test_sequence_aa_c():
     )
     assert all(df[df["Comments"] == "test_sequence_aa_c"]) is True
 
-def test_cound_missed_cleavages():
+def test_count_missed_cleavages():
     df = peptideForest.setup_dataset.combine_ursgal_csv_files(path_dict_medium)
     df['enzInt'] = df['Sequence'].str.count(r"[R|K]")
     assert df[df["Comments"] == "Two missed cleavages"]["enzInt"].unique() == 3
