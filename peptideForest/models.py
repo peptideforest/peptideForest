@@ -129,11 +129,11 @@ def find_psms_to_keep(df, score_col):
 
     # Number PSMs with max score for each spectrum
     num_with_top_val = df.groupby("Spectrum ID")[eq_col].sum()
-    # Index of spectra where more than one psm has the max score
+    # Index of spectra where more than one PSM has the max score
     inds = num_with_top_val.index[num_with_top_val > 1]
-    # Get dataframe for those spectra and take only psms that have the max score
+    # Get dataframe for those spectra and take only PSMs that have the max score
     df_with_top_val = df[df["Spectrum ID"].isin(inds) & df[eq_col]].copy(deep=True)
-    # Check how many decoys there are for each spectra
+    # Check how many decoys there are for each spectrum
     df_num_decoys = df_with_top_val.groupby("Spectrum ID")["Is decoy"].agg(
         ["count", "sum", "nunique"]
     )

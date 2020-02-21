@@ -1,6 +1,7 @@
 import re
 import numpy as np
 import pandas as pd
+from peptideForest import knowledge_base
 
 # Regex
 ENGINES = {
@@ -180,56 +181,6 @@ def calc_delta_score_i(
     return df
 
 
-def get_top_targets_decoys(df,):
-    """
-    Get the top target and top decoy for each Spectrum ID based on score for each engine.
-    # [TRISTAN] do we want balance_dataset??
-    Args:
-        df (pd.DataFrame): ursgal dataframe
-    Returns:
-        df (pd.DataFrame): ursgal dataframe with only top targets/decoys
-    """
-    dfs_engine = {
-        engine: df[df["engine"] == engine] for engine in df["engine"].unique()
-    }
-    df = None
-
-    for df_engine in dfs_engine.values():
-
-        # Get top targets
-        targets = df_engine[~df_engine["Is decoy"]]
-        targets = targets.sort_values(
-            "Score_processed", ascending=False
-        ).drop_duplicates(["Spectrum ID"])
-
-        # Get top decoys
-        decoys = df_engine[df_engine["Is decoy"]]
-        decoys = decoys.sort_values("Score_processed", ascending=False).drop_duplicates(
-            ["Spectrum ID"]
-        )
-
-        # Merge them together
-        df_engine = pd.concat([targets, decoys]).sort_index()
-
-        # [TRISTAN] see above # if balance_dataset: --> Kann weg
-        # also see commented line below which is redundant?
-        # if balance_dataset:
-        #     # Only keep those where we have one target and one decoy
-        #     # spec_id_counts = df_engine[df_engine["Spectrum ID"].value_counts() == 2]
-        #     spec_id_counts = df_engine["Spectrum ID"].value_counts()
-        #     spec_id_counts = spec_id_counts[spec_id_counts == 2]
-        #     df_engine = df_engine.loc[
-        #         df_engine["Spectrum ID"].isin(spec_id_counts.index), :
-        #     ]
-
-        if df:
-            df = pd.concat([df, df_engine.copy(deep=True)]).sort_index()
-        else:
-            df = df_engine.copy(deep=True)
-
-    return df
-
-
 def preprocess_df(df):
     """
     Preprocess ursgal dataframe:
@@ -250,18 +201,14 @@ def preprocess_df(df):
     targets = df[~df["Is decoy"]]
 
     # Overlaps in Sequences between targets and decoys are removed -> Warning droppen [TRISTAN]
-    # CF: wrong .. original implementation is keeping the target 
+    # CF: wrong .. original implementation is keeping the target
     # df.drop(
     #     decoys[decoys["Sequence"].isin(targets["Sequence"].unique())].index,
     #     inplace=True,
     # )
-    # CF: corrected: 
-    seqs_in_both = set(targets['Sequence']) & set(decoys['Sequence'])
-    df.drop(
-        df[df['Sequence'].isin(seqs_in_both)].index,
-        axis=0, 
-        inplace=True
-    )
+    # CF: corrected:
+    seqs_in_both = set(targets["Sequence"]) & set(decoys["Sequence"])
+    df.drop(df[df["Sequence"].isin(seqs_in_both)].index, axis=0, inplace=True)
 
     # Remove Sequences with "X"
     df.drop(
@@ -274,7 +221,7 @@ def preprocess_df(df):
 def get_stats(df):
     """
     Calculate minimum scores across all PSMs for all engines.
-    Ingnores OMSSA scores lower than 1e-30
+    Ignores OMSSA scores lower than 1e-30.
     Args:
         df (pd.DataFrame): ursgal dataframe
     
@@ -399,16 +346,13 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
 
     # Calculate processed score
     df["Score_processed"] = df.apply(
-        lambda row: transform_score(
-            row["Score"], stats[row["engine"]]
-        ),
-        axis=1,
+        lambda row: transform_score(row["Score"], stats[row["engine"]]), axis=1,
     )
 
     # df["Mass"] = (df["uCalc m/z"] * df["Charge"]) - (df["Charge"] * proton)
     # df["Mass"] = (df["uCalc m/z"] * df["Charge"]) - (df["Charge"] * proton)
     # CF: switched to uCalc
-    df["Mass"] = (df["uCalc m/z"] - proton) * df['Charge']
+    df["Mass"] = (df["uCalc m/z"] - proton) * df["Charge"]
     df["delta m/z"] = df["Accuracy (ppm)"]
     df["abs delta m/z"] = df["delta m/z"].apply(np.absolute)
 
@@ -419,7 +363,7 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
     # )
 
     df["ln(abs delta m/z + 1)"] = np.log(df["abs delta m/z"] + 1)
-    df["ln abs delta m/z"] = df["ln(abs delta m/z + 1)"] 
+    df["ln abs delta m/z"] = df["ln(abs delta m/z + 1)"]
     # ^---- For compatibility sake
 
     # # [TRISTAN] Add columns indicating cleavage site consistency -> only works with trypsin for now add comment / hier muss noch exception else dazu
@@ -433,7 +377,7 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
             axis=1,
         )
 
-    df['enzInt'] = df['Sequence'].str.count(r"[R|K]")
+    df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
     # df["enzInt"] = df.apply(
     #     lambda row: sum(1 for aa in row["Sequence"] if aa in CLEAVAGE_SITES), axis=1
     # )
@@ -448,7 +392,7 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
     for i in range(1, max_charge):
         # pd.to_numeric(df['Sequence Start'], downcast="integer")
         df[f"Charge{i}"] = (df["Charge"] == i).astype(int)
-        df[f"Charge{i}"] = df[f"Charge{i}"].astype('category')
+        df[f"Charge{i}"] = df[f"Charge{i}"].astype("category")
     df[f">Charge{max_charge}"] = (df["Charge"] >= max_charge).astype(int)
     print(df.describe())
     return df
@@ -493,7 +437,7 @@ def calc_features(
     df = row_features(df, cleavage_site="C")
     df = col_features(df)
 
-    feature_cols = list(set(df.columns) - set(old_cols))
+    feature_cols = list(set(df.columns) - (set(old_cols) - set(knowledge_base.preset_features)))
     df = combine_engine_data(df, feature_cols)
 
     return df

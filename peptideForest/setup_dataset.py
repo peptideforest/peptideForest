@@ -4,6 +4,7 @@ from peptideForest import runtime, prep
 import pandas as pd
 import logging
 
+
 def combine_ursgal_csv_files(
     path_dict, output_file=None,
 ):
@@ -34,21 +35,23 @@ def combine_ursgal_csv_files(
         logging.debug(msg)
 
         df.drop(
-            columns=peptideForest.knowledge_base.parameteres['columns_to_be_removed_from_input_csvs'],
-            errors="ignore", 
-            inplace=True
+            columns=peptideForest.knowledge_base.parameteres[
+                "columns_to_be_removed_from_input_csvs"
+            ],
+            errors="ignore",
+            inplace=True,
         )
         dfs.append(df)
 
     input_df = pd.concat(dfs, sort=True).reset_index(drop=True)
 
     # CF: cast columns based on .... kb?
-    # 
-    input_df['Sequence Post AA'].fillna("-", inplace=True)
-    input_df['Sequence Pre AA'].fillna("-", inplace=True)
-    input_df['Sequence Start'] = input_df['Sequence Start'].apply(str)
-    input_df['Sequence Stop'] = input_df['Sequence Stop'].apply(str)
-    input_df['Charge'] = pd.to_numeric(input_df['Charge'], downcast="integer")
+    #
+    input_df["Sequence Post AA"].fillna("-", inplace=True)
+    input_df["Sequence Pre AA"].fillna("-", inplace=True)
+    input_df["Sequence Start"] = input_df["Sequence Start"].apply(str)
+    input_df["Sequence Stop"] = input_df["Sequence Stop"].apply(str)
+    input_df["Charge"] = pd.to_numeric(input_df["Charge"], downcast="integer")
     if output_file is not None:
         input_df.to_csv(output_file)
 
@@ -101,7 +104,7 @@ def get_top_target_decoy(df, score_col):
     )
 
     # Get all the top decoys
-    decoys = df[df["Is decoy"]]
+    decoys = df[df["Is decoy"] == True]
     decoys = decoys.sort_values(score_col, ascending=False).drop_duplicates(
         "Spectrum ID"
     )
