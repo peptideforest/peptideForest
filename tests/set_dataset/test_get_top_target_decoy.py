@@ -1,6 +1,6 @@
 import pandas as pd
 
-import peptideForest
+import peptide_forest
 
 
 def test_get_top_target_decoy():
@@ -23,7 +23,7 @@ def test_get_top_target_decoy():
             ],
         }
     )
-    df = peptideForest.setup_dataset.get_top_target_decoy(df, score_col="Score")
+    df = peptide_forest.setup_dataset.get_top_target_decoy(df, score_col="Score")
 
     assert len(df) == 4
     assert set(df["Score"]) == {3, 6, 8, 9}

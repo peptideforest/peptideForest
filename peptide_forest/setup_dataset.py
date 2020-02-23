@@ -1,5 +1,5 @@
-import peptideForest
-from peptideForest import runtime, prep
+import peptide_forest
+from peptide_forest import runtime, prep
 
 import pandas as pd
 import logging
@@ -35,7 +35,7 @@ def combine_ursgal_csv_files(
         logging.debug(msg)
 
         df.drop(
-            columns=peptideForest.knowledge_base.parameteres[
+            columns=peptide_forest.knowledge_base.parameteres[
                 "columns_to_be_removed_from_input_csvs"
             ],
             errors="ignore",
@@ -58,12 +58,14 @@ def combine_ursgal_csv_files(
     return input_df
 
 
-def extract_features(df):
+def extract_features(df, cleavage_site, min_data):
     """
     Calculate features from dataframe containing raw data from a single experiment.
 
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
+        cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
+        min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
     Returns:
         df (pd.DataFrame): new dataframe containing the original experiment data and extracted features
         old_cols (List): columns initially in the dataframe
@@ -73,7 +75,7 @@ def extract_features(df):
     old_cols = df.columns
 
     # Get features and a list of feature names
-    df = prep.calc_features(df, old_cols)
+    df = prep.calc_features(df, cleavage_site, old_cols, min_data)
 
     feature_cols = list(set(df.columns) - set(old_cols))
     q_value_cols = [f for f in df.columns if "q-value" in f]
@@ -108,11 +110,6 @@ def get_top_target_decoy(df, score_col):
     decoys = decoys.sort_values(score_col, ascending=False).drop_duplicates(
         "Spectrum ID"
     )
-
-    # Determine sample size [TRISTAN] schau mal ob man das rauswerfen kann und wenn nicht was es überhaupt macht kann probably weg
-    # n_sample = len(decoys)
-    #
-    # decoys = decoys.sample(n=n_sample, replace=False)
 
     # Join the data together
     df = pd.concat([targets, decoys])

@@ -47,7 +47,9 @@ def add_mScores():
         df["search param"] = ">" + df["Sequence"] + "%" + df["Modifications"] + "<"
         df["mScore"] = df.apply(lambda x: get_mScore(x, quant_data), axis=1)
 
-        output_file = f.split("/")[0] + "/_mScore/" + f.split("/")[1] + "_plus_mScores.csv"
+        output_file = (
+            f.split("/")[0] + "/_mScore/" + f.split("/")[1] + "_plus_mScores.csv"
+        )
         df.to_csv(output_file, index=False)
         print(f"Finished {f}.")
 

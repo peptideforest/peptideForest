@@ -1,7 +1,8 @@
 import re
+import warnings
 import numpy as np
 import pandas as pd
-from peptideForest import knowledge_base
+from peptide_forest import knowledge_base
 
 # Regex
 ENGINES = {
@@ -69,13 +70,7 @@ def parse_protein_ids(protein_id,):
     Returns:
         prot_id_set (: True if start/end is consistent with cleavage site, False otherwise
     """
-    # [TRISTAN]
-    # sep = "<|>" hier drinnen, since provided by ursgal anyways? -> Doch und Decoy in config.json oder so
-    # sep = "<|>"
-    # clean = protein_id.replace("decoy_", "").strip()
-    # CF: added DELIM_REGEX ... should be DELIM_REGEX in general and part of parameters
     prot_id_set = set(re.split(DELIM_REGEX, protein_id))
-    # list(protein_id.split(sep))
     return prot_id_set
 
 
@@ -89,15 +84,7 @@ def transform_score(score, score_stats):
     Returns:
         score (float): transformed score
     """
-    # if "_" in engine:
-    #     eng = engine.split("_")[0]
-    # else:
-    #     eng = engine
 
-    # if eng not in ENGINES:
-    #     raise ValueError(f"Engine {engine} not known")
-
-    # elif ENGINES[eng][1]:
     if score_stats["max_score"] < 1:
         if score <= score_stats["min_score"]:
             transformed_score = -np.log10(score_stats["min_score"])
@@ -108,18 +95,6 @@ def transform_score(score, score_stats):
     else:
         transformed_score = score
     return transformed_score
-    # if score > 0:
-    #     if score >= 1e-30:
-    #         transformed_score = -np.log10(score)
-    #     else:
-    #         # score can get very small, set to -log10(1e-30) if less than 1e-30
-    #         transformed_score = 30.0
-    # else:
-    #     transformed_score = minimum_score
-
-    # return transformed_score
-
-    # return score
 
 
 def calc_delta_score_i(
@@ -144,7 +119,6 @@ def calc_delta_score_i(
     # Initialize to nan (for PSMs from different engines)
     df[col] = np.nan
     df[decoy_state] = np.nan
-    # [TRISTAN] what is meant?:^--- this delta should be be on engine level -> extra parameter
 
     for engine in df["engine"].unique():
 
@@ -184,9 +158,8 @@ def calc_delta_score_i(
 def preprocess_df(df):
     """
     Preprocess ursgal dataframe:
-    # [TRISTAN]: Does it though? Commented out? Map amino acid isomers to single value (I); --> Kann weg aber in docstring -> sanity check
     Remove decoy PSMs overlapping with targets and fill missing modifications (None).
-    Sequences containing 'X' are removed.
+    Sequences containing 'X' are removed. Input Dataframe should map amino acid isomers to single value (I).
     Operations are performed inplace on dataframe!
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
@@ -200,14 +173,9 @@ def preprocess_df(df):
     decoys = df[df["Is decoy"]]
     targets = df[~df["Is decoy"]]
 
-    # Overlaps in Sequences between targets and decoys are removed -> Warning droppen [TRISTAN]
-    # CF: wrong .. original implementation is keeping the target
-    # df.drop(
-    #     decoys[decoys["Sequence"].isin(targets["Sequence"].unique())].index,
-    #     inplace=True,
-    # )
-    # CF: corrected:
     seqs_in_both = set(targets["Sequence"]) & set(decoys["Sequence"])
+    if len(seqs_in_both) > 0:
+        warnings.warn("Target and decoy sequences contain overlaps.", Warning)
     df.drop(df[df["Sequence"].isin(seqs_in_both)].index, axis=0, inplace=True)
 
     # Remove Sequences with "X"
@@ -297,9 +265,8 @@ def combine_engine_data(
     # Go through each engine and get the results
     for engine in df["engine"].unique():
         df_engine = df.loc[df["engine"] == engine, cols]
-        eng_names = engine.split("_")[0]
         # Rename the columns that will have different names
-        cols_single_engine = [f"{c}_{eng_names}" for c in cols_single]
+        cols_single_engine = [f"{c}_{engine}" for c in cols_single]
         df_engine.columns = cols_u + cols_same + cols_single_engine
 
         # Merge results for each engine together (or start the dataframe)
@@ -323,7 +290,7 @@ def combine_engine_data(
 
     # Average mass based columns and drop the engine specific ones
     for col in ["Mass", "delta m/z", "abs delta m/z", "ln abs delta m/z"]:
-        eng_names = [engine.split("_")[0] for engine in df["engine"].unique()]
+        eng_names = [engine for engine in df["engine"].unique()]
         cols = [f"{col}_{eng_name}" for eng_name in eng_names]
         df_combine[col] = df_combine[cols].mean(axis=1)
         df_combine = df_combine.drop(cols, axis=1)
@@ -337,7 +304,7 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
     Features are added as columns inplace in dataframe.
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
-        cleavage_site (str): enzyme cleavage site (Currently on C implemented and tested)
+        cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
         proton (float): used for mass calculation and is kwargs for testing purpose
     Returns:
         df (pd.DataFrame): input dataframe with added row-level features for each PSM
@@ -349,24 +316,15 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
         lambda row: transform_score(row["Score"], stats[row["engine"]]), axis=1,
     )
 
-    # df["Mass"] = (df["uCalc m/z"] * df["Charge"]) - (df["Charge"] * proton)
-    # df["Mass"] = (df["uCalc m/z"] * df["Charge"]) - (df["Charge"] * proton)
-    # CF: switched to uCalc
     df["Mass"] = (df["uCalc m/z"] - proton) * df["Charge"]
     df["delta m/z"] = df["Accuracy (ppm)"]
     df["abs delta m/z"] = df["delta m/z"].apply(np.absolute)
-
-    # # Get the log of delta mass and replace values that give log(0) with minimum
-    # log_min = np.log(df.loc[df["abs delta m/z"] > 0, "abs delta m/z"].min())
-    # df["ln abs delta m/z"] = df["abs delta m/z"].apply(
-    #     lambda x: np.log(x) if x != 0 else log_min
-    # )
 
     df["ln(abs delta m/z + 1)"] = np.log(df["abs delta m/z"] + 1)
     df["ln abs delta m/z"] = df["ln(abs delta m/z + 1)"]
     # ^---- For compatibility sake
 
-    # # [TRISTAN] Add columns indicating cleavage site consistency -> only works with trypsin for now add comment / hier muss noch exception else dazu
+    # Only works with trypsin for now
     if cleavage_site == "C":
         df["enzN"] = df.apply(
             lambda x: test_cleavage_aa(x["Sequence Pre AA"], x["Sequence Start"]),
@@ -377,18 +335,18 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
             axis=1,
         )
 
+    else:
+        raise ValueError("Only cleavage sites consistent with trypsin are accepted.")
+
     df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
-    # df["enzInt"] = df.apply(
-    #     lambda row: sum(1 for aa in row["Sequence"] if aa in CLEAVAGE_SITES), axis=1
-    # )
     df["PepLen"] = df["Sequence"].apply(len)
     df["CountProt"] = df["Protein ID"].apply(parse_protein_ids).apply(len)
 
-    # # Get maximum charge to use for columns
+    # Get maximum charge to use for columns
     if max_charge is None:
         max_charge = df["Charge"].max()
 
-    # # Create categorical charge columns
+    # Create categorical charge columns
     for i in range(1, max_charge):
         # pd.to_numeric(df['Sequence Start'], downcast="integer")
         df[f"Charge{i}"] = (df["Charge"] == i).astype(int)
@@ -404,17 +362,17 @@ def col_features(df, min_data=0.7):
     Features are added as columns inplace in dataframe.
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
+        min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
     Returns:
         df (pd.DataFrame): input dataframe with added col-level features for each PSM
     """
-    # [TRISTAN] make min_data an argument?
     # delta_score_2: difference between first and second score for a spectrum.
     # If < min_data have two scores for both target and decoys, don't calculate.
-    df = calc_delta_score_i(df, i=2, min_data=0.7)
+    df = calc_delta_score_i(df, i=2, min_data=min_data)
 
     # delta_score_3: difference between first and third score for a spectrum.
     # If < min_data have three scores for both target and decoys, don't calculate.
-    df = calc_delta_score_i(df, i=3, min_data=0.7)
+    df = calc_delta_score_i(df, i=3, min_data=min_data)
 
     # log of the number of times the peptide sequence for a spectrum is found in the set
     df["lnNumPep"] = df.groupby("Sequence")["Sequence"].transform("count").apply(np.log)
@@ -422,24 +380,25 @@ def col_features(df, min_data=0.7):
     return df
 
 
-def calc_features(
-    df, old_cols,
-):
+def calc_features(df, cleavage_site, old_cols, min_data):
     """
     Main function to calculate features from unified ursgal dataframe.
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
+        cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
         old_cols (List): columns initially in the dataframe
+        min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
+
     Returns:
         df (pd.DataFrame): input dataframe with added features for each PSM
     """
     df = preprocess_df(df)
     df = row_features(df, cleavage_site="C")
-    df = col_features(df)
+    df = col_features(df, min_data=min_data)
 
-    feature_cols = list(set(df.columns) - (set(old_cols) - set(knowledge_base.preset_features)))
+    feature_cols = list(
+        set(df.columns) - (set(old_cols) - set(knowledge_base.preset_features))
+    )
     df = combine_engine_data(df, feature_cols)
 
     return df
-
-    # [TRISTAN] cleavage_site to be included? -> erledigt

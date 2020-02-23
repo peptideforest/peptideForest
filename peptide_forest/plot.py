@@ -1,4 +1,4 @@
-from peptideForest import results
+from peptide_forest import results
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -50,7 +50,7 @@ def plot_num_psms_against_q(
     q_val_cut,
     initial_engine,
     methods,
-    all_engines_truncated,
+    all_engines_version,
     output_file,
     show_plot,
     dpi,
@@ -62,7 +62,7 @@ def plot_num_psms_against_q(
         q_val_cut (float): q-value used to identify top targets
         initial_engine (str): name of initial engine
         methods (List): list of methods to use, if None, use all methods
-        all_engines_truncated (List): List containing truncated engine names
+        all_engines_version (List): List containing truncated engine names
         output_file (str): path to save new dataframe to
         show_plot (bool): display plot
         dpi (int): plotting resolution
@@ -79,7 +79,7 @@ def plot_num_psms_against_q(
         methods=methods,
         q_val_cut=q_val_cut,
         initial_engine=initial_engine,
-        all_engines_truncated=all_engines_truncated,
+        all_engines_version=all_engines_version,
     )
 
     # Markers to be used for plotting
@@ -124,7 +124,7 @@ def plot_num_psms_against_q(
     plt.tight_layout()
     if output_file:
         file_format = output_file.split(".")[-1]
-        plt.savefig(output_file, format=file_format, dpi=dpi)
+        plt.savefig(output_file, format=file_format, dpi=dpi, bbox_inches="tight")
     if show_plot:
         plt.show()
 
@@ -261,7 +261,7 @@ def plot_ranks(df, x_name, y_name, use_top_psm, n_psms, output_file, show_plot, 
     # save the image if a name is given
     if output_file:
         file_format = output_file.split(".")[-1]
-        plt.savefig(output_file, format=file_format, dpi=dpi)
+        plt.savefig(output_file, format=file_format, dpi=dpi, bbox_inches="tight")
     # display the image
     if show_plot:
         plt.show()
@@ -273,7 +273,7 @@ def all(
     df_training,
     classifier,
     methods,
-    all_engines_truncated,
+    all_engines_version,
     initial_engine,
     plot_prefix,
     plot_dir,
@@ -286,7 +286,7 @@ def all(
         df_training (pd.DataFrame): dataframe containing results from search engines and ML training
         classifier (str): q-value used to identify top targets
         methods (List): list of methods to use, if None, use all methods
-        all_engines_truncated (List): List containing truncated engine names
+        all_engines_version (List): List containing truncated engine names
         initial_engine (str): name of initial engine
         dpi (int): plotting resolution
 
@@ -305,15 +305,14 @@ def all(
         df_training,
         q_val_cut=None,
         methods=methods,
-        all_engines_truncated=all_engines_truncated,
+        all_engines_version=all_engines_version,
         output_file=os.path.join(plot_dir, f"{plot_prefix}_num_psms_vs_q.pdf"),
         show_plot=show_plot,
         dpi=dpi,
         initial_engine=initial_engine,
     )
 
-    # [TRISTAN] remove show_plots? add use_top_psm/n_psms?
-    for e1, e2 in itertools.permutations(all_engines_truncated + [classifier], 2):
+    for e1, e2 in itertools.permutations(all_engines_version + [classifier], 2):
         plot_ranks(
             df_training,
             e1,

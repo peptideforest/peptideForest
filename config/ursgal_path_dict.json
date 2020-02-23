@@ -1,22 +1,22 @@
 {
     "data/Offset_6_7ppm__04854_F1_R8_P0109699E13_TMT10_mascot_dat2csv_1_0_0_accepted_pmap_unified.csv": {
-        "engine": "mascot",
+        "engine": "mascot_1_0_0",
         "score_col": "Mascot:Score"
     },
     "data/Offset_6_7ppm__04854_F1_R8_P0109699E13_TMT10_omssa_2_1_9_pmap_unified.csv": {
-        "engine": "omssa",
+        "engine": "omssa_2_1_9",
         "score_col": "OMSSA:pvalue"
     },
     "data/Offset_6_7ppm__04854_F1_R8_P0109699E13_TMT10_msgfplus_v2018_06_28_pmap_unified.csv": {
-        "engine": "msgfplus",
+        "engine": "msgfplus_v2018_06_28",
         "score_col": "MS-GF:SpecEValue"
     },
     "data/Offset_6_7ppm__04854_F1_R8_P0109699E13_TMT10_xtandem_vengeance_pmap_unified.csv": {
-        "engine": "xtandem",
+        "engine": "xtandem_vengeance",
         "score_col": "X\\!Tandem:hyperscore"
     },
     "data/Offset_6_7ppm__04854_F1_R8_P0109699E13_TMT10_msfragger_20190222_pmap_unified.csv": {
-        "engine": "msfragger",
+        "engine": "msfragger_20190222",
         "score_col": "MSFragger:Hyperscore"
     }
 }

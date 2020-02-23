@@ -6,12 +6,19 @@ import os
 import pprint
 import click
 
-import peptideForest
+import peptide_forest
+
 
 @click.command()
-@click.option('--output_file', '-o', required=False, help='Outfile file in csv format for data after training')
+@click.option(
+    "--output_file",
+    "-o",
+    required=False,
+    help="Outfile file in csv format for data after training",
+)
 def main(
     output_file=None,
+    min_data=0.7,
     classifier="RF-reg",
     enzyme="trypsin",
     n_train=5,
@@ -24,7 +31,7 @@ def main(
     sample_frac=1.0,
     plot_dir="./plots/",
     plot_prefix="Plot",
-    initial_engine="msgfplus",
+    initial_engine="msgfplus_v2018_06_28",
     show_plots=False,
     dpi=300,
     logging_level=None,
@@ -34,6 +41,8 @@ def main(
 
     Args:
         output_file (str, optional): path to save new dataframe to, do not save if None (default)
+        min_data (float):   minimum fraction of spectra for which we require that there are at least 2 or 3 respectively
+                            PSMs to calculate delta scores
         classifier (str, optional): name of the classifier to use
         enzyme (str, optional): name of the enzyme used during sample preparation
         n_train (int, optional): number of training iterations
@@ -51,10 +60,10 @@ def main(
         show_plots (bool, optional): display plots
         dpi (int, optional): plotting resolution
     """
-    logging.basicConfig(level=peptideForest.logging_level_to_constants[logging_level])
+    logging.basicConfig(level=peptide_forest.logging_level_to_constants[logging_level])
 
-    timer = peptideForest.runtime.PFTimer()
-    totaltimer = peptideForest.runtime.PFTimer()
+    timer = peptide_forest.runtime.PFTimer()
+    totaltimer = peptide_forest.runtime.PFTimer()
     totaltimer["total_run_time"]
 
     # Import hyperparameter and path adict from .json file
@@ -63,7 +72,6 @@ def main(
 
     with open("config/ursgal_path_dict.json") as upd:
         path_dict = json.load(upd)
-
 
     # Add core count information
     hyperparameters["RF"]["n_jobs"] = multiprocessing.cpu_count() - 1
@@ -77,18 +85,21 @@ def main(
     print()
 
     if enzyme != "trypsin":
-        raise ValueError("Enzymes other than trypsine not implemented yet.")
+        raise ValueError("Enzymes other than trypsin not implemented yet.")
+
+    else:
+        cleavage_site = "C"
 
     # Load data and combine in one dataframe
-    input_df = peptideForest.setup_dataset.combine_ursgal_csv_files(
+    input_df = peptide_forest.setup_dataset.combine_ursgal_csv_files(
         path_dict, output_file
     )
 
     # Extract features from dataframe
     print("\nExtracting features...")
     timer["features"]
-    df_training, old_cols, feature_cols = peptideForest.setup_dataset.extract_features(
-        input_df
+    df_training, old_cols, feature_cols = peptide_forest.setup_dataset.extract_features(
+        input_df, cleavage_site=cleavage_site, min_data=min_data
     )
     n_features = str(len(feature_cols))
     print(f"Extracted {n_features} features in", "{features}".format(**timer))
@@ -99,16 +110,11 @@ def main(
             f"Too few idents to run machine learning. DataFrame has only {n_rows_df} rows"
         )
 
-    # [TRISTAN] evtl. nicht truncaten sondern mit versionsnummer übernehmen aber alles andere entsprechened fixen
-    all_engines = list(input_df["engine"].unique())
-    all_engines_truncated = []
-    for e in all_engines:
-        x = e.split("_")
-        all_engines_truncated.append(x[0])
+    all_engines_version = list(input_df["engine"].unique())
 
     print(
         "Working on results from engines {0} and {1}".format(
-            ", ".join(all_engines[:-1]), all_engines[-1]
+            ", ".join(all_engines_version[:-1]), all_engines_version[-1]
         )
     )
 
@@ -129,7 +135,7 @@ def main(
         psms_engine,
         df_training,
         df_feature_importance,
-    ) = peptideForest.models.fit(
+    ) = peptide_forest.models.fit(
         df_training=df_training,
         classifier=classifier,
         n_train=n_train,
@@ -156,23 +162,22 @@ def main(
 
     timer["analysis"]
     # Analyse results
-    df_training = peptideForest.results.analyse(
+    df_training = peptide_forest.results.analyse(
         df_training,
         initial_engine,
         q_cut,
         frac_tp=frac_tp,
         top_psm_only=True,
-        all_engines_truncated=all_engines_truncated,
+        all_engines_version=all_engines_version,
         plot_prefix=plot_prefix,
         plot_dir=plot_dir,
         classifier=classifier,
     )
 
-
-    peptideForest.plot.all(
+    peptide_forest.plot.all(
         df_training,
         classifier=classifier,
-        all_engines_truncated=all_engines_truncated,
+        all_engines_version=all_engines_version,
         methods=None,
         plot_prefix=plot_prefix,
         plot_dir=plot_dir,
@@ -180,15 +185,6 @@ def main(
         dpi=dpi,
         initial_engine=initial_engine,
     )
-
-    # # Get shifted PSMs [TRISTAN] Soll ich das wieder zurück in basic schieben?
-    # peptideForest.results.get_deltas(
-    #     df_training,
-    #     all_engines_truncated=all_engines_truncated,
-    #     plot_prefix=plot_prefix,
-    #     plot_dir=plot_dir,
-    #     classifier=classifier,
-    # )
 
     print("\nFinished analysing results and plotting in {analysis}".format(**timer))
     if output_file is not None:

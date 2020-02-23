@@ -1,9 +1,9 @@
-from peptideForest import models, classifier
+from peptide_forest import models, classifier
 import numpy as np
 import pandas as pd
 
 
-def get_top_targets(
+def mark_top_targets(
     df, q_cut,
 ):
     """
@@ -27,47 +27,12 @@ def get_top_targets(
     cols_target = ["top_target" + c.split("q-value")[-1] for c in cols_q_val]
 
     for col_target, col_q_val in zip(cols_target, cols_q_val):
-        df_toptargets = df[(df[col_q_val] <= q_cut) & (~df["Is decoy"])]
-        df_toptargets = df_toptargets.sort_values(col_q_val)
-        df_toptargets = df_toptargets.drop_duplicates("Spectrum ID")
+        df_top_targets = df[(df[col_q_val] <= q_cut) & (~df["Is decoy"])]
+        df_top_targets = df_top_targets.sort_values(col_q_val)
+        df_top_targets = df_top_targets.drop_duplicates("Spectrum ID")
         df[col_target] = False
-        df.loc[df_toptargets.index, col_target] = True
+        df.loc[df_top_targets.index, col_target] = True
 
-    return df
-
-
-def calc_final_q_vals(
-    df, col, frac_tp, top_psm_only, initial_engine,
-):
-    """
-    Calculate q-value for given score column.
-    Args:
-        df (pd.DataFrame): dataframe with training results
-        col (str): name of method to calculate q-values for
-        frac_tp (float): estimate of fraction of true positives in target dataset
-        top_psm_only (bool): keep only highest scoring PSM for each spectrum
-        initial_engine (str):   method which was used to originally rank the PSMs, to be used here as the second ranking
-                                column
-
-    Returns:
-        df (pd.DataFrame): same dataframe with q-values added as column
-
-    """
-    if "Score_processed_" in col:
-        col = col.split("Score_processed_")[-1]
-    score_col = f"Score_processed_{col}"
-    q_col = f"q-value_{col}"
-    df_scores = models.get_q_vals(
-        df,
-        score_col,
-        frac_tp=frac_tp,
-        top_psm_only=top_psm_only,
-        initial_engine=initial_engine,
-    )
-    df[q_col] = 1.0
-    df.loc[df_scores.index, q_col] = df_scores["q-value"]
-    max_q_val = df.loc[df_scores.index, q_col].max()
-    df[q_col] = df[q_col].fillna(max_q_val)
     return df
 
 
@@ -75,7 +40,7 @@ def calc_all_final_q_vals(
     df, frac_tp, top_psm_only, initial_engine,
 ):
     """
-    Calculate the q-values for all score columns
+    Calculate q-value for given score column.
     Args:
         df (pd.DataFrame): dataframe with training results
         frac_tp (float): estimate of fraction of true positives in target dataset
@@ -84,19 +49,26 @@ def calc_all_final_q_vals(
                                 column
 
     Returns:
-        df (pd.DataFrame): input dataframe with q-values added as new columns
+        df (pd.DataFrame): input dataframe with q-values added as new column
 
     """
-    # Get a list of all the score columns
     cols = [c for c in df.columns if "Score_processed_" in c]
     for col in cols:
-        df = calc_final_q_vals(
+        if "Score_processed_" in col:
+            col = col.split("Score_processed_")[-1]
+        score_col = f"Score_processed_{col}"
+        q_col = f"q-value_{col}"
+        df_scores = models.get_q_vals(
             df,
-            col,
+            score_col,
             frac_tp=frac_tp,
             top_psm_only=top_psm_only,
             initial_engine=initial_engine,
         )
+        df[q_col] = 1.0
+        df.loc[df_scores.index, q_col] = df_scores["q-value"]
+        max_q_val = df.loc[df_scores.index, q_col].max()
+        df[q_col] = df[q_col].fillna(max_q_val)
     return df
 
 
@@ -173,7 +145,7 @@ def get_shifted_psms(df, x_name, y_name, n_return):
     )
     df_old_top_targets = df_old_top_targets.reset_index()
     print(
-        f"Number top targets for {x_name} that are now not top targets: {len(df_old_top_targets)}"
+        f"Number top targets for {x_name} that are not longer top targets: {len(df_old_top_targets)}"
     )
     if n_return is not None:
         df_old_top_targets = df_old_top_targets.head(n_return)
@@ -262,7 +234,7 @@ def get_num_psms_by_method(df, methods):
 
 
 def get_num_psms_against_q_cut(
-    df, methods, q_val_cut, initial_engine, all_engines_truncated
+    df, methods, q_val_cut, initial_engine, all_engines_version
 ):
     """
     Returns a dataframe containing number of top target PSMs against q-value used as cut-off to identify top targets.
@@ -271,13 +243,12 @@ def get_num_psms_against_q_cut(
         methods (List): list of methods to use. If None, use all methods
         q_val_cut (float): list of q-values to use, default is None (use values between 1e-4 and 1e-1)
         initial_engine (str): name of initial engine
-        all_engines_truncated (List): List containing truncated engine names
+        all_engines_version (List): List containing truncated engine names
 
 
     Returns:
         df (pd.DataFrame): dataframe containing number of PSMs at each q-value cut-off for each method
     """
-    # [TRISTAN] tmp
     df = calc_all_final_q_vals(
         df, initial_engine=initial_engine, frac_tp=0.9, top_psm_only=True
     )
@@ -298,11 +269,10 @@ def get_num_psms_against_q_cut(
         index=[str(q) for q in q_val_cut],
         columns=methods + ["top_target_any-engine", "top_target_all-engines"],
     )
-    # Get a list of the engine columns [TRISTAN] thats not all  though? -> übergebe all engines truncated
-    engine_cols = [f"top_target_{m}" for m in all_engines_truncated]
+    engine_cols = [f"top_target_{m}" for m in all_engines_version]
     for cut in q_val_cut:
         # Get the top-targets for this q_value_cut-off
-        df = get_top_targets(df, q_cut=cut)
+        df = mark_top_targets(df, q_cut=cut)
         # Calculate the number of q-values for this cut-off
         df_num_psms = df[[c for c in df.columns if "top_target_" in c]].sum()
         df_num_psms_q.loc[str(cut), :] = df_num_psms[df_num_psms_q.columns]
@@ -326,7 +296,7 @@ def analyse(
     q_cut,
     frac_tp,
     top_psm_only,
-    all_engines_truncated,
+    all_engines_version,
     plot_prefix,
     plot_dir,
     classifier,
@@ -339,7 +309,7 @@ def analyse(
         q_cut (float): q-value to use as cut off
         frac_tp (float): estimate of fraction of true positives in target dataset
         top_psm_only (bool): keep only highest scoring PSM for each spectrum
-        all_engines_truncated (List): List containing truncated engine names
+        all_engines_version (List): List containing engine names and their respective version
         plot_prefix (str): output file prefix
         plot_dir (str): directory to save plots to
         classifier (str): name of classifier
@@ -357,12 +327,12 @@ def analyse(
     )
 
     # Flag top targets
-    df_training = get_top_targets(df_training, q_cut)
+    df_training = mark_top_targets(df_training, q_cut)
 
     # Get ranks
     df_training = get_ranks(df_training)
 
-    for e1 in all_engines_truncated:
+    for e1 in all_engines_version:
         df_new_top_targets, df_old_top_targets = get_shifted_psms(
             df_training, e1, classifier, n_return=None
         )
@@ -374,27 +344,3 @@ def analyse(
         )
 
     return df_training
-
-
-# def get_deltas(df_training, all_engines_truncated, plot_dir, plot_prefix, classifier):
-#     """
-#     Find differences between PSM top target designation before and after use of
-#     ML method (i.e. no longer match/new match).
-#     Args:
-#         df_training: input dataframe
-#         all_engines_truncated (List): List containing truncated engine names
-#         plot_prefix (str): output file prefix
-#         plot_dir (str): directory to save plots to
-#         classifier (str): name of classifier
-#     """
-#     # Get shifted PSMs
-#     for e1 in all_engines_truncated:
-#         df_new_top_targets, df_old_top_targets = get_shifted_psms(
-#             df_training, e1, classifier, n_return=None
-#         )
-#         df_new_top_targets.to_csv(
-#             plot_dir + f"{plot_prefix}_{classifier}_{e1}_new_top_targets.csv"
-#         )
-#         df_old_top_targets.to_csv(
-#             plot_dir + f"{plot_prefix}_{classifier}_{e1}_old_top_target.csv"
-#         )

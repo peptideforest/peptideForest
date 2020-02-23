@@ -1,6 +1,6 @@
 import pandas as pd
 
-import peptideForest
+import peptide_forest
 
 
 def test_get_train_test_sets():
@@ -16,14 +16,16 @@ def test_get_train_test_sets():
     df["Comments"] = comments
 
     # With cross validation
-    train_set = peptideForest.models.get_train_test_sets(df, use_cross_validation=True)
+    train_set = peptide_forest.models.get_train_test_sets(df, use_cross_validation=True)
     assert len(train_set) == 3
     assert set(comments) == set(list(pd.concat(train_set)["Comments"]))
 
     # Without cross validation
-    train_set = peptideForest.models.get_train_test_sets(df, use_cross_validation=False)
+    train_set = peptide_forest.models.get_train_test_sets(
+        df, use_cross_validation=False
+    )
     assert len(train_set) == 2
-    assert len(train_set[0]) == len(train_set[1]) == 6+3
+    assert len(train_set[0]) == len(train_set[1]) == 6 + 3
     targets = ["a", "b", "c", "d", "e", "g"]
     train_set = pd.concat(train_set)
     assert sorted(list(train_set["Comments"])) == sorted(comments + targets)

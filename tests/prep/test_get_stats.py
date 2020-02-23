@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 pd.set_option("max_columns", 100)
-import peptideForest
+import peptide_forest
 
 path_dict_small_omssa = {
     "tests/_data/omssa_2_1_9.csv": {"engine": "omssa", "score_col": "OMSSA:pvalue"}
@@ -16,7 +16,7 @@ def test_get_stats_simple():
             "Score": [1, 2, 3, 10, 11, 12, 100, 100],
         }
     )
-    stats = peptideForest.prep.get_stats(df)
+    stats = peptide_forest.prep.get_stats(df)
     assert stats["A"]["min_score"] == 1
     assert stats["A"]["max_score"] == 3
     assert stats["B"]["min_score"] == 10
@@ -26,6 +26,6 @@ def test_get_stats_simple():
 
 
 def test_get_stats_reset_omssa_crazyness():
-    df = peptideForest.setup_dataset.combine_ursgal_csv_files(path_dict_small_omssa)
-    stats = peptideForest.prep.get_stats(df)
+    df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict_small_omssa)
+    stats = peptide_forest.prep.get_stats(df)
     assert stats["omssa"]["min_score"] == 1e-30

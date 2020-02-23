@@ -1,6 +1,6 @@
 import pandas as pd
 
-import peptideForest
+import peptide_forest
 
 df = pd.DataFrame(
     {
@@ -14,15 +14,15 @@ df["Is decoy"] = df["Is decoy"].astype(bool)
 
 
 def test_find_psms_to_keep():
-    df_test = peptideForest.models.find_psms_to_keep(
+    df_test = peptide_forest.models.find_psms_to_keep(
         df, score_col="Score_processed_test_eng"
     )
     assert list(df_test["keep in"]) == [1, 1, 1, 0, 0, 0, 0, 0, 0, 1]
 
 
 def test_get_q_vals():
-    # [TRISTAN] FDR calculation formula? 
-    df_test_fdr_true = peptideForest.models.get_q_vals(
+    # [TRISTAN] FDR calculation formula?
+    df_test_fdr_true = peptide_forest.models.get_q_vals(
         df,
         score_col="Score_processed_test_eng",
         frac_tp=0.9,
@@ -30,7 +30,7 @@ def test_get_q_vals():
         initial_engine=None,
         get_fdr=True,
     )
-    df_test_fdr_false = peptideForest.models.get_q_vals(
+    df_test_fdr_false = peptide_forest.models.get_q_vals(
         df,
         score_col="Score_processed_test_eng",
         frac_tp=0.9,

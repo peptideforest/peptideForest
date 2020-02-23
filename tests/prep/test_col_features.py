@@ -1,6 +1,6 @@
 import pandas as pd
 
-import peptideForest
+import peptide_forest
 
 
 def test_calc_delta_score_i():
@@ -14,11 +14,11 @@ def test_calc_delta_score_i():
         }
     )
     try:
-        peptideForest.prep.calc_delta_score_i(df, 2, 0.7)
+        peptide_forest.prep.calc_delta_score_i(df, 2, 0.7)
         assert False
     except:
-        peptideForest.prep.calc_delta_score_i(df, 2, 0.1)
-        peptideForest.prep.calc_delta_score_i(df, 3, 0.1)
+        peptide_forest.prep.calc_delta_score_i(df, 2, 0.1)
+        peptide_forest.prep.calc_delta_score_i(df, 3, 0.1)
     assert all(df.delta_score_2 == [-4, 0, 1, 0, -4, 1, 1, -4, 0])
     assert all(df.delta_score_2_to_decoy.astype(int) == [0, 0, 0, 1, 1, 1, 0, 0, 0])
     assert all(df.delta_score_3 == [0, 4, 5, 4, 0, 5, 5, 0, 4])

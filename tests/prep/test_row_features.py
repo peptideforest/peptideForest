@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import os
 
-import peptideForest
+import peptide_forest
 
 path_dict_medium = {
     "tests/_data/mascot_dat2csv_1_0_0.csv": {
@@ -16,8 +16,8 @@ path_dict_medium = {
 
 def test_row_features():
     max_charge = 7
-    df = peptideForest.setup_dataset.combine_ursgal_csv_files(path_dict_medium)
-    df = peptideForest.prep.row_features(df, "C", proton=1, max_charge=max_charge)
+    df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict_medium)
+    df = peptide_forest.prep.row_features(df, "C", proton=1, max_charge=max_charge)
 
     assert df["Mass"].unique() == 3000
     assert df["Accuracy (ppm)"].equals(df["delta m/z"])

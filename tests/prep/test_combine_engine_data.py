@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-import peptideForest
+import peptide_forest
 
 global df
 df = pd.DataFrame(
@@ -31,7 +31,7 @@ def test_combine_engine_data():
     # [TRISTAN] missing values for to_decoy?
     # Check successful merging
     start_cols = set(df.columns)
-    df_test = peptideForest.prep.combine_engine_data(df, feature_cols=[])
+    df_test = peptide_forest.prep.combine_engine_data(df, feature_cols=[])
     new_cols1 = set(df_test.columns) - start_cols
 
     # Check if correct columns are created and all-NaN columns are dropped

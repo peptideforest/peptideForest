@@ -1,4 +1,4 @@
-from peptideForest import classifier, setup_dataset
+from peptide_forest import classifier, setup_dataset
 
 import warnings
 import types
@@ -177,7 +177,7 @@ def calc_num_psms(
     df, score_col, q_cut, frac_tp,
 ):
     """
-    Calculate the number of PSMs with q-value < 1%, using the following criteria:
+    Calculate the number of PSMs with q-value < q_cut, using the following criteria:
         - only the highest ranked PSMs for each spectra are considered
         - redundant (i.e. duplicate) peptide sequences are discarded
         - only target PSMs are counted

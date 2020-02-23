@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import os
 
-import peptideForest
+import peptide_forest
 
 path_dict_small = {
     "tests/_data/mascot_dat2csv_1_0_0.csv": {
@@ -22,11 +22,11 @@ path_dict_medium = {
 
 
 def test_transform_score():
-    df = peptideForest.setup_dataset.combine_ursgal_csv_files(path_dict_medium)
-    stats = peptideForest.prep.get_stats(df)
+    df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict_medium)
+    stats = peptide_forest.prep.get_stats(df)
 
     df["Score_processed"] = df.apply(
-        lambda row: peptideForest.prep.transform_score(
+        lambda row: peptide_forest.prep.transform_score(
             row["Score"], stats[row["engine"]]
         ),
         axis=1,
