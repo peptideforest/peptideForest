@@ -115,10 +115,12 @@ def calc_delta_score_i(
     # Name of the new column
     col = f"delta_score_{i}"
     decoy_state = col + "_to_decoy"
+    delta_type = col + "_delta_type"
 
     # Initialize to nan (for PSMs from different engines)
     df[col] = np.nan
     df[decoy_state] = np.nan
+    df[delta_type] = np.nan
 
     for engine in df["engine"].unique():
 
@@ -152,6 +154,20 @@ def calc_delta_score_i(
                 df_engine["Spectrum ID"].isin(psm_counts[psm_counts < i].index), :
             ].index
             df.loc[inds, col] = mean_val
+
+    # New columns indicating delta_type where:
+    # 1 = target -> target; 2 = target -> decoy, 3 = decoy -> target, 4 = decoy -> decoy
+
+    df[decoy_state] = df[decoy_state].astype(bool)
+    if not all(df["delta_score_2"].isna()):
+
+        df.loc[~df["Is decoy"] & ~df[decoy_state], delta_type] = 1
+        df.loc[~df["Is decoy"] & df[decoy_state], delta_type] = 2
+        df.loc[df["Is decoy"] & ~df[decoy_state], delta_type] = 3
+        df.loc[df["Is decoy"] & df[decoy_state], delta_type] = 4
+
+    df = df.drop(columns=decoy_state)
+
     return df
 
 
@@ -242,8 +258,8 @@ def combine_engine_data(
             "Score_processed",
             "delta_score_2",
             "delta_score_3",
-            "delta_score_2_to_decoy",
-            "delta_score_3_to_decoy",
+            "delta_score_2_delta_type",
+            "delta_score_3_delta_type",
             "Mass",
             "delta m/z",
             "abs delta m/z",
