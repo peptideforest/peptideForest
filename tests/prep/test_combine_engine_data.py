@@ -52,6 +52,5 @@ def test_combine_engine_data():
     assert new_cols == ref_new_cols
 
     # Check successful averaging
-    avg_cols = ["Mass", "delta m/z", "abs delta m/z", "ln abs delta m/z"]
-    assert all(df_test.round(2).loc[0, avg_cols] == [1.15, 2.15, 3.15, 4.15])
-    assert all(df_test.round(2).loc[1, avg_cols] == [1.3, 2.3, 3.3, 4.3])
+    assert df_test.round(2).loc[0, "Mass"] == 1.15
+    assert df_test.round(2).loc[1, "Mass"] == 1.3

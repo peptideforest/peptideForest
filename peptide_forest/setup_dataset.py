@@ -2,6 +2,7 @@ import peptide_forest
 from peptide_forest import runtime, prep
 
 import pandas as pd
+import json
 import logging
 
 
@@ -46,7 +47,6 @@ def combine_ursgal_csv_files(
     input_df = pd.concat(dfs, sort=True).reset_index(drop=True)
 
     # CF: cast columns based on .... kb?
-    #
     input_df["Sequence Post AA"].fillna("-", inplace=True)
     input_df["Sequence Pre AA"].fillna("-", inplace=True)
     input_df["Sequence Start"] = input_df["Sequence Start"].apply(str)
@@ -74,10 +74,19 @@ def extract_features(df, cleavage_site, min_data):
     # Save columns
     old_cols = df.columns
 
-    # Get features and a list of feature names
-    df = prep.calc_features(df, cleavage_site, old_cols, min_data)
+    # Optional: Load specified features for training
+    with open("config/features.json", "r") as f:
+        preset_features = json.load(f)
+    if preset_features:
+        feature_cols = preset_features
+    else:
+        feature_cols = None
 
-    feature_cols = list(set(df.columns) - set(old_cols))
+    # Get features and a list of feature names
+    df = prep.calc_features(
+        df, cleavage_site, old_cols, min_data, feature_cols=feature_cols
+    )
+
     q_value_cols = [f for f in df.columns if "q-value" in f]
     feature_cols = [f for f in feature_cols if f not in q_value_cols]
 

@@ -7,8 +7,3 @@ parameteres = {
         "Calc m/z",
     ]
 }
-# [TRISTAN] if there ever are features already in place?? maybe remove
-preset_features = ["mScore"]
-
-# [TRISTAN] TODO: Add DELIM_REGEX to parameters
-# [TRISTAN] TODO: Sanity check for isomers

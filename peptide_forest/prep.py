@@ -2,7 +2,6 @@ import re
 import warnings
 import numpy as np
 import pandas as pd
-from peptide_forest import knowledge_base
 
 # Regex
 ENGINES = {
@@ -156,15 +155,20 @@ def calc_delta_score_i(
             df.loc[inds, col] = mean_val
 
     # New columns indicating delta_type where:
-    # 1 = target -> target; 2 = target -> decoy, 3 = decoy -> target, 4 = decoy -> decoy
+    # 0 = target -> decoy or decoy -> target
+    # 1 = target -> target or decoy -> decoy
 
     df[decoy_state] = df[decoy_state].astype(bool)
     if not all(df["delta_score_2"].isna()):
 
-        df.loc[~df["Is decoy"] & ~df[decoy_state], delta_type] = 1
-        df.loc[~df["Is decoy"] & df[decoy_state], delta_type] = 2
-        df.loc[df["Is decoy"] & ~df[decoy_state], delta_type] = 3
-        df.loc[df["Is decoy"] & df[decoy_state], delta_type] = 4
+        df.loc[
+            (~df["Is decoy"] & df[decoy_state]) | (df["Is decoy"] & ~df[decoy_state]),
+            delta_type,
+        ] = 0
+        df.loc[
+            (~df["Is decoy"] & ~df[decoy_state]) | (df["Is decoy"] & df[decoy_state]),
+            delta_type,
+        ] = 1
 
     df = df.drop(columns=decoy_state)
 
@@ -175,14 +179,13 @@ def preprocess_df(df):
     """
     Preprocess ursgal dataframe:
     Remove decoy PSMs overlapping with targets and fill missing modifications (None).
-    Sequences containing 'X' are removed. Input Dataframe should map amino acid isomers to single value (I).
+    Sequences containing 'X' are removed. Missing mScores (= 0) are replaced with minimum value for mScore.
     Operations are performed inplace on dataframe!
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
     Returns:
         df (pd.DataFrame): preprocessed dataframe
     """
-    # df['Sequence'] = df['Sequence'].str.replace('L', 'I')
     # Fill missing modifications
     df["Modifications"].fillna("None", inplace=True)
 
@@ -198,6 +201,11 @@ def preprocess_df(df):
     df.drop(
         labels=df[df.Sequence.str.contains("X") == True].index, axis=0, inplace=True
     )
+
+    # Missing mScores are replaced by minimum value for mScore in data
+    if "mScore" in df.columns:
+        min_mscore = df[df["mScore"] != 0]["mScore"].min()
+        df.loc[df["mScore"] == 0, "mScore"] = min_mscore
 
     return df
 
@@ -261,9 +269,6 @@ def combine_engine_data(
             "delta_score_2_delta_type",
             "delta_score_3_delta_type",
             "Mass",
-            "delta m/z",
-            "abs delta m/z",
-            "ln abs delta m/z",
         ]
     )
 
@@ -305,11 +310,10 @@ def combine_engine_data(
     df_combine = df_combine.drop_duplicates()
 
     # Average mass based columns and drop the engine specific ones
-    for col in ["Mass", "delta m/z", "abs delta m/z", "ln abs delta m/z"]:
-        eng_names = [engine for engine in df["engine"].unique()]
-        cols = [f"{col}_{eng_name}" for eng_name in eng_names]
-        df_combine[col] = df_combine[cols].mean(axis=1)
-        df_combine = df_combine.drop(cols, axis=1)
+    eng_names = [engine for engine in df["engine"].unique()]
+    cols = [f"Mass_{eng_name}" for eng_name in eng_names]
+    df_combine["Mass"] = df_combine[cols].mean(axis=1)
+    df_combine = df_combine.drop(cols, axis=1)
 
     return df_combine
 
@@ -333,12 +337,6 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
     )
 
     df["Mass"] = (df["uCalc m/z"] - proton) * df["Charge"]
-    df["delta m/z"] = df["Accuracy (ppm)"]
-    df["abs delta m/z"] = df["delta m/z"].apply(np.absolute)
-
-    df["ln(abs delta m/z + 1)"] = np.log(df["abs delta m/z"] + 1)
-    df["ln abs delta m/z"] = df["ln(abs delta m/z + 1)"]
-    # ^---- For compatibility sake
 
     # Only works with trypsin for now
     if cleavage_site == "C":
@@ -368,7 +366,6 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
         df[f"Charge{i}"] = (df["Charge"] == i).astype(int)
         df[f"Charge{i}"] = df[f"Charge{i}"].astype("category")
     df[f">Charge{max_charge}"] = (df["Charge"] >= max_charge).astype(int)
-    print(df.describe())
     return df
 
 
@@ -396,7 +393,7 @@ def col_features(df, min_data=0.7):
     return df
 
 
-def calc_features(df, cleavage_site, old_cols, min_data):
+def calc_features(df, cleavage_site, old_cols, min_data, feature_cols):
     """
     Main function to calculate features from unified ursgal dataframe.
     Args:
@@ -404,17 +401,23 @@ def calc_features(df, cleavage_site, old_cols, min_data):
         cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
         old_cols (List): columns initially in the dataframe
         min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
+        feature_cols (List): column names of newly calculated features
+
 
     Returns:
         df (pd.DataFrame): input dataframe with added features for each PSM
     """
     df = preprocess_df(df)
-    df = row_features(df, cleavage_site="C")
+    df = row_features(df, cleavage_site=cleavage_site)
     df = col_features(df, min_data=min_data)
+    if not feature_cols:
+        feature_cols = list(set(df.columns) - set(old_cols))
+    else:
+        engines = df["engine"].unique().tolist()
+        for e in engines:
+            feature_cols = [feature.split("_" + e)[0] for feature in feature_cols]
+        feature_cols = list(dict.fromkeys(feature_cols))
 
-    feature_cols = list(
-        set(df.columns) - (set(old_cols) - set(knowledge_base.preset_features))
-    )
     df = combine_engine_data(df, feature_cols)
 
     return df

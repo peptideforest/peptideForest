@@ -20,8 +20,6 @@ def test_row_features():
     df = peptide_forest.prep.row_features(df, "C", proton=1, max_charge=max_charge)
 
     assert df["Mass"].unique() == 3000
-    assert df["Accuracy (ppm)"].equals(df["delta m/z"])
-    assert df["ln(abs delta m/z + 1)"].min() == 0
     assert df[df["Comments"] == "CountProt equals 2"]["CountProt"].unique() == 2
 
     for charge in range(1, max_charge - 1):

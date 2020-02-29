@@ -1,58 +1,55 @@
-import pandas as pd
+import sys
 import glob
 import os
+import csv
+from collections import defaultdict as ddict
 
 
-def get_mScore(x, qd):
-    mscore = max(
-        qd[
-            (qd["search param"].str.contains(x["search param"], regex=False))
-            & (abs(qd["scan_id"] - x["Spectrum ID"]) <= 20)
-        ]["mScore"],
-        default=0,
-    )
-    return mscore
+def main(quant_folder, ucsv_folder):
+    """
+    Add mScore values from quantvalue .csvs
 
+    Usage
 
-def add_mScores():
-    path = "data/_notebooks/"
+    python add_mScore.py <folder to quant csvs> <folder to unified_csvs>
+    """
+    qlookup = ddict(dict)
+    files = glob.glob(os.path.join(quant_folder, "quant*.csv"))
+    for f in sorted(files):
+        print(f"Packing {f} into lookup structure", end="\r")
+        with open(f) as qcsv:
+            cdReader = csv.DictReader(qcsv)
+            for d in cdReader:
+                m_key = "{molecule}|{charge}".format(**d)
+                qlookup[m_key][int(d["scan_id"])] = float(d["mScore"])
 
-    files = glob.glob(os.path.join(path, "*.csv"))
-
-    quant_data = pd.concat((pd.read_csv(f) for f in files), ignore_index=True)
-    quant_data_split = quant_data["molecule"].str.split("#", expand=True)
-    quant_data["sequence"] = quant_data_split[0]
-    quant_data["modifications"] = quant_data_split[1]
-    quant_data = quant_data.filter(["mScore", "sequence", "scan_id", "modifications"])
-
-    quant_data["modifications"] = quant_data["modifications"].str.split(";")
-    quant_data["modifications"] = quant_data["modifications"].apply(
-        lambda x: sorted(x) if isinstance(x, list) else []
-    )
-    quant_data["modifications"] = quant_data["modifications"].str.join(";")
-    quant_data["search param"] = (
-        ">" + quant_data["sequence"] + "%" + quant_data["modifications"] + "<"
-    )
-
-    path_input = "data/"
-    files_input = glob.glob(os.path.join(path_input, "*.csv"))
-
-    for f in files_input:
-        df = pd.read_csv(f)
-        df["Modifications"] = df["Modifications"].str.split(";")
-        df["Modifications"] = df["Modifications"].apply(
-            lambda x: sorted(x) if isinstance(x, list) else []
-        )
-        df["Modifications"] = df["Modifications"].str.join(";")
-        df["search param"] = ">" + df["Sequence"] + "%" + df["Modifications"] + "<"
-        df["mScore"] = df.apply(lambda x: get_mScore(x, quant_data), axis=1)
-
-        output_file = (
-            f.split("/")[0] + "/_mScore/" + f.split("/")[1] + "_plus_mScores.csv"
-        )
-        df.to_csv(output_file, index=False)
-        print(f"Finished {f}.")
+    ident_files = glob.glob(os.path.join(ucsv_folder, "*.csv"))
+    for ifile in ident_files:
+        with open(f'{ifile.split(".csv")[0]}_mscore.csv', "w") as ocvs:
+            with open(ifile) as icvs:
+                cdReader = csv.DictReader(icvs)
+                cdWriter = csv.DictWriter(
+                    ocvs, fieldnames=cdReader.fieldnames + ["mScore"]
+                )
+                cdWriter.writeheader()
+                for n, d in enumerate(cdReader):
+                    print(f"{n}", end="\r")
+                    if d["Modifications"] == "":
+                        m_key = "{Sequence}|{Charge}".format(**d)
+                    else:
+                        m_key = "{Sequence}#{Modifications}|{Charge}".format(**d)
+                    d["mScore"] = 0
+                    ident_spec_id = int(d["Spectrum ID"])
+                    for _ in range(-20, 21):
+                        scan = ident_spec_id + _
+                        mscore = qlookup[m_key].get(scan, 0)
+                        if mscore > d["mScore"]:
+                            d["mScore"] = mscore
+                    cdWriter.writerow(d)
 
 
 if __name__ == "__main__":
-    add_mScores()
+    if len(sys.argv) != 3:
+        print(main.__doc__)
+    else:
+        main(sys.argv[1], sys.argv[2])
