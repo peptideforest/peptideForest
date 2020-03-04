@@ -3,7 +3,6 @@ from peptide_forest import runtime, prep
 
 import pandas as pd
 import json
-import logging
 
 
 def combine_ursgal_csv_files(
@@ -32,8 +31,7 @@ def combine_ursgal_csv_files(
         df["engine"] = path_dict[file]["engine"]
         df["Score"] = df[path_dict[file]["score_col"]]
         file_output = file.split("/")[-1]
-        msg = f"Slurping in df for {file_output} in {slurp_time['slurp']}"
-        logging.debug(msg)
+        print(f"Slurping in df for {file_output} in {slurp_time['slurp']}")
 
         df.drop(
             columns=peptide_forest.knowledge_base.parameteres[

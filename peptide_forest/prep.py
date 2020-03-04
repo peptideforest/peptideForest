@@ -302,6 +302,7 @@ def combine_engine_data(
     df_combine = df_combine.dropna(axis=1, how="all")
 
     # Drop columns that contain all the same result
+    breakpoint()
     df_combine = df_combine.drop(
         [c for c in df_combine.columns if len(df_combine[c].unique()) == 1], axis=1
     )
