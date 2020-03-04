@@ -74,7 +74,7 @@ for ratio in quotients:
     ma_df[m_col_name] = np.log2(ma_df[ratio[0]]/ma_df[ratio[1]])
     ma_df.loc[~np.isfinite(ma_df[m_col_name]), m_col_name] = 0
     ma_df[a_col_name] = 0.5 * np.log2(ma_df[ratio[0]]*ma_df[ratio[1]])
-    ma_df.loc[~np.isfinite(ma_df[a_col_name]), m_col_name] = 0
+    ma_df.loc[~np.isfinite(ma_df[a_col_name]), a_col_name] = 0
 
     for col in top_target_cols:
         sub_df = ma_df[ma_df[col]]
