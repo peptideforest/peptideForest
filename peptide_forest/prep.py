@@ -132,8 +132,8 @@ def calc_delta_score_i(
         # Test if there enough spectra with more than i target and i decoy PSMs
         if len(psm_counts[psm_counts >= i]) / len(psm_counts) > min_data:
             inds = df_engine.loc[
-                df_engine["Spectrum ID"].isin(psm_counts[psm_counts >= i].index), :
-            ].index
+                   df_engine["Spectrum ID"].isin(psm_counts[psm_counts >= i].index), :
+                   ].index
             ith_best = df_engine.loc[inds, :].groupby("Spectrum ID")
             ith_best_indices = ith_best["Score_processed"].transform(
                 lambda x: x.nlargest(i).idxmin()
@@ -147,30 +147,28 @@ def calc_delta_score_i(
             df.loc[inds, col] = df.loc[inds, "Score_processed"] - ith_best_value
             df.loc[inds, decoy_state] = ith_best_is_decoy
 
-            mean_val = df.loc[inds, col].mean()
             # Replace missing with mean
+            mean_val = df.loc[inds, col].mean()
             inds = df_engine.loc[
-                df_engine["Spectrum ID"].isin(psm_counts[psm_counts < i].index), :
-            ].index
+                   df_engine["Spectrum ID"].isin(psm_counts[psm_counts < i].index), :
+                   ].index
             df.loc[inds, col] = mean_val
 
-    # New columns indicating delta_type where:
-    # 0 = target -> decoy or decoy -> target
-    # 1 = target -> target or decoy -> decoy
+            # New columns indicating delta_type where:
+            # 0 = target -> decoy or decoy -> target
+            # 1 = target -> target or decoy -> decoy
 
-    df[decoy_state] = df[decoy_state].astype(bool)
-    if not all(df["delta_score_2"].isna()):
+            df[decoy_state] = df[decoy_state].convert_dtypes()
+            if not all(df["delta_score_2"].isna()) or not all(df["delta_score_3"].isna()):
+                different_inds =(~df["Is decoy"] & df[decoy_state]) | (df["Is decoy"] & ~df[decoy_state])
+                different_inds.fillna(False, inplace=True)
+                df.loc[different_inds, delta_type] = 0
 
-        df.loc[
-            (~df["Is decoy"] & df[decoy_state]) | (df["Is decoy"] & ~df[decoy_state]),
-            delta_type,
-        ] = 0
-        df.loc[
-            (~df["Is decoy"] & ~df[decoy_state]) | (df["Is decoy"] & df[decoy_state]),
-            delta_type,
-        ] = 1
+                same_inds = (~df["Is decoy"] & ~df[decoy_state]) | (df["Is decoy"] & df[decoy_state])
+                same_inds.fillna(False, inplace=True)
+                df.loc[same_inds, delta_type] = 1
 
-    df = df.drop(columns=decoy_state)
+            df = df.drop(columns=decoy_state)
 
     return df
 
@@ -302,7 +300,6 @@ def combine_engine_data(
     df_combine = df_combine.dropna(axis=1, how="all")
 
     # Drop columns that contain all the same result
-    breakpoint()
     df_combine = df_combine.drop(
         [c for c in df_combine.columns if len(df_combine[c].unique()) == 1], axis=1
     )
@@ -315,6 +312,20 @@ def combine_engine_data(
     cols = [f"Mass_{eng_name}" for eng_name in eng_names]
     df_combine["Mass"] = df_combine[cols].mean(axis=1)
     df_combine = df_combine.drop(cols, axis=1)
+
+    # Fill delta_scores for not-assigned PSMs with ith best score for that spectrum by engine
+    cols = [c for c in df_combine.columns if "delta_score" in c and "delta_type" not in c]
+    for col in cols:
+        breakpoint()
+        eng = col[14:]
+        ith = int(col[12])
+        inds = df_combine[df_combine[col].isna()].index
+        spec_groups = df_combine.groupby("Spectrum ID")
+        ith_score_per_spec = spec_groups[f"Score_processed_{eng}"].transform(lambda x: x.nlargest(ith).min())
+        df_combine.loc[inds, col] = ith_score_per_spec
+        # If no ith best score could be assigned,
+        breakpoint()
+        df_combine.dropna(subset=[col], inplace=True)
 
     return df_combine
 

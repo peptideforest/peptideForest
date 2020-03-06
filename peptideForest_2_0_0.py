@@ -4,6 +4,8 @@ import multiprocessing
 import os
 import pprint
 import click
+import pandas as pd
+from treeinterpreter import treeinterpreter as ti
 
 import peptide_forest
 
@@ -147,6 +149,16 @@ def main(
         frac_tp=frac_tp,
         sample_frac=sample_frac,
     )
+    features = ['Score_processed_mascot_1_0_0', 'mScore', 'PepLen', 'delta_score_3_msfragger_20190222', 'enzN', 'lnNumPep', 'Charge1', '>Charge6', 'delta_score_2_delta_type_omssa_2_1_9', 'Score_processed_msgfplus_v2018_06_28', 'delta_score_3_delta_type_msfragger_20190222', 'delta_score_2_delta_type_mascot_1_0_0', 'Charge4', 'delta_score_2_delta_type_msfragger_20190222', 'Charge5', 'Spectrum ID', 'delta_score_3_delta_type_msgfplus_v2018_06_28', 'Charge2', 'Modifications', 'delta_score_3_delta_type_omssa_2_1_9', 'delta_score_2_delta_type_xtandem_vengeance', 'Score_processed_xtandem_vengeance', 'enzC', 'delta_score_2_msfragger_20190222', 'Sequence', 'Score_processed_omssa_2_1_9', 'Protein ID', 'delta_score_2_msgfplus_v2018_06_28', 'CountProt', 'Score_processed_msfragger_20190222', 'delta_score_2_delta_type_msgfplus_v2018_06_28', 'Charge3', 'delta_score_3_delta_type_xtandem_vengeance', 'enzInt', 'Is decoy', 'delta_score_3_delta_type_mascot_1_0_0', 'Mass', 'delta_score_3_msgfplus_v2018_06_28']
+    breakpoint()
+    prediction, bias, contributions = ti.predict(clfs[0][0][0], df_training[features])
+    indiv_importance = pd.DataFrame(columns=features)
+    for i in range(len(df_training)):
+        indiv_importance.loc[i, "Index"] = i
+        indiv_importance.loc[i, "Bias"] = bias[i]
+        for c, feature in sorted(zip(contributions[i], features), key=lambda x: -abs(x[0])):
+            indiv_importance.loc[i, feature] = round(c, 2)
+        breakpoint()
 
     print("Fitted model in {fit_model}".format(**timer))
     print("\nFeature importance:")

@@ -23,23 +23,24 @@ quant_df = pd.read_csv(
     sep="\t",
     lineterminator="\n",
 )
-input_df = pd.read_csv("output.csv", index_col=0)
+
+final_df = pd.read_csv("output-final.csv")
 
 quant_df["MSMS_ID"] = quant_df["MSMS_ID"].str.lstrip("F0")
-unique_spec_ids = input_df["Spectrum ID"].drop_duplicates()
+unique_spec_ids = final_df["Spectrum ID"].drop_duplicates()
 ma_df = pd.DataFrame(index=unique_spec_ids)
 
 q_val_cuts = sorted(
     [float(f"{i}e-{j}") for i in np.arange(1, 10) for j in np.arange(4, 1, -1)]
 ) + [1e-1]
 
-final_df = pd.read_csv("output-final.csv")
 
 final_df = peptide_forest.results.calc_all_final_q_vals(
     df=final_df, frac_tp=0.9, top_psm_only=False, initial_engine=None
 )
+
 for cut in q_val_cuts:
-    all_eng = list(input_df["engine"].unique()) + ["RF-reg"]
+    all_eng = [c.split("Score_processed_")[1] for c in final_df.columns if "Score_processed" in c]
     for eng in all_eng:
         eng_per_q_col = f"top_target_{eng}_at_{cut}"
         target_col = f"top_target_{eng}"
@@ -63,6 +64,10 @@ for label, tmt in tmt_translation.items():
     values = values[values["MSMS_ID"].isin(ma_df.index)]
     ma_df.loc[values["MSMS_ID"], tmt] = values["QUANTVALUE"].to_list()
 
+# Remove all SpecIDs where quant value is 0 in a mixed column
+mixed_cols = ["127L", "128L", "129L", "130L", "131L"]
+ma_df = ma_df[~ma_df[mixed_cols].any(axis=1) == 0]
+
 # Remove all nan rows
 ma_df = ma_df[~ma_df[list(tmt_translation.values())].isna().all(axis=1)]
 
@@ -72,8 +77,8 @@ for ratio in quotients:
     m_col_name = f"M_{ratio[0]}_{ratio[1]}"
     a_col_name = f"A_{ratio[0]}_{ratio[1]}"
     ma_df[m_col_name] = np.log2(ma_df[ratio[0]]/ma_df[ratio[1]])
-    ma_df.loc[~np.isfinite(ma_df[m_col_name]), m_col_name] = 0
     ma_df[a_col_name] = 0.5 * np.log2(ma_df[ratio[0]]*ma_df[ratio[1]])
+    ma_df.loc[~np.isfinite(ma_df[m_col_name]), m_col_name] = 0
     ma_df.loc[~np.isfinite(ma_df[a_col_name]), a_col_name] = 0
 
     for col in top_target_cols:
