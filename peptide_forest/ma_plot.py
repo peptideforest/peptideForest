@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import itertools
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 import peptide_forest
 
@@ -24,7 +25,7 @@ quant_df = pd.read_csv(
     lineterminator="\n",
 )
 
-final_df = pd.read_csv("output-final.csv")
+final_df = pd.read_csv("output.csv")
 
 quant_df["MSMS_ID"] = quant_df["MSMS_ID"].str.lstrip("F0")
 unique_spec_ids = final_df["Spectrum ID"].drop_duplicates()
@@ -51,6 +52,14 @@ for cut in q_val_cuts:
         ma_df[eng_per_q_col] = False
         ma_df.loc[marked_targets, eng_per_q_col] = True
 
+# Add species column
+inds = ma_df.index.to_list()
+spec_species = final_df.loc[final_df["Spectrum ID"].drop_duplicates().isin(inds).index, ["Protein ID", "Spectrum ID"]]
+ma_df.loc[spec_species["Spectrum ID"].to_list(), "species"] = spec_species["Protein ID"].to_list()
+ma_df.loc[ma_df["species"].str.contains("OS=Escherichia coli") & ~ma_df["species"].str.contains("OS=Homo sapiens"), "species"] = "E_coli"
+ma_df.loc[~ma_df["species"].str.contains("OS=Escherichia coli") & ma_df["species"].str.contains("OS=Homo sapiens"), "species"] = "H_sapiens"
+ma_df.loc[~ma_df["species"].str.contains("E_coli|H_sapiens")] = "Other"
+
 # Drop rows that never appear as top target
 top_target_cols = [c for c in ma_df.columns if "top_target" in c]
 ma_df[top_target_cols] = ma_df[top_target_cols].astype(bool)
@@ -71,19 +80,19 @@ ma_df = ma_df[~ma_df[mixed_cols].any(axis=1) == 0]
 # Remove all nan rows
 ma_df = ma_df[~ma_df[list(tmt_translation.values())].isna().all(axis=1)]
 
-quotients = list(itertools.combinations(list(tmt_translation.values()), 2))
-
+#quotients = list(itertools.combinations(list(tmt_translation.values()), 2))
+quotients = [("126", "127H")]
 for ratio in quotients:
     m_col_name = f"M_{ratio[0]}_{ratio[1]}"
     a_col_name = f"A_{ratio[0]}_{ratio[1]}"
     ma_df[m_col_name] = np.log2(ma_df[ratio[0]]/ma_df[ratio[1]])
-    ma_df[a_col_name] = 0.5 * np.log2(ma_df[ratio[0]]*ma_df[ratio[1]])
+    ma_df[a_col_name] = np.log10((ma_df[ratio[0]]*ma_df[ratio[1]])/2)
     ma_df.loc[~np.isfinite(ma_df[m_col_name]), m_col_name] = 0
     ma_df.loc[~np.isfinite(ma_df[a_col_name]), a_col_name] = 0
 
     for col in top_target_cols:
         sub_df = ma_df[ma_df[col]]
-        plt.scatter(sub_df[a_col_name], sub_df[m_col_name])
+        ax = sns.scatterplot(x=a_col_name, y=m_col_name, data=sub_df)
         plot_name = f"MA_plot_{col}_{ratio[0]}_{ratio[1]}"
         plt.title(plot_name)
         path = f"plots/ma/{plot_name}.png"
