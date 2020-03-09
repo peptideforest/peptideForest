@@ -6,7 +6,12 @@ import pprint
 import click
 import pandas as pd
 import seaborn as sns
+import numpy as np
+import umap
 import matplotlib.pyplot as plt
+import plotly.express as px
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 from treeinterpreter import treeinterpreter as ti
 
 import peptide_forest
@@ -151,13 +156,6 @@ def main(
         frac_tp=frac_tp,
         sample_frac=sample_frac,
     )
-    prediction, bias, contributions = ti.predict(clfs[0][0][0], df_training[feature_cols])
-    del prediction, bias
-    local_importance = pd.DataFrame(data=contributions, columns=feature_cols)
-    del contributions
-    local_importance[feature_cols] = local_importance[feature_cols].apply(lambda x: -abs(x))
-    sns.heatmap(local_importance, annot=True)
-    plt.show()
 
     print("Fitted model in {fit_model}".format(**timer))
     print("\nFeature importance:")
@@ -181,6 +179,48 @@ def main(
         plot_dir=plot_dir,
         classifier=classifier,
     )
+
+    prediction, bias, contributions = ti.predict(clfs[0][0][0], df_training[feature_cols])
+    local_importance = pd.DataFrame(data=abs(contributions), columns=feature_cols)
+    local_importance = local_importance.div(local_importance.sum(axis=1), axis=0)
+    local_importance = local_importance[local_importance.columns[local_importance.median(axis=0) > 0.01]]
+    feature_cols_top = local_importance.columns.to_list()
+    local_importance.to_csv("local_importance.csv")
+
+    q_val_cols = [c for c in df_training if "q-value" in c and "RF-reg" not in c]
+    local_importance["q-engines_mean"] = df_training[q_val_cols].mean(axis=1)
+    local_importance["q-RF-reg"] = df_training["q-value_RF-reg"]
+    local_importance["diff_greater_100x"] = ~(local_importance["q-engines_mean"]/local_importance["q-RF-reg"]).between(0.01, 100)
+
+    diff_means = pd.DataFrame(local_importance[local_importance["diff_greater_100x"]][feature_cols_top].mean(axis=0).rename("feature_importance"))
+    diff_means["difference"] = ">100x"
+    same_means = pd.DataFrame(local_importance[~local_importance["diff_greater_100x"]][feature_cols_top].mean(axis=0).rename("feature_importance"))
+    same_means["difference"] = "<100x"
+    df_plot = pd.concat([same_means, diff_means], axis=0).reset_index()
+    ax = sns.barplot(x="index", y="feature_importance", hue="difference", data=df_plot)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+    ax.set_yscale("log")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    plt.show()
+
+    x_std = StandardScaler().fit_transform(local_importance)
+    pca = PCA(n_components=3)
+    pcs = pca.fit_transform(x_std)
+    print(pca.explained_variance_ratio_.cumsum())
+    df = pd.DataFrame(pcs)
+    fig = px.scatter_3d(df, x=0, y=1, z=2)
+    plt.show()
+
+    # local_importance = pd.read_csv('local_importance.csv', index_col=0)
+    # local_importance = local_importance[local_importance.columns[abs(local_importance.median(axis=0)) > 0.01]]
+    # reducer = umap.UMAP()
+    # embedding = reducer.fit_transform(local_importance.values)
+    # plt.scatter(embedding[:, 0], embedding[:, 1])  # , c=[sns.color_palette()[x] for x in iris.target])
+    # ^--- c=[ now colors can be set based on identy columns - e.g. all charge1 blue, all mascot_top_hits green, all decoys squares .. but maybe that can be explored better differently, if identity columns are available (maube join with feature output? ]
+    # all I wanna say is that >embedding = reducer.fit_transform(df.values)< takes a while, plotting based on results (with different colors for different identity columns) is fast :)
+    #plt.gca().set_aspect('equal', 'datalim')
+
+
 
     peptide_forest.plot.all(
         df_training,
