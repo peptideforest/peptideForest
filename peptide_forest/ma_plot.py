@@ -3,6 +3,7 @@ import pandas as pd
 import itertools
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import binned_statistic
 
 import peptide_forest
 
@@ -31,17 +32,18 @@ quant_df["MSMS_ID"] = quant_df["MSMS_ID"].str.lstrip("F0")
 unique_spec_ids = final_df["Spectrum ID"].drop_duplicates()
 ma_df = pd.DataFrame(index=unique_spec_ids)
 
-q_val_cuts = sorted(
-    [float(f"{i}e-{j}") for i in np.arange(1, 10) for j in np.arange(4, 1, -1)]
-) + [1e-1]
+# q_val_cuts = sorted(
+#     [float(f"{i}e-{j}") for i in np.arange(1, 10) for j in np.arange(4, 1, -1)]
+# ) + [1e-1]
+q_val_cuts = sorted([float(f"1e-{j}") for j in np.arange(4, 1, -1)]) + [1e-1]
 
 
 final_df = peptide_forest.results.calc_all_final_q_vals(
     df=final_df, frac_tp=0.9, top_psm_only=False, initial_engine=None
 )
 
+all_eng = [c.split("Score_processed_")[1] for c in final_df.columns if "Score_processed" in c]
 for cut in q_val_cuts:
-    all_eng = [c.split("Score_processed_")[1] for c in final_df.columns if "Score_processed" in c]
     for eng in all_eng:
         eng_per_q_col = f"top_target_{eng}_at_{cut}"
         target_col = f"top_target_{eng}"
@@ -81,20 +83,31 @@ ma_df = ma_df[~ma_df[mixed_cols].any(axis=1) == 0]
 ma_df = ma_df[~ma_df[list(tmt_translation.values())].isna().all(axis=1)]
 
 #quotients = list(itertools.combinations(list(tmt_translation.values()), 2))
-quotients = [("126", "127H")]
-for ratio in quotients:
-    m_col_name = f"M_{ratio[0]}_{ratio[1]}"
-    a_col_name = f"A_{ratio[0]}_{ratio[1]}"
-    ma_df[m_col_name] = np.log2(ma_df[ratio[0]]/ma_df[ratio[1]])
-    ma_df[a_col_name] = np.log10((ma_df[ratio[0]]*ma_df[ratio[1]])/2)
-    ma_df.loc[~np.isfinite(ma_df[m_col_name]), m_col_name] = 0
-    ma_df.loc[~np.isfinite(ma_df[a_col_name]), a_col_name] = 0
+quotients = ("127L", "130L")
+for species in ["H_sapiens", "E_coli"]:
+    species_df = ma_df[ma_df["species"]==species]
+    for cut in q_val_cuts:
+        fig, ax = plt.subplots()
+        cols_oi = [f"top_target_{eng}_at_{cut}" for eng in all_eng]
+        for c in cols_oi:
+            sub_df = species_df[species_df[c]]
+            df = pd.DataFrame()
+            df["x_axis"] = 1e7/(sub_df[quotients[0]] + sub_df[quotients[1]])
+            df["y_axis"] = np.log2(sub_df[quotients[0]]/sub_df[quotients[1]])
+            df.loc[~np.isfinite(df["y_axis"]), "y_axis"] = 0
+            df.loc[~np.isfinite(df["x_axis"]), "x_axis"] = 0
 
-    for col in top_target_cols:
-        sub_df = ma_df[ma_df[col]]
-        ax = sns.scatterplot(x=a_col_name, y=m_col_name, data=sub_df)
-        plot_name = f"MA_plot_{col}_{ratio[0]}_{ratio[1]}"
-        plt.title(plot_name)
-        path = f"plots/ma/{plot_name}.png"
-        plt.savefig(path, format="png")
-        plt.close()
+            s, e, _ = binned_statistic(df["x_axis"], df["y_axis"], statistic='mean', bins=np.logspace(-2, 1, 15))
+
+            bins = pd.DataFrame(data=[e[:-1] + np.diff(e) / 2, s]).transpose()
+            bins.columns = ["x_axis", "y_axis"]
+            bins = bins[bins["x_axis"] < 1.5]
+            bins.dropna(inplace=True)
+            sns.regplot(x="x_axis", y="y_axis", data=bins, logistic=True, ax=ax, ci=None, label=c.split("top_target_")[1].split("_at")[0])
+
+        ax.set_xlim(0.01, 2)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), shadow=True, ncol=2)
+        plt.xscale("log")
+        plt.title(f"{quotients}_{species}_at_{cut}")
+        plt.savefig(f"plots/ma/{quotients}_{species}_at_{cut}.png")
+        #plt.show()
