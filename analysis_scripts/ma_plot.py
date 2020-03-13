@@ -44,11 +44,7 @@ quant_df["MSMS_ID"] = quant_df["MSMS_ID"].str.lstrip("F0")
 unique_spec_ids = final_df["Spectrum ID"].drop_duplicates()
 ma_df = pd.DataFrame(index=unique_spec_ids)
 
-# q_val_cuts = sorted(
-#     [float(f"{i}e-{j}") for i in np.arange(1, 10) for j in np.arange(4, 1, -1)]
-# ) + [1e-1]
 q_val_cuts = sorted([float(f"1e-{j}") for j in np.arange(4, 1, -1)]) + [1e-1]
-
 
 final_df = peptide_forest.results.calc_all_final_q_vals(
     df=final_df, frac_tp=0.9, top_psm_only=False, initial_engine=None
@@ -148,37 +144,59 @@ for ratio in quotients:
             continue
         species_df = ma_df[ma_df["species"] == species]
         for cut in q_val_cuts:
-            plot = plt.figure(figsize=(10, 10))
+            plt.figure()
             cols_oi = [f"top_target_{eng}_at_{cut}" for eng in all_eng]
             df_plot = pd.DataFrame()
+
             for c in cols_oi:
                 if species_df[c].sum() <= 1:
                     continue
+
                 sub_df = species_df[species_df[c]]
-                df = pd.DataFrame()
-                df["x_axis"] = 1e7 / (sub_df[ratio[0]] + sub_df[ratio[1]])
-                df["y_axis"] = np.log2(sub_df[ratio[0]] / sub_df[ratio[1]])
-                df["engine"] = c.split("top_target_")[1].split("_at")[0]
-                df = df[df["x_axis"] < 2]
-                df.loc[~np.isfinite(df["y_axis"]), "y_axis"] = 0
-                df.loc[~np.isfinite(df["x_axis"]), "x_axis"] = 0
+                # Get around RuntimeWarning for log2
+                sub_df = sub_df.replace(to_replace=0, value=1e-308)
+                df_eng = pd.DataFrame()
+                df_eng["x_axis"] = 1e7 / (sub_df[ratio[0]] + sub_df[ratio[1]])
+                df_eng["y_axis"] = np.log2(sub_df[ratio[0]] / sub_df[ratio[1]])
+                df_eng["engine"] = c.split("top_target_")[1].split("_at")[0]
+                df_eng = df_eng[df_eng["x_axis"] < 2]
+
                 if len(df_plot) == 0:
-                    df_plot = df
+                    df_plot = df_eng
                 else:
-                    df_plot = pd.concat([df, df_plot])
+                    df_plot = pd.concat([df_eng, df_plot])
 
             plot = sns.lmplot(
                 x="x_axis",
                 y="y_axis",
                 hue="engine",
                 data=df_plot,
-                x_bins=np.logspace(-2, 1, 30),
-                scatter_kws={"s": 5, "alpha": 0.5},
-                x_ci="ci",
+                x_bins=np.logspace(-2, 1, 20),
+                scatter_kws={"s": 20, "alpha": 0.5},
+                line_kws={"lw": 2},
+                x_ci="sd",
                 markers="x",
-                legend_out=True
+                legend=False,
             )
-            plt.tight_layout()
+            err_lines = [
+                l
+                for l in plot.ax.lines
+                if len(l.get_xdata()) == 2 and l.get_xdata()[0] == l.get_xdata()[1]
+            ]
+            for el in err_lines:
+                el.set_linewidth(1)
+                x_caps = el.get_xdata()[0]
+                y_caps = el.get_ydata()
+                position = {
+                    "ha": "center",
+                    "va": "center",
+                    "size": 20,
+                    "color": el.get_color(),
+                }
+                cap_lower = plot.ax.annotate("-", xy=(x_caps, y_caps[0]), **position)
+                cap_upper = plot.ax.annotate("-", xy=(x_caps, y_caps[1]), **position)
+
+            legend = plt.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=3)
             plot.ax.axhline(
                 exp_y, color="black", linestyle="--", linewidth=2, alpha=0.5
             )
@@ -187,15 +205,10 @@ for ratio in quotients:
                 f"1e7 / sum {ratio[0]}+{ratio[1]}", f"log2 {ratio[0]}x{ratio[1]}"
             )
             plot.set(xscale="log")
-            plt.title(f"{ratio[0]}_{ratio[1]}_{species}_at_{cut}")
-            # plot.ax.text(
-            #     0,
-            #     exp_y,
-            #     f"Expected {species}",
-            #     fontsize=7,
-            #     va="center",
-            #     ha="right",
-            #     backgroundcolor="w",
-            # )
-            plt.savefig(f"plots/ma/{ratio}_{species}_at_{cut}.png")
-            plt.show()
+            plot.fig.suptitle(f"{ratio[0]}_{ratio[1]}_{species}_at_{cut}")
+            plt.savefig(
+                f"plots/ma/{ratio}_{species}_at_{cut}.png",
+                bbox_extra_artists=[legend],
+                bbox_inches="tight",
+                dpi=600,
+            )
