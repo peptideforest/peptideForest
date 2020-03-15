@@ -21,7 +21,6 @@ def test_find_psms_to_keep():
 
 
 def test_get_q_vals():
-    # [TRISTAN] FDR calculation formula?
     df_test_fdr_true = peptide_forest.models.get_q_vals(
         df,
         score_col="Score_processed_test_eng",
@@ -43,6 +42,7 @@ def test_get_q_vals():
         assert frame.equals(
             frame.sort_values("Score_processed_test_eng", ascending=False)
         )
+        # assert list(frame.index) == [9, 6, 3, 2]
         assert list(frame.index) == [9, 2, 1, 0]
         assert all(frame["Decoy"].astype(bool) == frame["Is decoy"])
         assert all(frame["Decoy"].astype(bool) == ~frame["Target"].astype(bool))

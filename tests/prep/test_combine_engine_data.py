@@ -21,7 +21,7 @@ df = pd.DataFrame(
         "Remainder": ["a", "b", "c", "d", "e"],
     }
 )
-df.loc[5] = ["C", 1] + 2 * [np.nan] + [100, 100, 100, 100] + 6 * [np.nan]
+df.loc[5] = ["C", 1] + 2 * [np.nan] + [100, 100, 100, 100, 3] + 5 * [np.nan]
 
 
 def test_combine_engine_data():

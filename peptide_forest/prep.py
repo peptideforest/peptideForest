@@ -139,8 +139,8 @@ def calc_delta_score_i(
             # Replace missing with mean
             mean_val = df.loc[inds, col].mean()
             inds = df_engine.loc[
-                   df_engine["Spectrum ID"].isin(psm_counts[psm_counts < i].index), :
-                   ].index
+                df_engine["Spectrum ID"].isin(psm_counts[psm_counts < i].index), :
+            ].index
             df.loc[inds, col] = mean_val
 
     return df
@@ -232,14 +232,7 @@ def combine_engine_data(
 
     # Get a list of columns that will be different for each engine.
     # Mass based columns can be slightly different between engines. The average is taken at the end.
-    cols_single = list(
-        [
-            "Score_processed",
-            "delta_score_2",
-            "delta_score_3",
-            "Mass",
-        ]
-    )
+    cols_single = list(["Score_processed", "delta_score_2", "delta_score_3", "Mass",])
 
     # Get a list of columns that should be the same for each engine
     cols_same = list(sorted([f for f in feature_cols if f not in cols_single]))
@@ -291,7 +284,9 @@ def combine_engine_data(
         ith = int(col[12])
         inds = df_combine[df_combine[col].isna()].index
         spec_groups = df_combine.groupby("Spectrum ID")
-        ith_score_per_spec = spec_groups[f"Score_processed_{eng}"].transform(lambda x: x.nlargest(ith).min())
+        ith_score_per_spec = spec_groups[f"Score_processed_{eng}"].transform(
+            lambda x: x.nlargest(ith).min()
+        )
         df_combine.loc[inds, col] = ith_score_per_spec
         # If no ith best score could be assigned replace with max for column
         df_combine.loc[df_combine[col].isna(), col] = df_combine[col].max()

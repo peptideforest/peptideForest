@@ -22,4 +22,3 @@ def test_calc_delta_score_i():
 
     df_test = peptide_forest.prep.calc_delta_score_i(df, 3, 0.1)
     assert all(df_test.delta_score_3 == [0, 4, 5, 4, 0, 5, 5, 0, 4])
-

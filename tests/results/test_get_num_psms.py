@@ -80,4 +80,4 @@ def test_get_num_psms_by_q_cut():
         "tests/_data/solution_get_num_psms_by_q_cut.csv", index_col=0
     )
     df_test = df_test.sort_index(ascending=False).reset_index(drop=True)
-    assert df_test.equals(solution_by_q_cut)
+    assert all(df_test == solution_by_q_cut)

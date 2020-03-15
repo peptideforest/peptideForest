@@ -5,16 +5,13 @@ import pandas as pd
 import json
 
 
-def combine_ursgal_csv_files(
-    path_dict, output_file=None,
-):
+def combine_ursgal_csv_files(path_dict):
     """
     Combine separate ursgal search output csv files and return a dataframe. Also output as new csv file (optional).
     Takes a dictionary of input csv files and their respective engine and name of score column.
 
     Args:
         path_dict (Dict): ursgal path dict
-        output_file (str, optional): path to save new data frame to, do not save if None (default)
     Returns:
         input_df (pd.DataFrame): combined dataframes
     """
@@ -50,8 +47,6 @@ def combine_ursgal_csv_files(
     input_df["Sequence Start"] = input_df["Sequence Start"].apply(str)
     input_df["Sequence Stop"] = input_df["Sequence Stop"].apply(str)
     input_df["Charge"] = pd.to_numeric(input_df["Charge"], downcast="integer")
-    if output_file is not None:
-        input_df.to_csv(output_file)
 
     return input_df
 
