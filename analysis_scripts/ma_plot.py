@@ -1,3 +1,5 @@
+
+
 import numpy as np
 import pandas as pd
 import itertools
@@ -6,18 +8,22 @@ import seaborn as sns
 
 import peptide_forest
 
-tmt_translation = {
-    "62": "126",
-    "63": "127L",
-    "64": "127H",
-    "65": "128L",
-    "66": "128H",
-    "67": "129L",
-    "68": "129H",
-    "69": "130L",
-    "70": "130H",
-    "71": "131L",
-}
+
+
+
+# tmt_translation = {
+#     "62": "126",
+#     "63": "127L",
+#     "64": "127H",
+#     "65": "128L",
+#     "66": "128H",
+#     "67": "129L",
+#     "68": "129H",
+#     "69": "130L",
+#     "70": "130H",
+#     "71": "131L",
+# }
+tmts = ['126', '127L', '127H', '128L', '128H', '129L', '129H', '130L', '130H', '131L']
 
 expected_values = {
     "126": (0, 1),
@@ -32,15 +38,19 @@ expected_values = {
     "131L": (1, 1),
 }
 
-quant_df = pd.read_csv(
-    "data/_pep_quant_data/04854_F1_R8_P0109699E13_pep_quant_data.txt",
-    sep="\t",
-    lineterminator="\n",
-)
+# quant_df = pd.read_csv(
+#     "../data/_pep_quant_data/04854_F1_R8_P0109699E13_pep_quant_data.txt",
+#     sep="\t",
+#     lineterminator="\n",
+# )
+quant_df = pd.read_csv("/Users/tr/PycharmProjects/peptideForest/data/_quant_new/04854_F1_R8_P0109699E13_TMT10_quant_pots.csv", index_col=0)
 
-final_df = pd.read_csv("output.csv")
+final_df = pd.read_csv("../output.csv")
 
-quant_df["MSMS_ID"] = quant_df["MSMS_ID"].str.lstrip("F0")
+
+
+#quant_df["MSMS_ID"] = quant_df["MSMS_ID"].str.lstrip("F0")
+quant_df["MSMS_ID"] = quant_df["spectrum_id"]
 unique_spec_ids = final_df["Spectrum ID"].drop_duplicates()
 ma_df = pd.DataFrame(index=unique_spec_ids)
 
@@ -64,6 +74,9 @@ for cut in q_val_cuts:
         ma_df[eng_per_q_col] = False
         ma_df.loc[marked_targets, eng_per_q_col] = True
 
+
+
+
 # Add species column
 inds = ma_df.index.to_list()
 spec_species = final_df.loc[
@@ -85,10 +98,14 @@ ma_df.loc[
 ] = "H_sapiens"
 ma_df.loc[~ma_df["species"].str.contains("E_coli|H_sapiens")] = "Other"
 
+
+
 # Drop rows that never appear as top target
 top_target_cols = [c for c in ma_df.columns if "top_target" in c]
 ma_df[top_target_cols] = ma_df[top_target_cols].astype(bool)
 ma_df = ma_df[ma_df[top_target_cols].any(axis=1)]
+
+
 
 # Generate all and any engines
 for cut in q_val_cuts:
@@ -104,27 +121,41 @@ for cut in q_val_cuts:
         ma_df[eng_cols_per_cut].all(axis=1), f"top_target_all_engines_at_{cut}"
     ] = True
 
+
+
 all_eng = all_eng + ["all_engines", "any_engine"]
 
-for label, tmt in tmt_translation.items():
-    values = quant_df[quant_df["ISOTOPELABEL_ID"] == int(label)][
-        ["MSMS_ID", "QUANTVALUE"]
-    ].astype({"MSMS_ID": "int64", "QUANTVALUE": "float64"})
+# for label, tmt in tmt_translation.items():
+#     values = quant_df[quant_df["ISOTOPELABEL_ID"] == int(label)][
+#         ["MSMS_ID", "QUANTVALUE"]
+#     ].astype({"MSMS_ID": "int64", "QUANTVALUE": "float64"})
+#     # Remove missing spectra
+#     values = values[values["MSMS_ID"].isin(ma_df.index)]
+#     ma_df.loc[values["MSMS_ID"], tmt] = values["QUANTVALUE"].to_list()
+
+for t in tmts:
+    values = quant_df[quant_df["label"] == t][["MSMS_ID", "quant_value"]].astype({"MSMS_ID": "int64", "quant_value": "float64"})
     # Remove missing spectra
     values = values[values["MSMS_ID"].isin(ma_df.index)]
-    ma_df.loc[values["MSMS_ID"], tmt] = values["QUANTVALUE"].to_list()
+    ma_df.loc[values["MSMS_ID"], t] = values["quant_value"].to_list()
+
+
 
 # Remove all SpecIDs where quant value is 0 in a mixed column
 mixed_cols = ["127L", "128L", "129L", "130L", "131L"]
 ma_df = ma_df[~ma_df[mixed_cols].any(axis=1) == 0]
 
 # Remove all nan rows
-ma_df = ma_df[~ma_df[list(tmt_translation.values())].isna().all(axis=1)]
+ma_df = ma_df[~ma_df[tmts].isna().all(axis=1)]
 
-quotients = list(itertools.combinations(list(tmt_translation.values()), 2))
+
+
+quotients = list(itertools.combinations(tmts, 2))
 
 # [TRISTAN] temp
 all_eng = ["all_engines", "any_engine", "RF-reg", "omssa_2_1_9"]
+
+
 
 for ratio in quotients:
     for species in ["H_sapiens", "E_coli"]:
@@ -207,7 +238,7 @@ for ratio in quotients:
             plot.set(xscale="log")
             plot.fig.suptitle(f"{ratio[0]}_{ratio[1]}_{species}_at_{cut}")
             plt.savefig(
-                f"plots/ma/{ratio}_{species}_at_{cut}.png",
+                f"../plots/ma/{ratio}_{species}_at_{cut}.png",
                 bbox_extra_artists=[legend],
                 bbox_inches="tight",
                 dpi=600,

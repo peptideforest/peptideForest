@@ -40,12 +40,13 @@ def get_q_vals(df, score_col, frac_tp, top_psm_only, initial_engine=None, get_fd
     else:
         df_scores = df.sort_values(score_col, ascending=False).copy(deep=True)
 
-    # [TRISTAN/old version] df_scores = find_psms_to_keep(df_scores, score_col)
-    df_scores["keep in"] = False
+    # [TRISTAN/old version]
+    df_scores = find_psms_to_keep(df_scores, score_col)
 
     ### [TRISTAN] new proposed
-    inds_max = df_scores.groupby("Spectrum ID")[score_col].idxmax()
-    df_scores.loc[inds_max, "keep in"] = True
+    # df_scores["keep in"] = False
+    # inds_max = df_scores.groupby("Spectrum ID")[score_col].idxmax()
+    # df_scores.loc[inds_max, "keep in"] = True
     ### [TRISTAN] new proposed
 
     df_scores = df_scores[df_scores["keep in"]]
