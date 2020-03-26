@@ -1,6 +1,6 @@
 import peptide_forest
 from peptide_forest import runtime, prep
-
+import os
 import pandas as pd
 import json
 
@@ -68,7 +68,13 @@ def extract_features(df, cleavage_site, min_data):
     old_cols = df.columns
 
     # Optional: Load specified features for training
-    with open("config/features.json", "r") as f:
+    features_json = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..',
+        'config',
+        'features.json'
+    )
+    with open(features_json, "r") as f:
         preset_features = json.load(f)
     if preset_features:
         feature_cols = preset_features
