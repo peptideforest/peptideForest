@@ -71,24 +71,20 @@ def extract_features(
     # Save columns
     old_cols = df.columns
     if read_features_from_cfg is True:
-        # Optional: Load specified features for training
-        with open("config/features.json", "r") as f:
-            preset_features = json.load(f)
+        features_json = os.path.join(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            ),
+            '..',
+            'config',
+            'features.json'
+        )
 
-    # Optional: Load specified features for training
-    features_json = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        '..',
-        'config',
-        'features.json'
-    )
-    with open(features_json, "r") as f:
-        preset_features = json.load(f)
-    if preset_features:
-        feature_cols = preset_features
-    else:
-        feature_cols = None
-
+        if os.path.exists(features_json):
+            with open(features_json, "r") as f:
+                preset_features = json.load(f)
+                if preset_features:
+                    feature_cols = preset_features
 
     # Get features and a list of feature names
     df = prep.calc_features(
