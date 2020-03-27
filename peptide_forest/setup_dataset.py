@@ -51,7 +51,9 @@ def combine_ursgal_csv_files(path_dict):
     return input_df
 
 
-def extract_features(df, cleavage_site, min_data):
+def extract_features(
+    df, cleavage_site, min_data, read_features_from_cfg=False, feature_cols=None)
+):
     """
     Calculate features from dataframe containing raw data from a single experiment.
 
@@ -59,6 +61,8 @@ def extract_features(df, cleavage_site, min_data):
         df (pd.DataFrame): ursgal dataframe containing experiment data
         cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
         min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
+        read_features_from_cfg (bool): Read config/features.json to limit feature_cols
+        feature_cols (list of features): List of features to use, note this will be over written by config/feature.json
     Returns:
         df (pd.DataFrame): new dataframe containing the original experiment data and extracted features
         old_cols (List): columns initially in the dataframe
@@ -66,14 +70,13 @@ def extract_features(df, cleavage_site, min_data):
     """
     # Save columns
     old_cols = df.columns
+    if read_features_from_cfg is True:
+        # Optional: Load specified features for training
+        with open("config/features.json", "r") as f:
+            preset_features = json.load(f)
 
-    # Optional: Load specified features for training
-    with open("config/features.json", "r") as f:
-        preset_features = json.load(f)
-    if preset_features:
-        feature_cols = preset_features
-    else:
-        feature_cols = None
+        if preset_features:
+            feature_cols = preset_features
 
     # Get features and a list of feature names
     df = prep.calc_features(
