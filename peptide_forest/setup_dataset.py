@@ -1,6 +1,6 @@
 import peptide_forest
 from peptide_forest import runtime, prep
-
+import os
 import pandas as pd
 import json
 
@@ -75,8 +75,20 @@ def extract_features(
         with open("config/features.json", "r") as f:
             preset_features = json.load(f)
 
-        if preset_features:
-            feature_cols = preset_features
+    # Optional: Load specified features for training
+    features_json = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..',
+        'config',
+        'features.json'
+    )
+    with open(features_json, "r") as f:
+        preset_features = json.load(f)
+    if preset_features:
+        feature_cols = preset_features
+    else:
+        feature_cols = None
+
 
     # Get features and a list of feature names
     df = prep.calc_features(

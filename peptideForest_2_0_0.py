@@ -66,11 +66,22 @@ def main(
     totaltimer["total_run_time"]
 
     # Import hyperparameter and path adict from .json file
-    with open("config/hyperparameters.json") as jd:
+    hyperparameters_json = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'config',
+        'hyperparameters.json'
+    )
+    with open(hyperparameters_json) as jd:
         hyperparameters = json.load(jd)
 
-    with open("config/ursgal_path_dict.json") as upd:
-        # with open("config/ursgal_path_dict_percolator34.json") as upd:
+
+    ursgal_path_dict_json = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'config',
+        'ursgal_path_dict.json'
+    )
+    with open(ursgal_path_dict_json) as upd:
+
         path_dict = json.load(upd)
 
     # Add core count information
