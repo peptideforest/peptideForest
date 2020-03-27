@@ -128,7 +128,10 @@ def calc_delta_score_i(
         # Test if there enough spectra with more than i target and i decoy PSMs
         if len(psm_counts[psm_counts >= i]) / len(psm_counts) > min_data:
             inds = df_engine.loc[
-                df_engine["Spectrum ID"].isin(psm_counts[psm_counts >= i].index), :
+                df_engine["Spectrum ID"].isin(
+                    psm_counts[psm_counts >= i].index
+                ),
+                :,
             ].index
             ith_best = df_engine.loc[inds, :].groupby("Spectrum ID")
             ith_best = ith_best["Score_processed"].transform(
@@ -139,7 +142,8 @@ def calc_delta_score_i(
             # Replace missing with mean
             mean_val = df.loc[inds, col].mean()
             inds = df_engine.loc[
-                df_engine["Spectrum ID"].isin(psm_counts[psm_counts < i].index), :
+                df_engine["Spectrum ID"].isin(psm_counts[psm_counts < i].index),
+                :,
             ].index
             df.loc[inds, col] = mean_val
 
@@ -170,7 +174,9 @@ def preprocess_df(df):
 
     # Remove Sequences with "X"
     df.drop(
-        labels=df[df.Sequence.str.contains("X") == True].index, axis=0, inplace=True
+        labels=df[df.Sequence.str.contains("X") == True].index,
+        axis=0,
+        inplace=True,
     )
 
     # Missing mScores are replaced by minimum value for mScore in data
@@ -187,7 +193,7 @@ def get_stats(df):
     Ignores OMSSA scores lower than 1e-30.
     Args:
         df (pd.DataFrame): ursgal dataframe
-    
+
     Returns:
         (Dict of str: Any): Dict of engines containing dict of min scores.
     """
@@ -232,13 +238,21 @@ def combine_engine_data(
 
     # Get a list of columns that will be different for each engine.
     # Mass based columns can be slightly different between engines. The average is taken at the end.
-    cols_single = list(["Score_processed", "delta_score_2", "delta_score_3", "Mass",])
+    cols_single = list(
+        ["Score_processed", "delta_score_2", "delta_score_3", "Mass",]
+    )
 
     # Get a list of columns that should be the same for each engine
     cols_same = list(sorted([f for f in feature_cols if f not in cols_single]))
 
     # Columns to group by
-    cols_u = ["Spectrum ID", "Sequence", "Modifications", "Protein ID", "Is decoy"]
+    cols_u = [
+        "Spectrum ID",
+        "Sequence",
+        "Modifications",
+        "Protein ID",
+        "Is decoy",
+    ]
 
     cols = cols_u + cols_same + cols_single
 
@@ -265,7 +279,8 @@ def combine_engine_data(
 
     # Drop columns that contain all the same result
     df_combine = df_combine.drop(
-        [c for c in df_combine.columns if len(df_combine[c].unique()) == 1], axis=1
+        [c for c in df_combine.columns if len(df_combine[c].unique()) == 1],
+        axis=1,
     )
 
     # Drop rows that are identical
@@ -309,24 +324,30 @@ def row_features(df, cleavage_site="C", proton=1.00727646677, max_charge=None):
 
     # Calculate processed score
     df["Score_processed"] = df.apply(
-        lambda row: transform_score(row["Score"], stats[row["engine"]]), axis=1,
+        lambda row: transform_score(row["Score"], stats[row["engine"]]), axis=1
     )
 
     df["Mass"] = (df["uCalc m/z"] - proton) * df["Charge"]
-
+    df["dM"] = df["uCalc m/z"] - df["Exp m/z"]
     # Only works with trypsin for now
     if cleavage_site == "C":
         df["enzN"] = df.apply(
-            lambda x: test_cleavage_aa(x["Sequence Pre AA"], x["Sequence Start"]),
+            lambda x: test_cleavage_aa(
+                x["Sequence Pre AA"], x["Sequence Start"]
+            ),
             axis=1,
         )
         df["enzC"] = df.apply(
-            lambda x: test_sequence_aa_c(x["Sequence"][-1], x["Sequence Post AA"]),
+            lambda x: test_sequence_aa_c(
+                x["Sequence"][-1], x["Sequence Post AA"]
+            ),
             axis=1,
         )
 
     else:
-        raise ValueError("Only cleavage sites consistent with trypsin are accepted.")
+        raise ValueError(
+            "Only cleavage sites consistent with trypsin are accepted."
+        )
 
     df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
     df["PepLen"] = df["Sequence"].apply(len)
@@ -364,7 +385,9 @@ def col_features(df, min_data=0.7):
     df = calc_delta_score_i(df, i=3, min_data=min_data)
 
     # log of the number of times the peptide sequence for a spectrum is found in the set
-    df["lnNumPep"] = df.groupby("Sequence")["Sequence"].transform("count").apply(np.log)
+    df["lnNumPep"] = (
+        df.groupby("Sequence")["Sequence"].transform("count").apply(np.log)
+    )
 
     return df
 
@@ -391,7 +414,9 @@ def calc_features(df, cleavage_site, old_cols, min_data, feature_cols):
     else:
         engines = df["engine"].unique().tolist()
         for e in engines:
-            feature_cols = [feature.split("_" + e)[0] for feature in feature_cols]
+            feature_cols = [
+                feature.split("_" + e)[0] for feature in feature_cols
+            ]
         feature_cols = list(dict.fromkeys(feature_cols))
 
     df = combine_engine_data(df, feature_cols)

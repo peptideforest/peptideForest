@@ -74,12 +74,14 @@ def main(
     with open(hyperparameters_json) as jd:
         hyperparameters = json.load(jd)
 
+
     ursgal_path_dict_json = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         'config',
         'ursgal_path_dict.json'
     )
     with open(ursgal_path_dict_json) as upd:
+
         path_dict = json.load(upd)
 
     # Add core count information
@@ -105,7 +107,11 @@ def main(
     # Extract features from dataframe
     print("\nExtracting features...")
     timer["features"]
-    df_training, old_cols, feature_cols = peptide_forest.setup_dataset.extract_features(
+    (
+        df_training,
+        old_cols,
+        feature_cols,
+    ) = peptide_forest.setup_dataset.extract_features(
         input_df, cleavage_site=cleavage_site, min_data=min_data
     )
     n_features = str(len(feature_cols))
@@ -188,24 +194,30 @@ def main(
     # local_importance = local_importance[local_importance.columns[local_importance.median(axis=0) > 0.01]]
     # local_importance.to_csv("local_importance.csv")
 
-    peptide_forest.plot.all(
-        df_training,
-        classifier=classifier,
-        all_engines_version=all_engines_version,
-        methods=None,
-        plot_prefix=plot_prefix,
-        plot_dir=plot_dir,
-        show_plot=show_plots,
-        dpi=dpi,
-        initial_engine=initial_engine,
-    )
+    # peptide_forest.plot.all(
+    #     df_training,
+    #     classifier=classifier,
+    #     all_engines_version=all_engines_version,
+    #     methods=None,
+    #     plot_prefix=plot_prefix,
+    #     plot_dir=plot_dir,
+    #     show_plot=show_plots,
+    #     dpi=dpi,
+    #     initial_engine=initial_engine,
+    # )
 
-    print("\nFinished analysing results and plotting in {analysis}".format(**timer))
+    # print(
+    #     "\nFinished analysing results and plotting in {analysis}".format(
+    #         **timer
+    #     )
+    # )
     if output_file is not None:
         timer["writing_output"]
         df_training.to_csv(output_file, index=False)
         print(
-            "\nWrote output csv to", output_file, "in {writing_output}".format(**timer)
+            "\nWrote output csv to",
+            output_file,
+            "in {writing_output}".format(**timer),
         )
 
     print("\nComplete run time: {total_run_time}".format(**totaltimer))

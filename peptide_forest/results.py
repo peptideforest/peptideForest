@@ -111,7 +111,9 @@ def get_shifted_psms(df, x_name, y_name, n_return):
 
     # Non top targets that are now top targets
     df_new_top_targets = (
-        df[~df[tt_x] & df[tt_y]].sort_values(col_x, ascending=False).copy(deep=True)
+        df[~df[tt_x] & df[tt_y]]
+        .sort_values(col_x, ascending=False)
+        .copy(deep=True)
     )
     df_new_top_targets = df_new_top_targets.reset_index()
     print(
@@ -133,7 +135,8 @@ def get_shifted_psms(df, x_name, y_name, n_return):
             if any(
                 [
                     sequence != df_spectrum["Sequence"].values[0],
-                    protein_id != df_spectrum["Protein ID"].astype(str).values[0],
+                    protein_id
+                    != df_spectrum["Protein ID"].astype(str).values[0],
                     mods != df_spectrum["Modifications"].values[0],
                 ]
             ):
@@ -141,7 +144,9 @@ def get_shifted_psms(df, x_name, y_name, n_return):
 
     # Top targets that are now not top targets
     df_old_top_targets = (
-        df[df[tt_x] & ~df[tt_y]].sort_values(col_x, ascending=True).copy(deep=True)
+        df[df[tt_x] & ~df[tt_y]]
+        .sort_values(col_x, ascending=True)
+        .copy(deep=True)
     )
     df_old_top_targets = df_old_top_targets.reset_index()
     print(
@@ -169,14 +174,15 @@ def get_shifted_psms(df, x_name, y_name, n_return):
             if any(
                 [
                     sequence != df_spectrum["Sequence"].values[0],
-                    protein_id != df_spectrum["Protein ID"].astype(str).values[0],
+                    protein_id
+                    != df_spectrum["Protein ID"].astype(str).values[0],
                     mods != df_spectrum["Modifications"].values[0],
                 ]
             ):
                 df_old_top_targets.loc[i, "down_rank_for_spectrum"] = True
-                df_old_top_targets.loc[i, "new_best_psm_is_top_target"] = df_spectrum[
-                    f"top_target_{y_name}"
-                ].values[0]
+                df_old_top_targets.loc[
+                    i, "new_best_psm_is_top_target"
+                ] = df_spectrum[f"top_target_{y_name}"].values[0]
 
     return df_new_top_targets, df_old_top_targets
 
@@ -215,12 +221,18 @@ def get_num_psms_by_method(df, methods):
 
     if "any" not in df_num_psms["method"].values:
         df_num_psms = df_num_psms.append(
-            {"method": "any-engine", "n_psms": df[engine_cols].any(axis=1).sum()},
+            {
+                "method": "any-engine",
+                "n_psms": df[engine_cols].any(axis=1).sum(),
+            },
             ignore_index=True,
         )
     if "all" not in df_num_psms["method"].values:
         df_num_psms = df_num_psms.append(
-            {"method": "all-engines", "n_psms": df[engine_cols].all(axis=1).sum()},
+            {
+                "method": "all-engines",
+                "n_psms": df[engine_cols].all(axis=1).sum(),
+            },
             ignore_index=True,
         )
     if "majority" not in df_num_psms["method"].values:
@@ -256,7 +268,11 @@ def get_num_psms_against_q_cut(
     # Get q-value list
     if q_val_cut is None:
         q_val_cut = sorted(
-            [float(f"{i}e-{j}") for i in np.arange(1, 10) for j in np.arange(4, 1, -1)]
+            [
+                float(f"{i}e-{j}")
+                for i in np.arange(1, 10)
+                for j in np.arange(4, 1, -1)
+            ]
         ) + [1e-1]
 
     # Get a list of methods
@@ -332,15 +348,15 @@ def analyse(
     # Get ranks
     df_training = get_ranks(df_training)
 
-    for e1 in all_engines_version:
-        df_new_top_targets, df_old_top_targets = get_shifted_psms(
-            df_training, e1, classifier, n_return=None
-        )
-        df_new_top_targets.to_csv(
-            plot_dir + f"{plot_prefix}_{classifier}_{e1}_new_top_targets.csv"
-        )
-        df_old_top_targets.to_csv(
-            plot_dir + f"{plot_prefix}_{classifier}_{e1}_old_top_targets.csv"
-        )
+    # for e1 in all_engines_version:
+    #     df_new_top_targets, df_old_top_targets = get_shifted_psms(
+    #         df_training, e1, classifier, n_return=None
+    #     )
+    #     df_new_top_targets.to_csv(
+    #         plot_dir + f"{plot_prefix}_{classifier}_{e1}_new_top_targets.csv"
+    #     )
+    #     df_old_top_targets.to_csv(
+    #         plot_dir + f"{plot_prefix}_{classifier}_{e1}_old_top_targets.csv"
+    #     )
 
     return df_training
