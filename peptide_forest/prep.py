@@ -241,10 +241,6 @@ def combine_engine_data(
     cols_single = list(
         ["Score_processed", "delta_score_2", "delta_score_3", "Mass",]
     )
-
-    # Get a list of columns that should be the same for each engine
-    cols_same = list(sorted([f for f in feature_cols if f not in cols_single]))
-
     # Columns to group by
     cols_u = [
         "Spectrum ID",
@@ -253,6 +249,12 @@ def combine_engine_data(
         "Protein ID",
         "Is decoy",
     ]
+
+    # Get a list of columns that should be the same for each engine
+    cols_same = []
+    for f in feature_cols:
+        if f not in cols_single + cols_u:
+            cols_same.append(f)
 
     cols = cols_u + cols_same + cols_single
 
@@ -392,7 +394,7 @@ def col_features(df, min_data=0.7):
     return df
 
 
-def calc_features(df, cleavage_site, old_cols, min_data, feature_cols):
+def calc_features(df, cleavage_site, old_cols, min_data, feature_cols=None):
     """
     Main function to calculate features from unified ursgal dataframe.
     Args:
@@ -409,7 +411,7 @@ def calc_features(df, cleavage_site, old_cols, min_data, feature_cols):
     df = preprocess_df(df)
     df = row_features(df, cleavage_site=cleavage_site)
     df = col_features(df, min_data=min_data)
-    if not feature_cols:
+    if feature_cols is not None:
         feature_cols = list(set(df.columns) - set(old_cols))
     else:
         engines = df["engine"].unique().tolist()

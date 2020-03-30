@@ -17,7 +17,28 @@ import peptide_forest
     required=False,
     help="Outfile file in csv format for data after training",
 )
-def main(
+@click.option(
+    "--ursgal_json",
+    "-u",
+    required=True,
+    help="Ursgal path json containing csv paths and columns",
+)
+@click.option(
+    "--calculate_local_importance",
+    "-cli",
+    is_flag=True,
+    default=False,
+    help="Calculate local importance for all input observations",
+)
+def main(output_file, ursgal_json, calculate_local_importance):
+    run_peptide_forest(
+        output_file=output_file,
+        ursgal_path_dict_json=ursgal_json,
+        calculate_local_importance=calculate_local_importance,
+    )
+
+
+def run_peptide_forest(
     output_file=None,
     min_data=0.7,
     classifier="RF-reg",
@@ -33,8 +54,10 @@ def main(
     plot_dir="./plots/",
     plot_prefix="Plot",
     initial_engine="msgfplus_v2018_06_28",
-    show_plots=False,
-    dpi=300,
+    # show_plots=False,
+    # dpi=300,
+    ursgal_path_dict_json=None,
+    calculate_local_importance=False,
 ):
     """
     Extract features from training set, impute missing values, fit model and make prediction.
@@ -59,33 +82,35 @@ def main(
         sample_frac (float, optional): ratio of decoy PSMs to target and decoy PSMs
         show_plots (bool, optional): display plots
         dpi (int, optional): plotting resolution
+            (depracted ... all plots are done via jupyter)
     """
 
     timer = peptide_forest.runtime.PFTimer()
     totaltimer = peptide_forest.runtime.PFTimer()
     totaltimer["total_run_time"]
 
+    if output_file is None:
+        output_file = "peptide_forest_output.csv"
+
+    if ursgal_path_dict_json is None:
+        ursgal_path_dict_json = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "config",
+            "ursgal_path_dict.json",
+        )
+    with open(ursgal_path_dict_json) as upd:
+        path_dict = json.load(upd)
+
     # Import hyperparameter and path adict from .json file
     hyperparameters_json = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        'config',
-        'hyperparameters.json'
+        "config",
+        "hyperparameters.json",
     )
     with open(hyperparameters_json) as jd:
         hyperparameters = json.load(jd)
-
-
-    ursgal_path_dict_json = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        'config',
-        'ursgal_path_dict.json'
-    )
-    with open(ursgal_path_dict_json) as upd:
-
-        path_dict = json.load(upd)
-
     # Add core count information
-    hyperparameters["RF"]["n_jobs"] = multiprocessing.cpu_count() - 1
+    # hyperparameters["RF"]["n_jobs"] = multiprocessing.cpu_count() - 1
     hyperparameters["RF-reg"]["n_jobs"] = multiprocessing.cpu_count() - 1
 
     # Load hyperparameters for specified classifier
@@ -103,7 +128,6 @@ def main(
 
     # Load data and combine in one dataframe
     input_df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict)
-
     # Extract features from dataframe
     print("\nExtracting features...")
     timer["features"]
@@ -112,11 +136,15 @@ def main(
         old_cols,
         feature_cols,
     ) = peptide_forest.setup_dataset.extract_features(
-        input_df, cleavage_site=cleavage_site, min_data=min_data
+        input_df,
+        cleavage_site=cleavage_site,
+        min_data=min_data,
+        path_dict=path_dict,
     )
+    # df, cleavage_site, min_data, read_features_from_cfg=False, feature_cols=None
+
     n_features = str(len(feature_cols))
     print(f"Extracted {n_features} features in", "{features}".format(**timer))
-
     n_rows_df = input_df.shape[0]
     if n_rows_df < 100:
         raise Exception(
@@ -130,13 +158,14 @@ def main(
             ", ".join(all_engines_version[:-1]), all_engines_version[-1]
         )
     )
+    print("Feature columns:", feature_cols)
 
-    # Export dataframe
-    if output_file is not None:
-        timer["export"]
-        df_training.to_csv(output_file.split(".csv")[0] + "-features.csv")
-        input_df.to_csv(output_file)
-        print("Exported dataframe in {export}".format(**timer))
+    # # Export dataframe
+    # if output_file is not None:
+    #     timer["export"]
+    #     df_training.to_csv(output_file.split(".csv")[0] + "-features.csv")
+    #     input_df.to_csv(output_file)
+    #     print("Exported dataframe in {export}".format(**timer))
 
     # Fit model
     timer["fit_model"]
@@ -179,7 +208,7 @@ def main(
         df_training,
         initial_engine,
         q_cut,
-        frac_tp=frac_tp,
+        frac_tp=1.0,  # for true fdr calculation frac_tp is set to 1.0
         top_psm_only=True,
         all_engines_version=all_engines_version,
         plot_prefix=plot_prefix,
@@ -188,11 +217,22 @@ def main(
     )
 
     # # Generate local importance .csv
-    # prediction, bias, contributions = ti.predict(clfs[0][0][0], df_training[feature_cols])
-    # local_importance = pd.DataFrame(data=abs(contributions), columns=feature_cols)
-    # local_importance = local_importance.div(local_importance.sum(axis=1), axis=0)
-    # local_importance = local_importance[local_importance.columns[local_importance.median(axis=0) > 0.01]]
-    # local_importance.to_csv("local_importance.csv")
+    if calculate_local_importance is True:
+        prediction, bias, contributions = ti.predict(
+            clfs[0][0][0], df_training[feature_cols]
+        )
+        local_importance = pd.DataFrame(
+            data=abs(contributions), columns=feature_cols
+        )
+        local_importance = local_importance.div(
+            local_importance.sum(axis=1), axis=0
+        )
+        local_importance = local_importance[
+            local_importance.columns[local_importance.median(axis=0) > 0.01]
+        ]
+        local_importance.to_csv(
+            os.path.join(output_file, "local_importance.csv")
+        )
 
     # peptide_forest.plot.all(
     #     df_training,
@@ -211,14 +251,14 @@ def main(
     #         **timer
     #     )
     # )
-    if output_file is not None:
-        timer["writing_output"]
-        df_training.to_csv(output_file, index=False)
-        print(
-            "\nWrote output csv to",
-            output_file,
-            "in {writing_output}".format(**timer),
-        )
+
+    timer["writing_output"]
+    df_training.to_csv(output_file, index=False)
+    print(
+        "\nWrote output csv to",
+        output_file,
+        "in {writing_output}".format(**timer),
+    )
 
     print("\nComplete run time: {total_run_time}".format(**totaltimer))
 

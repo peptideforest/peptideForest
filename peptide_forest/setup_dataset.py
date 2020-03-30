@@ -52,7 +52,12 @@ def combine_ursgal_csv_files(path_dict):
 
 
 def extract_features(
-    df, cleavage_site, min_data, read_features_from_cfg=False, feature_cols=None)
+    df,
+    cleavage_site,
+    min_data,
+    read_features_from_cfg=False,
+    feature_cols=None,
+    path_dict=None,
 ):
     """
     Calculate features from dataframe containing raw data from a single experiment.
@@ -72,12 +77,10 @@ def extract_features(
     old_cols = df.columns
     if read_features_from_cfg is True:
         features_json = os.path.join(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            ),
-            '..',
-            'config',
-            'features.json'
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "config",
+            "features.json",
         )
 
         if os.path.exists(features_json):
@@ -86,9 +89,32 @@ def extract_features(
                 if preset_features:
                     feature_cols = preset_features
 
+    elif feature_cols is None:
+        feature_cols = []
+        for c in old_cols:
+            try:
+
+                if pd.to_numeric(df[c]).count() > df.shape[0] * 0.8:
+                    feature_cols.append(c)
+                    # print("[ok]", c)
+                # else:
+                #     pass
+                # print("[nearly ok]", c)
+            except:
+                pass
+    # print(df.info())
+    # for file_path, udict in path_dict.items():
+    #     feature_cols.append(udict["score_col"])
+
+    # print(feature_cols)
+    # exit(1)
     # Get features and a list of feature names
     df = prep.calc_features(
-        df, cleavage_site, old_cols, min_data, feature_cols=feature_cols
+        df,
+        cleavage_site=cleavage_site,
+        old_cols=old_cols,
+        min_data=min_data,
+        feature_cols=feature_cols,
     )
 
     q_value_cols = [f for f in df.columns if "q-value" in f]

@@ -17,6 +17,7 @@
     },
     "RF-reg.alt": {
         "n_estimators": 100,
+        "n_estimators_optimization_range": "```Python range(100, 1000, 100)```",
         "max_depth": 22,
         "random_state": 0,
         "class_weights": null,
