@@ -6,7 +6,7 @@ import pprint
 import click
 import pandas as pd
 from treeinterpreter import treeinterpreter as ti
-
+from collections import defaultdict as ddict
 import peptide_forest
 
 
@@ -131,25 +131,17 @@ def run_peptide_forest(
     # Extract features from dataframe
     print("\nExtracting features...")
     timer["features"]
-    (
-        df_training,
-        old_cols,
-        feature_cols,
-    ) = peptide_forest.setup_dataset.extract_features(
-        input_df,
-        cleavage_site=cleavage_site,
-        min_data=min_data,
-        path_dict=path_dict,
+    features = ddict(set)  # new place to collec the features
+    features["_id_columns"] = set(
+        [
+            "Spectrum ID",
+            "Sequence",
+            "Modifications",
+            "Protein ID",
+            "Is decoy",
+            "engine",
+        ]
     )
-    # df, cleavage_site, min_data, read_features_from_cfg=False, feature_cols=None
-
-    n_features = str(len(feature_cols))
-    print(f"Extracted {n_features} features in", "{features}".format(**timer))
-    n_rows_df = input_df.shape[0]
-    if n_rows_df < 100:
-        raise Exception(
-            f"Too few idents to run machine learning. DataFrame has only {n_rows_df} rows"
-        )
 
     all_engines_version = list(input_df["engine"].unique())
 
@@ -158,18 +150,31 @@ def run_peptide_forest(
             ", ".join(all_engines_version[:-1]), all_engines_version[-1]
         )
     )
-    print("Feature columns:", feature_cols)
+    n_rows_df = input_df.shape[0]
 
-    # # Export dataframe
-    # if output_file is not None:
-    #     timer["export"]
-    #     df_training.to_csv(output_file.split(".csv")[0] + "-features.csv")
-    #     input_df.to_csv(output_file)
-    #     print("Exported dataframe in {export}".format(**timer))
+    if n_rows_df < 100:
+        raise Exception(
+            f"Too few idents to run machine learning. DataFrame has only {n_rows_df} rows"
+        )
 
+    df_training, features = peptide_forest.setup_dataset.extract_features(
+        input_df,
+        cleavage_site=cleavage_site,
+        min_data=min_data,
+        path_dict=path_dict,
+        features=features,
+    )
+
+    print("Final feature columns:", features["final_features"])
+    print("Dataframe info:")
+    print(df_training[features["final_features"]].info())
+    print("Datasframe description:")
+    print(df_training[features["final_features"]].describe())
     # Fit model
+    print(f"Extracted all features in", "{features}".format(**timer))
+    print("\nFitting Model ...")
     timer["fit_model"]
-    df_training["Is decoy"] = df_training["Is decoy"].astype(bool)
+
     (
         clfs,
         psms,
@@ -184,7 +189,7 @@ def run_peptide_forest(
         n_eval=n_eval,
         train_top_data=train_top_data,
         use_cross_validation=use_cross_validation,
-        feature_cols=feature_cols,
+        feature_cols=features["final_features"],
         initial_score_col="Score_processed_{0}".format(initial_engine),
         hyperparameters=hyperparameter_dict,
         q_cut=q_cut,
@@ -219,10 +224,10 @@ def run_peptide_forest(
     # # Generate local importance .csv
     if calculate_local_importance is True:
         prediction, bias, contributions = ti.predict(
-            clfs[0][0][0], df_training[feature_cols]
+            clfs[0][0][0], df_training[features["final_features"]]
         )
         local_importance = pd.DataFrame(
-            data=abs(contributions), columns=feature_cols
+            data=abs(contributions), columns=features["final_features"]
         )
         local_importance = local_importance.div(
             local_importance.sum(axis=1), axis=0
@@ -230,9 +235,7 @@ def run_peptide_forest(
         local_importance = local_importance[
             local_importance.columns[local_importance.median(axis=0) > 0.01]
         ]
-        local_importance.to_csv(
-            os.path.join(output_file, "local_importance.csv")
-        )
+        local_importance.to_csv(f"{output_file}_local_importance.csv")
 
     # peptide_forest.plot.all(
     #     df_training,

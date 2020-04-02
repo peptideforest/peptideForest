@@ -52,12 +52,7 @@ def combine_ursgal_csv_files(path_dict):
 
 
 def extract_features(
-    df,
-    cleavage_site,
-    min_data,
-    read_features_from_cfg=False,
-    feature_cols=None,
-    path_dict=None,
+    df, cleavage_site, min_data, path_dict=None, features=None
 ):
     """
     Calculate features from dataframe containing raw data from a single experiment.
@@ -66,65 +61,56 @@ def extract_features(
         df (pd.DataFrame): ursgal dataframe containing experiment data
         cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
         min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
-        read_features_from_cfg (bool): Read config/features.json to limit feature_cols
-        feature_cols (list of features): List of features to use, note this will be over written by config/feature.json
     Returns:
         df (pd.DataFrame): new dataframe containing the original experiment data and extracted features
         old_cols (List): columns initially in the dataframe
         feature_cols (List): column names of newly calculated features
     """
     # Save columns
-    old_cols = df.columns
-    if read_features_from_cfg is True:
-        features_json = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "config",
-            "features.json",
-        )
 
-        if os.path.exists(features_json):
-            with open(features_json, "r") as f:
-                preset_features = json.load(f)
-                if preset_features:
-                    feature_cols = preset_features
+    for c in df.columns:
+        if "Retention Time (s)" == c:
+            # error in mascot ursgal Retention Time (s) does not allow to using RT right now
+            continue
+        if "Is decoy" == c:
+            continue
+        if "Complies search criteria" == c:
+            # inconsistency
+            continue
+        try:
+            if pd.to_numeric(df[c]).count() > df.shape[0] * 0.8:
+                features["to_numeric"].add(c)
+                # print("[ok]", c)
+        except:
+            pass
 
-    elif feature_cols is None:
-        feature_cols = []
-        for c in old_cols:
-            try:
-
-                if pd.to_numeric(df[c]).count() > df.shape[0] * 0.8:
-                    feature_cols.append(c)
-                    # print("[ok]", c)
-                # else:
-                #     pass
-                # print("[nearly ok]", c)
-            except:
-                pass
-    # print(df.info())
-    # for file_path, udict in path_dict.items():
-    #     feature_cols.append(udict["score_col"])
-
-    # print(feature_cols)
-    # exit(1)
-    # Get features and a list of feature names
-    df = prep.calc_features(
-        df,
-        cleavage_site=cleavage_site,
-        old_cols=old_cols,
-        min_data=min_data,
-        feature_cols=feature_cols,
+    df, features = prep.calc_features(
+        df, cleavage_site=cleavage_site, min_data=min_data, features=features,
     )
+    # exit("<><><>><")
+    # q_value_cols = [f for f in df.columns if "q-value" in f]
+    # feature_cols = [f for f in feature_cols if f not in q_value_cols]
 
-    q_value_cols = [f for f in df.columns if "q-value" in f]
-    feature_cols = [f for f in feature_cols if f not in q_value_cols]
+    # # Replace missing scores with 0
+    # score_cols = [f for f in df.columns if "Score_processed" in f]
+    # df[score_cols] = df[score_cols].fillna(0)
+    df["Is decoy"] = df["Is decoy"].astype(bool)
+    for c in df.columns:
+        if c.startswith("Charge"):
+            df[c] = df[c].astype("category")
+    # Training features:
+    features["final_features"] = list(
+        (
+            features["col_features_alt"]
+            | features["to_numeric"]
+            | features["row_features"]
+        )
+        - features["transformed_features"]
+        - set(["Is decoy"])
+    )
+    import pprint
 
-    # Replace missing scores with 0
-    score_cols = [f for f in df.columns if "Score_processed" in f]
-    df[score_cols] = df[score_cols].fillna(0)
-
-    return df, old_cols, feature_cols
+    return df, features
 
 
 def get_top_target_decoy(df, score_col):

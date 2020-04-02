@@ -104,6 +104,6 @@ venv.bak/
 .mypy_cache/
 /data/
 /plots/
-# *.csv
+*.csv
 /coverage/
 /testing/
