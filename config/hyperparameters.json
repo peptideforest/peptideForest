@@ -1,0 +1,28 @@
+{
+    "RF": {
+        "random_state": 0,
+        "n_estimators": 100,
+        "max_depth": 22,
+        "max_features": 7
+    },
+    "SVM": {
+        "random_state": 0,
+        "max_iter": 50000
+    },
+    "RF-reg": {
+        "random_state": 0,
+        "n_estimators": 100,
+        "max_depth": 22,
+        "max_features": 7
+    },
+    "RF-reg.alt": {
+        "n_estimators": 100,
+        "n_estimators_optimization_range": "```Python range(100, 1000, 100)```",
+        "max_depth": 22,
+        "random_state": 0,
+        "class_weights": null,
+        "min_samples_split": 2,
+        "min_samples_leaf": 1,
+        "max_features": 7
+    }
+}

@@ -1,0 +1,7 @@
+﻿Spectrum ID,Protein ID,Mascot:Score,Sequence,Modifications,Charge,Spectrum Title,Mass Difference,Raw data location,Rank,uCalc m/z,Accuracy (ppm),Is decoy,test_field,Sequence Pre AA,Sequence Post AA,Sequence Stop,Sequence Start,,Comments
+1,Prot1,12,AAAAA,None,3,,,,,1001,0,TRUE,good!,K,M,,50,,
+1,Prot1,13,AAAAB,,3,,,,,1001,0,FALSE,target_and_decoy_same,R,D,,100,,
+2,Prot1<|>Prot2,13,AAAAB,,3,,,,,1001,0,TRUE,target_and_decoy_same,-,A,,1,,Same as 3 but decoy - should be filtered out
+3,Prot1<|>Prot2,13,AAAAB,Oxidation,3,,,,,1001,0,FALSE,target_and_decoy_same,M,S,,2,,Same as 3 nd 4 but with different modification - should also go during targetSequence != DecoySequences
+4,Prot1,14,AAXAAB,,3,,,,,1001,0,TRUE,has_x,K,,,30,,Has X in seqeunce and should be dropped
+5,Prot2,20,AARAAKAAR,,3,,,,,1001,0,FALSE,good!,K,S,,30,,Two missed cleavages

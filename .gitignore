@@ -106,3 +106,4 @@ venv.bak/
 /plots/
 *.csv
 /coverage/
+/testing/

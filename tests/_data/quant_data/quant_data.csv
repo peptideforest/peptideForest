@@ -1,0 +1,11 @@
+,Unnamed: 0,mScore,scan_id,molecule,charge
+0,0,1,1,>AAAA#moda<,1
+1,1,2,2,>AAAA#modb<,1
+2,2,3,3,>AAAA#modc<,1
+3,3,4,4,>DDDD#moda<,1
+4,4,5,1,>AAAA#moda;modb<,1
+5,5,6,19,>AAAA#moda<,1
+6,6,7,20,>AAAA#moda<,1
+7,7,8,21,>AAAA#moda<,1
+8,8,9,22,>AAAA#moda<,1
+9,9,10,23,>AAAA#moda<,1

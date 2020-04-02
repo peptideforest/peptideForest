@@ -1,6 +1,9 @@
-black
-pytest
-pandas
+seaborn
+matplotlib
+scikit-learn
 numpy
-sphinx
-
+pandas
+click
+pytest
+plotly
+nb-clean
