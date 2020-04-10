@@ -410,6 +410,8 @@ def col_features_alt(df, min_data=0.7, features=None):
 
     #
     core_id_cols = [
+        # "Raw data location",
+        "Spectrum Title",
         "Spectrum ID",
         "Sequence",
         "Modifications",

@@ -53,8 +53,8 @@ def run_peptide_forest(
     sample_frac=1.0,
     plot_dir="./plots/",
     plot_prefix="Plot",
-    initial_engine="msgfplus_v2018_06_28",
-    # initial_engine="msgfplus_v2019_04_18",
+    # initial_engine="msgfplus_v2018_06_28",
+    initial_engine="msgfplus_v2019_04_18",
     # show_plots=False,
     # dpi=300,
     ursgal_path_dict_json=None,
@@ -136,6 +136,7 @@ def run_peptide_forest(
     features["_id_columns"] = set(
         [
             "Spectrum ID",
+            "Spectrum Title",
             "Sequence",
             "Modifications",
             "Protein ID",
