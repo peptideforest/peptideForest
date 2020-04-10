@@ -54,6 +54,7 @@ def run_peptide_forest(
     plot_dir="./plots/",
     plot_prefix="Plot",
     initial_engine="msgfplus_v2018_06_28",
+    # initial_engine="msgfplus_v2019_04_18",
     # show_plots=False,
     # dpi=300,
     ursgal_path_dict_json=None,
@@ -201,7 +202,7 @@ def run_peptide_forest(
     print("Fitted model in {fit_model}".format(**timer))
     print("\nFeature importance:")
     print("Initial engine: Score_processed_{0}".format(initial_engine))
-    print(df_feature_importance.head(), "\n")
+    print(df_feature_importance.head(15), "\n")
 
     # Plot results:
     if os.path.exists(plot_dir) is False:
@@ -223,6 +224,7 @@ def run_peptide_forest(
 
     # # Generate local importance .csv
     if calculate_local_importance is True:
+        print("Calculating local importances...")
         prediction, bias, contributions = ti.predict(
             clfs[0][0][0], df_training[features["final_features"]]
         )

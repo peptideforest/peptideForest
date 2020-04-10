@@ -78,7 +78,7 @@ def extract_features(
             # inconsistency
             continue
         try:
-            if pd.to_numeric(df[c]).count() > df.shape[0] * 0.8:
+            if pd.to_numeric(df[c]).count() > df.shape[0]:
                 features["to_numeric"].add(c)
                 # print("[ok]", c)
         except:

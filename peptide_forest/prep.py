@@ -372,19 +372,21 @@ def row_features(
     features["row_features"] |= set(["enzInt", "PepLen", "CountProt"])
 
     # Get maximum charge to use for columns
-    if max_charge is None:
-        max_charge = df["Charge"].max()
+    # if max_charge is None:
+    #     max_charge = df["Charge"].max()
 
-    # Create categorical charge columns
-    for i in range(1, max_charge):
-        # pd.to_numeric(df['Sequence Start'], downcast="integer")
-        df[f"Charge{i}"] = (df["Charge"] == i).astype(int)
-        # df[f"Charge{i}"] = df[f"Charge{i}"].astype("category")
-        features["row_features"].add(f"Charge{i}")
+    # # Create categorical charge columns
+    # for i in range(1, max_charge):
+    #     # pd.to_numeric(df['Sequence Start'], downcast="integer")
+    #     df[f"Charge{i}"] = (df["Charge"] == i).astype(int)
+    #     # df[f"Charge{i}"] = df[f"Charge{i}"].astype("category")
+    #     features["row_features"].add(f"Charge{i}")
 
-    df[f">Charge{max_charge}"] = (df["Charge"] >= max_charge).astype(int)
-    features["row_features"].add(f">Charge{max_charge}")
-    features["transformed_features"].add("Charge")
+    # df[f">Charge{max_charge}"] = (df["Charge"] >= max_charge).astype(int)
+    # features["row_features"].add(f">Charge{max_charge}")
+    # features["transformed_features"].add("Charge")
+
+    features["row_features"].add("Charge")
 
     return df, features
 
