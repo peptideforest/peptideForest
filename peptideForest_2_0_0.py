@@ -30,11 +30,18 @@ import peptide_forest
     default=False,
     help="Calculate local importance for all input observations",
 )
-def main(output_file, ursgal_json, calculate_local_importance):
+@click.option(
+    "--initial_engine",
+    "-i",
+    required=True,
+    help="Initial engine to sort results",
+)
+def main(output_file, ursgal_json, calculate_local_importance, initial_engine):
     run_peptide_forest(
         output_file=output_file,
         ursgal_path_dict_json=ursgal_json,
         calculate_local_importance=calculate_local_importance,
+        initial_engine=initial_engine,
     )
 
 
@@ -59,6 +66,7 @@ def run_peptide_forest(
     # dpi=300,
     ursgal_path_dict_json=None,
     calculate_local_importance=False,
+    peptide_forest_parameter_json=None,
 ):
     """
     Extract features from training set, impute missing values, fit model and make prediction.
@@ -129,6 +137,7 @@ def run_peptide_forest(
 
     # Load data and combine in one dataframe
     input_df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict)
+
     # Extract features from dataframe
     print("\nExtracting features...")
     timer["features"]

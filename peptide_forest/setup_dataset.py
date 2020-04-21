@@ -37,10 +37,19 @@ def combine_ursgal_csv_files(path_dict):
             errors="ignore",
             inplace=True,
         )
+        df_shape_before_duplicate_drop = df.shape
+        df.drop_duplicates(inplace=True)
+        if df.shape != df_shape_before_duplicate_drop:
+            print(f"Input {os.path.basename(file)} contained duplicate rows!")
+            print(
+                df_shape_before_duplicate_drop[0] - df.shape[0],
+                "rows have been dropped.",
+            )
+
         dfs.append(df)
+        # print()
 
     input_df = pd.concat(dfs, sort=True).reset_index(drop=True)
-
     # CF: cast columns based on .... kb?
     input_df["Sequence Post AA"].fillna("-", inplace=True)
     input_df["Sequence Pre AA"].fillna("-", inplace=True)
@@ -80,7 +89,7 @@ def extract_features(
         try:
             if pd.to_numeric(df[c]).count() > df.shape[0]:
                 features["to_numeric"].add(c)
-                # print("[ok]", c)
+                print("[ok]", c)
         except:
             pass
 

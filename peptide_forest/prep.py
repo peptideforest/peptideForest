@@ -632,7 +632,8 @@ def calc_features(
     pd.set_option("max_columns", 10000)
     print("Preprocessing df")
     df, features = preprocess_df(df, features)
-
+    # print(features)
+    # exit(1)
     print("Calculating row features")
     df, features = row_features(
         df, cleavage_site=cleavage_site, features=features
