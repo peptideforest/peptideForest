@@ -36,7 +36,12 @@ import peptide_forest
     required=True,
     help="Initial engine to sort results",
 )
-def main(output_file, ursgal_json, calculate_local_importance, initial_engine):
+def main(
+    output_file=None,
+    ursgal_json=None,
+    calculate_local_importance=False,
+    initial_engine=None,
+):
     run_peptide_forest(
         output_file=output_file,
         ursgal_path_dict_json=ursgal_json,
@@ -50,8 +55,8 @@ def run_peptide_forest(
     min_data=0.7,
     classifier="RF-reg",
     enzyme="trypsin",
-    n_train=5,
-    n_eval=5,
+    n_train=10,
+    n_eval=10,
     q_cut=0.01,
     q_cut_train=0.1,
     train_top_data=True,
