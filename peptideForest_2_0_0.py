@@ -3,7 +3,7 @@ import json
 import multiprocessing
 import os
 import pprint
-# import click
+import click
 import pandas as pd
 from treeinterpreter import treeinterpreter as ti
 from collections import defaultdict as ddict

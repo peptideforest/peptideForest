@@ -15,7 +15,6 @@ ENGINES = {
 }
 DELIM_REGEX = re.compile(r"<\|>|;")
 PROTON = 1.00727646677
-# CLEAVAGE_SITES = {"R", "K", "-"}
 
 
 def test_cleavage_aa(
@@ -46,8 +45,6 @@ def test_cleavage_aa(
                 if inhib_sequence not in list(inhibitors):
                     consistent_cleavage = True
                     break
-    # print(cleaved_aas, aa_field, aa_start, inhibitors, inhib_sequence )
-    # print(consistent_cleavage)
     return consistent_cleavage
 
 
@@ -77,24 +74,7 @@ def test_sequence_aa(
                 if post_aa not in inhibitors:
                     consistent_cleavage = True
                     break
-    # print(cleaved_aas, aa, post_aa, aa_end, inhibitors)
-    # print(consistent_cleavage)
     return consistent_cleavage
-
-
-# only if cleavage site included
-# def test_sequence_aa_n(
-#     aa, aa_start,
-# ):
-#     """
-#     Test whether start/end of sequence is consistent with enzyme cleavage site, or if it is cut at end.
-#     Args:
-#         aa (str): start/end of sequence
-#         aa_start (str): start of sequence
-#     Returns:
-#         (bool): True if start/end is consistent with cleavage site, False otherwise
-#     """
-#     return aa in CLEAVAGE_SITES or aa_start in [1, 2]
 
 
 def parse_protein_ids(protein_id,):
@@ -421,7 +401,6 @@ def row_features(
     for aa in cleaved_aas:
         enz_count += df["Sequence"].str.count(aa)
     df["enzInt"] = enz_count
-    # df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
     df["PepLen"] = df["Sequence"].apply(len)
     df["CountProt"] = df["Protein ID"].apply(parse_protein_ids).apply(len)
 
@@ -688,13 +667,11 @@ def calc_features(
     pd.set_option("max_columns", 10000)
     print("Preprocessing df")
     df, features = preprocess_df(df, features)
-    print('Number of rows in DataFrame:', df.shape[0])
 
     print("Calculating row features")
     df, features = row_features(
         df, enzyme=enzyme, features=features
     )
-    print('Number of rows in DataFrame:', df.shape[0])
 
     # df, features = col_features(df, min_data=min_data, features=features)
     cols_to_drop = determine_cols_to_be_dropped(df, features=features)
@@ -703,5 +680,4 @@ def calc_features(
     print("Calculating col features")
     df, features = col_features_alt(df, features=features)
     # df.to_csv("test4.csv", index=False)
-    print('Number of rows in DataFrame:', df.shape[0])
     return df, features
