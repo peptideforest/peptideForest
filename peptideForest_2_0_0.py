@@ -3,7 +3,7 @@ import json
 import multiprocessing
 import os
 import pprint
-import click
+# import click
 import pandas as pd
 from treeinterpreter import treeinterpreter as ti
 from collections import defaultdict as ddict
@@ -65,7 +65,6 @@ def run_peptide_forest(
     sample_frac=1.0,
     plot_dir="./plots/",
     plot_prefix="Plot",
-    # initial_engine="msgfplus_v2018_06_28",
     initial_engine="msgfplus_v2019_04_18",
     # show_plots=False,
     # dpi=300,
@@ -81,7 +80,9 @@ def run_peptide_forest(
         min_data (float):   minimum fraction of spectra for which we require that there are at least 2 or 3 respectively
                             PSMs to calculate delta scores
         classifier (str, optional): name of the classifier to use
-        enzyme (str, optional): name of the enzyme used during sample preparation
+        enzyme (str, optional): cleavage characteristics of enzyme used during sample preparation,
+                                given as <cleaved amino acids>;<N or C for cleavage site>;<inhibiting amino acids>,
+                                e.g. for trypsin, use KR;C,P
         n_train (int, optional): number of training iterations
         n_eval (int, optional): number of evaluation iterations
         q_cut (float, optional): cut-off for q-values below which a target PSM is counted as top-target
@@ -129,20 +130,16 @@ def run_peptide_forest(
 
     # Load hyperparameters for specified classifier
     hyperparameter_dict = hyperparameters[classifier]
-    print(f"Peptide Forest initialised with classifier: {classifier}\n")
+    print("Peptide Forest initialised with classifier: {0}\n".format(classifier))
     print("Using hyperparameters:")
     pprint.pprint(hyperparameter_dict)
     print()
 
-    if enzyme != "trypsin":
-        raise ValueError("Enzymes other than trypsin not implemented yet.")
-
-    else:
-        cleavage_site = "C"
+    if len(enzyme.split(';')) != 3:
+        raise ValueError("Enzymes need to be given as '<cleaved amino acids>;<N or C>;<inhibiting amino acids>'")
 
     # Load data and combine in one dataframe
     input_df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict)
-
     # Extract features from dataframe
     print("\nExtracting features...")
     timer["features"]
@@ -170,12 +167,12 @@ def run_peptide_forest(
 
     if n_rows_df < 100:
         raise Exception(
-            f"Too few idents to run machine learning. DataFrame has only {n_rows_df} rows"
+            "Too few idents to run machine learning. DataFrame has only {0} rows".formta(n_rows_df)
         )
 
     df_training, features = peptide_forest.setup_dataset.extract_features(
         input_df,
-        cleavage_site=cleavage_site,
+        enzyme=enzyme,
         min_data=min_data,
         path_dict=path_dict,
         features=features,
@@ -187,7 +184,7 @@ def run_peptide_forest(
     print("Datasframe description:")
     print(df_training[features["final_features"]].describe())
     # Fit model
-    print(f"Extracted all features in", "{features}".format(**timer))
+    print("Extracted all features in", "{features}".format(**timer))
     print("\nFitting Model ...")
     timer["fit_model"]
 
@@ -252,7 +249,7 @@ def run_peptide_forest(
         local_importance = local_importance[
             local_importance.columns[local_importance.median(axis=0) > 0.01]
         ]
-        local_importance.to_csv(f"{output_file}_local_importance.csv")
+        local_importance.to_csv("{0}_local_importance.csv".format(output_file))
 
     # peptide_forest.plot.all(
     #     df_training,

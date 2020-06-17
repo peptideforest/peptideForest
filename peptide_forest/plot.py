@@ -70,7 +70,7 @@ def plot_num_psms_against_q(
     # Get the q-value list
     if q_val_cut is None:
         q_val_cut = sorted(
-            [float(f"{i}e-{j}") for i in np.arange(1, 10) for j in np.arange(4, 1, -1)]
+            [float("{0}e-{1}".format(i, j)) for i in np.arange(1, 10) for j in np.arange(4, 1, -1)]
         ) + [1e-1]
 
     # Get dataframe for number of PSMs as a function of q-value
@@ -106,18 +106,18 @@ def plot_num_psms_against_q(
 
     # Initiate the plot
     plt.figure(num=None, figsize=(13, 8), dpi=dpi, facecolor="w", edgecolor="k")
-    plt.title(f"Number of PSMs identified against q-value used as cut-off", fontsize=18)
+    plt.title("Number of PSMs identified against q-value used as cut-off", fontsize=18)
     x = q_val_cut
     methods = [m.split("top_target_")[-1] for m in df_num_psms_q]
     for i, method in enumerate(methods):
-        y = df_num_psms_q[f"top_target_{method}"]
+        y = df_num_psms_q["top_target_{0}".format(method)]
         plt.plot(x, y, linewidth=4, ms=14, marker=markers_base[i], label=method)
 
     plt.legend(
         bbox_to_anchor=(0.0, -0.15), loc=2, borderaxespad=0.0, fontsize=18, ncol=5
     )
-    plt.xlabel(f"q-val cut-off", fontsize=16)
-    plt.ylabel(f"Nr. PSMs", fontsize=16)
+    plt.xlabel("q-val cut-off", fontsize=16)
+    plt.ylabel("Nr. PSMs", fontsize=16)
     plt.xticks(fontsize=16)
     plt.yticks(fontsize=16)
     plt.xscale("log")
@@ -147,15 +147,15 @@ def plot_ranks(df, x_name, y_name, use_top_psm, n_psms, output_file, show_plot, 
     plt.figure(num=None, figsize=(13, 13), dpi=dpi, facecolor="w", edgecolor="k")
 
     # Names of columns to use
-    col_x = f"rank_{x_name}"
-    tt_x = f"top_target_{x_name}"
+    col_x = "rank_{0}".format(x_name)
+    tt_x = "top_target_{0}".format(x_name)
 
-    col_y = f"rank_{y_name}"
-    tt_y = f"top_target_{y_name}"
+    col_y = "rank_{0}".format(y_name)
+    tt_y = "top_target_{0}".format(y_name)
 
     if use_top_psm:
         df_plot = df.sort_values(
-            f"Score_processed_{y_name}", ascending=False
+            "Score_processed_{0}".format(y_name), ascending=False
         ).drop_duplicates("Spectrum ID")
         df_plot = results.get_ranks(df_plot)
     else:
@@ -256,7 +256,7 @@ def plot_ranks(df, x_name, y_name, use_top_psm, n_psms, output_file, show_plot, 
     plt.yticks(fontsize=18)
     plt.xlabel(col_x, fontsize=18)
     plt.ylabel(col_y, fontsize=18)
-    plt.title(f"Rank from {y_name} vs rank from {x_name}", fontsize=18)
+    plt.title("Rank from {0} vs rank from {1}".format(y_name, x_name), fontsize=18)
 
     # save the image if a name is given
     if output_file:
@@ -294,7 +294,7 @@ def all(
     plot_num_psms_by_method(
         df_training,
         output_file=os.path.join(
-            plot_dir, f"{plot_prefix}_PSMs_by" f"" f"" f"_method.pdf"
+            plot_dir, "{plot_prefix}_PSMs_by".format(plot_prefix) + "_method.pdf"
         ),
         show_plot=show_plot,
         methods=methods,
@@ -306,7 +306,7 @@ def all(
         q_val_cut=None,
         methods=methods,
         all_engines_version=all_engines_version,
-        output_file=os.path.join(plot_dir, f"{plot_prefix}_num_psms_vs_q.pdf"),
+        output_file=os.path.join(plot_dir, "{0}_num_psms_vs_q.pdf".format(plot_prefix)),
         show_plot=show_plot,
         dpi=dpi,
         initial_engine=initial_engine,
@@ -319,7 +319,7 @@ def all(
             e2,
             use_top_psm=True,
             n_psms=3,
-            output_file=os.path.join(plot_dir, f"{plot_prefix}_{e1}_vs_{e2}.pdf"),
+            output_file=os.path.join(plot_dir, "{0}_{1}_vs_{2}.pdf".format(plot_prefix, e1, e2)),
             show_plot=show_plot,
             dpi=dpi,
         )

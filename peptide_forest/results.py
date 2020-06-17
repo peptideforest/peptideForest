@@ -56,8 +56,8 @@ def calc_all_final_q_vals(
     for col in cols:
         if "Score_processed_" in col:
             col = col.split("Score_processed_")[-1]
-        score_col = f"Score_processed_{col}"
-        q_col = f"q-value_{col}"
+        score_col = "Score_processed_{0}".format(col)
+        q_col = "q-value_{0}".format(col)
         df_scores = models.get_q_vals(
             df,
             score_col,
@@ -104,10 +104,10 @@ def get_shifted_psms(df, x_name, y_name, n_return):
         df_new_top_targets (pd.DataFrame): dataframe containing information on the new top targets
         df_old_top_targets (pd.DataFrame): dataframe containing information on the old top targets
     """
-    col_x = f"rank_{x_name}"
-    tt_x = f"top_target_{x_name}"
+    col_x = "rank_{0}".format(x_name)
+    tt_x = "top_target_{0}".format(x_name)
 
-    tt_y = f"top_target_{y_name}"
+    tt_y = "top_target_{0}".format(y_name)
 
     # Non top targets that are now top targets
     df_new_top_targets = (
@@ -117,7 +117,7 @@ def get_shifted_psms(df, x_name, y_name, n_return):
     )
     df_new_top_targets = df_new_top_targets.reset_index()
     print(
-        f"Number non top targets for {x_name} that are now top targets: {len(df_new_top_targets)}"
+        "Number non top targets for {0} that are now top targets: {1}".format(x_name, len(df_new_top_targets))
     )
 
     # up_rank_for_spectrum: previously was not top PSM for that spectrum
@@ -128,9 +128,9 @@ def get_shifted_psms(df, x_name, y_name, n_return):
         protein_id = str(df_new_top_targets.loc[i, "Protein ID"])
         mods = df_new_top_targets.loc[i, "Modifications"]
         df_spectrum = df[df.loc[:, "Spectrum ID"] == spectrum_id]
-        if (df_spectrum[f"Score_processed_{x_name}"] != 0).all():
+        if (df_spectrum["Score_processed_{0}".format(x_name)] != 0).all():
             df_spectrum = df_spectrum.sort_values(
-                f"Score_processed_{x_name}", ascending=False
+                "Score_processed_{0}".format(x_name), ascending=False
             )
             if any(
                 [
@@ -150,7 +150,7 @@ def get_shifted_psms(df, x_name, y_name, n_return):
     )
     df_old_top_targets = df_old_top_targets.reset_index()
     print(
-        f"Number top targets for {x_name} that are not longer top targets: {len(df_old_top_targets)}"
+        "Number top targets for {0} that are not longer top targets: {1}".format(x_name, len(df_old_top_targets))
     )
     if n_return is not None:
         df_old_top_targets = df_old_top_targets.head(n_return)
@@ -167,9 +167,9 @@ def get_shifted_psms(df, x_name, y_name, n_return):
         protein_id = str(df_old_top_targets.loc[i, "Protein ID"])
         mods = df_old_top_targets.loc[i, "Modifications"]
         df_spectrum = df[df.loc[:, "Spectrum ID"] == spectrum_id]
-        if (df_spectrum[f"Score_processed_{x_name}"] != 0).all():
+        if (df_spectrum["Score_processed_{0}".format(x_name)] != 0).all():
             df_spectrum = df_spectrum.sort_values(
-                f"Score_processed_{y_name}", ascending=False
+                "Score_processed_{1}".format(y_name), ascending=False
             )
             if any(
                 [
@@ -182,7 +182,7 @@ def get_shifted_psms(df, x_name, y_name, n_return):
                 df_old_top_targets.loc[i, "down_rank_for_spectrum"] = True
                 df_old_top_targets.loc[
                     i, "new_best_psm_is_top_target"
-                ] = df_spectrum[f"top_target_{y_name}"].values[0]
+                ] = df_spectrum["top_target_{1}".format(y_name)].values[0]
 
     return df_new_top_targets, df_old_top_targets
 
@@ -269,7 +269,7 @@ def get_num_psms_against_q_cut(
     if q_val_cut is None:
         q_val_cut = sorted(
             [
-                float(f"{i}e-{j}")
+                float("{1}e-{1}".format(i, j))
                 for i in np.arange(1, 10)
                 for j in np.arange(4, 1, -1)
             ]
@@ -285,7 +285,7 @@ def get_num_psms_against_q_cut(
         index=[str(q) for q in q_val_cut],
         columns=methods + ["top_target_any-engine", "top_target_all-engines"],
     )
-    engine_cols = [f"top_target_{m}" for m in all_engines_version]
+    engine_cols = ["top_target_{0}".format(m) for m in all_engines_version]
     for cut in q_val_cut:
         # Get the top-targets for this q_value_cut-off
         df = mark_top_targets(df, q_cut=cut)

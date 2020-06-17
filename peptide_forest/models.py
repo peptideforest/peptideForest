@@ -34,7 +34,7 @@ def get_q_vals(
     engines = [
         e
         for e in engines
-        if e not in [f"Score_processed_{m}" for m in classifier.ml_methods]
+        if e not in ["Score_processed_{0}".format(m) for m in classifier.ml_methods]
     ]
     engines = [e.split("Score_processed_")[-1] for e in engines]
 
@@ -42,7 +42,7 @@ def get_q_vals(
 
     if initial_engine and not not_in_engines:
         df_scores = df.sort_values(
-            [score_col, f"Score_processed_{initial_engine}"],
+            [score_col, "Score_processed_{0}".format(initial_engine)],
             ascending=[False, False],
         ).copy(deep=True)
     else:
@@ -377,7 +377,7 @@ def get_training_model(training_type="RF", hp_dict_in=None):
 
     if training_type not in training_types.keys():
         raise ValueError(
-            f"{training_type} not supported. Select one of: ",
+            "{0} not supported. Select one of: ".format(training_type),
             "\n".join(
                 "{0}:- for {1}".format(k, v) for k, v in training_types.items()
             ),
@@ -708,9 +708,9 @@ def fit(
     df_feature_importance = None
 
     # Train using either method
-    print(f"\nTraining from: {initial_score_col}")
-    if f"Score_processed_{classifier}" in df_training.columns:
-        df_training = df_training.drop(f"Score_processed_{classifier}", axis=1)
+    print("\nTraining from: {0}".format(initial_score_col))
+    if "Score_processed_{0}".format(classifier) in df_training.columns:
+        df_training = df_training.drop("Score_processed_{0}".format(classifier), axis=1)
     warnings.filterwarnings("ignore", category=DataConversionWarning)
 
     # Split the training data
@@ -835,7 +835,7 @@ def fit(
             if i_it == 0:
                 print("Iteration\t", "PSMs(train)\t", "PSMs(test)\t")
             print(
-                f"{i_it + 1}" + "\t" * 3,
+                "{0}".format(i_it + 1) + "\t" * 3,
                 psms["train"][i_it],
                 "\t" * 3,
                 psms["test"][i_it],
@@ -863,18 +863,18 @@ def fit(
     )
 
     df_training = df_training.rename(
-        {"model_score_avg": f"Score_processed_{classifier}"}, axis=1
+        {"model_score_avg": "Score_processed_{0}".format(classifier)}, axis=1
     )
     cols_to_drop = [c for c in df_training.columns if "model_score" in c]
     df_training = df_training.drop(cols_to_drop, axis=1)
 
     df_training[
-        f"Score_{classifier}_from_{initial_score_col}".lower()
-    ] = df_training[f"Score_processed_{classifier}"]
+        "Score_{0}_from_{1}".format(classifier, initial_score_col).lower()
+    ] = df_training["Score_processed_{0}".format(classifier)]
 
-    df_training = df_training.drop(f"Score_processed_{classifier}", axis=1)
-    cols = [f"score_{classifier}_from_{initial_score_col}".lower()]
-    df_training[f"Score_processed_{classifier}"] = df_training[cols].mean(
+    df_training = df_training.drop("Score_processed_{0}".format(classifier), axis=1)
+    cols = ["Score_{0}_from_{1}".format(classifier, initial_score_col).lower()]
+    df_training["Score_processed_{0}".format(classifier)] = df_training[cols].mean(
         axis=1
     )
 

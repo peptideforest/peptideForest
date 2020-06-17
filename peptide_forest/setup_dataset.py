@@ -28,7 +28,7 @@ def combine_ursgal_csv_files(path_dict):
         df["engine"] = path_dict[file]["engine"]
         df["Score"] = df[path_dict[file]["score_col"]]
         file_output = file.split("/")[-1]
-        print(f"Slurping in df for {file_output} in {slurp_time['slurp']}")
+        print("Slurping in df for {0} in {1}".format(file_output, slurp_time['slurp']))
 
         df.drop(
             columns=peptide_forest.knowledge_base.parameteres[
@@ -40,16 +40,17 @@ def combine_ursgal_csv_files(path_dict):
         df_shape_before_duplicate_drop = df.shape
         df.drop_duplicates(inplace=True)
         if df.shape != df_shape_before_duplicate_drop:
-            print(f"Input {os.path.basename(file)} contained duplicate rows!")
+            print("Input {0} contained duplicate rows!".format(os.path.basename(file)))
             print(
                 df_shape_before_duplicate_drop[0] - df.shape[0],
-                "rows have been dropped.",
+                "rows out of",
+                df_shape_before_duplicate_drop[0],
+                "have been dropped."
             )
-
         dfs.append(df)
-        # print()
 
     input_df = pd.concat(dfs, sort=True).reset_index(drop=True)
+
     # CF: cast columns based on .... kb?
     input_df["Sequence Post AA"].fillna("-", inplace=True)
     input_df["Sequence Pre AA"].fillna("-", inplace=True)
@@ -61,14 +62,14 @@ def combine_ursgal_csv_files(path_dict):
 
 
 def extract_features(
-    df, cleavage_site, min_data, path_dict=None, features=None
+    df, enzyme, min_data, path_dict=None, features=None
 ):
     """
     Calculate features from dataframe containing raw data from a single experiment.
 
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
-        cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
+        enzyme (str): enzyme cleavage site given as '<cleaved amino acids>;<N or C>;<inhibiting amino acids>'
         min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
     Returns:
         df (pd.DataFrame): new dataframe containing the original experiment data and extracted features
@@ -89,12 +90,12 @@ def extract_features(
         try:
             if pd.to_numeric(df[c]).count() > df.shape[0]:
                 features["to_numeric"].add(c)
-                print("[ok]", c)
+                # print("[ok]", c)
         except:
             pass
 
     df, features = prep.calc_features(
-        df, cleavage_site=cleavage_site, min_data=min_data, features=features,
+        df, enzyme=enzyme, min_data=min_data, features=features,
     )
     # exit("<><><>><")
     # q_value_cols = [f for f in df.columns if "q-value" in f]
@@ -117,7 +118,8 @@ def extract_features(
         - features["transformed_features"]
         - set(["Is decoy"])
     )
-    import pprint
+
+    print('Number of rows in extracted DataFrame:', df.shape[0])
 
     return df, features
 

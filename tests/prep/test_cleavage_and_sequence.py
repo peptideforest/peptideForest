@@ -18,7 +18,7 @@ def test_cleavage_aa():
     df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict_medium)
     df["enzN"] = df.apply(
         lambda x: peptide_forest.prep.test_cleavage_aa(
-            x["Sequence Pre AA"], x["Sequence Start"]
+            'KR', x["Sequence Pre AA"], x["Sequence Start"], 'P', x['Sequence'][0]
         ),
         axis=1,
     )
@@ -28,8 +28,8 @@ def test_cleavage_aa():
 def test_sequence_aa_c():
     df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict_medium)
     df["enzC"] = df.apply(
-        lambda x: peptide_forest.prep.test_sequence_aa_c(
-            x["Sequence"][-1], x["Sequence Post AA"]
+        lambda x: peptide_forest.prep.test_sequence_aa(
+            'KR', x["Sequence"][-1], x["Sequence Post AA"], x["Sequence Stop"], 'P'
         ),
         axis=1,
     )

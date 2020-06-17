@@ -15,37 +15,71 @@ ENGINES = {
 }
 DELIM_REGEX = re.compile(r"<\|>|;")
 PROTON = 1.00727646677
-CLEAVAGE_SITES = {"R", "K", "-"}
+# CLEAVAGE_SITES = {"R", "K", "-"}
 
 
 def test_cleavage_aa(
-    aa_field, aa_start,
+    cleaved_aas, aa_field, aa_start, inhibitors, inhib_sequence 
 ):
     """
     Test whether pre/post amino acid is consistent with enzyme cleavage site.
     Args:
+        cleaved_aas (str): amino acids that reflect the cleavage site
         aa_field (str): (multiple) pre/post amino acids
         aa_start (str): start of sequence
+        inhibitors (str): amino acids preventing cleavage
+        inhib_sequence (str): amino acid at potential inhibition site
     Returns:
         (bool): True if amino acid is consistent with cleavage site, False otherwise
     """
     all_aas = set(re.split(DELIM_REGEX, aa_field))
-    return any(aa in CLEAVAGE_SITES for aa in all_aas) or aa_start in ["1", "2"]
+    all_start = set(re.split(DELIM_REGEX, aa_start))
+    consistent_cleavage = False
+    if any(aa_start in ["1", "2"] for aa_start in all_start):
+        consistent_cleavage = True
+    else:
+        for aa in all_aas:
+            if aa == '-':
+                consistent_cleavage = True
+                break
+            elif aa in list(cleaved_aas):
+                if inhib_sequence not in list(inhibitors):
+                    consistent_cleavage = True
+                    break
+    # print(cleaved_aas, aa_field, aa_start, inhibitors, inhib_sequence )
+    # print(consistent_cleavage)
+    return consistent_cleavage
 
 
-def test_sequence_aa_c(
-    aa, post_aa,
+def test_sequence_aa(
+    cleaved_aas, aa, post_aa, aa_end, inhibitors
 ):
     """
     Test whether start/end of sequence is consistent with enzyme cleavage site, or if it is cut at end.
     Args:
+        cleaved_aas (str): amino acids that reflect the cleavage site
         aa (str): start/end of sequence
         post_aa (str): (multiple) pre/post amino acids
+        inhibitors (str): amino acids preventing cleavage
     Returns:
         (bool): True if start/end is consistent with cleavage site, False otherwise
     """
     all_post_aas = set(re.split(DELIM_REGEX, post_aa))
-    return aa in CLEAVAGE_SITES or "-" in all_post_aas
+    all_aa_end = set(re.split(DELIM_REGEX, aa_end))
+    consistent_cleavage = False
+    if "-" in all_post_aas:
+        consistent_cleavage = True
+    elif any(aa_end in ["1", "2"] for aa_end in all_aa_end):
+        consistent_cleavage = True
+    else:
+        if aa in list(cleaved_aas):
+            for post_aa in all_post_aas:
+                if post_aa not in inhibitors:
+                    consistent_cleavage = True
+                    break
+    # print(cleaved_aas, aa, post_aa, aa_end, inhibitors)
+    # print(consistent_cleavage)
+    return consistent_cleavage
 
 
 # only if cleavage site included
@@ -265,7 +299,7 @@ def combine_engine_data(df, features=None):
     for engine in df["engine"].unique():
         df_engine = df.loc[df["engine"] == engine, cols]
         # Rename the columns that will have different names
-        cols_single_engine = [f"{c}_{engine}" for c in cols_single]
+        cols_single_engine = ["{0}_{1}".format(c, engine) for c in cols_single]
         df_engine.columns = cols_u + cols_same + cols_single_engine
 
         # Merge results for each engine together (or start the dataframe)
@@ -290,7 +324,7 @@ def combine_engine_data(df, features=None):
 
     # Average mass based columns and drop the engine specific ones
     eng_names = [engine for engine in df["engine"].unique()]
-    cols = [f"Mass_{eng_name}" for eng_name in eng_names]
+    cols = ["Mass_{0}".format(eng_name) for eng_name in eng_names]
     df_combine["Mass"] = df_combine[cols].mean(axis=1)
     df_combine = df_combine.drop(cols, axis=1)
 
@@ -301,7 +335,7 @@ def combine_engine_data(df, features=None):
         ith = int(col[12])
         inds = df_combine[df_combine[col].isna()].index
         spec_groups = df_combine.groupby("Spectrum ID")
-        ith_score_per_spec = spec_groups[f"Score_processed_{eng}"].transform(
+        ith_score_per_spec = spec_groups["Score_processed_{0}".format(eng)].transform(
             lambda x: x.nlargest(ith).min()
         )
         df_combine.loc[inds, col] = ith_score_per_spec
@@ -312,14 +346,14 @@ def combine_engine_data(df, features=None):
 
 
 def row_features(
-    df, cleavage_site="C", proton=1.00727646677, max_charge=None, features=None
+    df, enzyme=None, proton=1.00727646677, max_charge=None, features=None
 ):
     """
     Calculate row-level features from unified ursgal dataframe.
     Features are added as columns inplace in dataframe.
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
-        cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
+        enzyme (str): enzyme cleavage site given as '<cleaved amino acids>;<N or C>;<inhibiting amino acids>'
         proton (float): used for mass calculation and is kwargs for testing purpose
     Returns:
         df (pd.DataFrame): input dataframe with added row-level features for each PSM
@@ -342,30 +376,52 @@ def row_features(
     features["row_features"].add("dM")
     features["transformed_features"].add("Exp m/z")
 
-    # Only works with trypsin for now
+    cleaved_aas, cleavage_site, inhibitors = enzyme.split(';')
+
     if cleavage_site == "C":
         df["enzN"] = df.apply(
             lambda x: test_cleavage_aa(
-                x["Sequence Pre AA"], x["Sequence Start"]
+                cleaved_aas, x["Sequence Pre AA"], x["Sequence Start"], inhibitors, x["Sequence"][0]
             ),
             axis=1,
         )
         features["row_features"].add("enzN")
 
         df["enzC"] = df.apply(
-            lambda x: test_sequence_aa_c(
-                x["Sequence"][-1], x["Sequence Post AA"]
+            lambda x: test_sequence_aa(
+                cleaved_aas, x["Sequence"][-1], x["Sequence Post AA"], x["Sequence Stop"], inhibitors
             ),
             axis=1,
         )
         features["row_features"].add("enzC")
 
+    elif cleavage_site == "N":
+        df["enzC"] = df.apply(
+            lambda x: test_cleavage_aa(
+                cleaved_aas, x["Sequence Post AA"], x["Sequence Stop"], inhibitors, x["Sequence"][-1]
+            ),
+            axis=1,
+        )
+        features["row_features"].add("enzC")
+
+        df["enzN"] = df.apply(
+            lambda x: test_sequence_aa(
+                cleaved_aas, x["Sequence"][0], x["Sequence Pre AA"], x["Sequence Start"], inhibitors
+            ),
+            axis=1,
+        )
+        features["row_features"].add("enzN")
+
     else:
         raise ValueError(
-            "Only cleavage sites consistent with trypsin are accepted."
+            "Cleavege site needs to be N or C within enzyme given as '<cleaved amino acids>;<N or C>;<inhibiting amino acids>'"
         )
 
-    df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
+    enz_count = 0
+    for aa in cleaved_aas:
+        enz_count += df["Sequence"].str.count(aa)
+    df["enzInt"] = enz_count
+    # df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
     df["PepLen"] = df["Sequence"].apply(len)
     df["CountProt"] = df["Protein ID"].apply(parse_protein_ids).apply(len)
 
@@ -398,15 +454,15 @@ def col_features_alt(df, min_data=0.7, features=None):
         specs_with_2_psms = psm_counts_per_spec[psm_counts_per_spec >= 2]
         specs_with_3_psms = psm_counts_per_spec[psm_counts_per_spec >= 3]
         if specs_with_2_psms.count() / psm_counts_per_spec.count() > min_data:
-            delta_lookup[f"Score_processed_{e}"] = [
-                {"column": f"delta_score_2_{e}", "iloc": 1}
+            delta_lookup["Score_processed_{0}".format(e)] = [
+                {"column": "delta_score_2_{0}".format(e), "iloc": 1}
             ]
-            features["col_features_alt"].add(f"delta_score_2_{e}")
+            features["col_features_alt"].add("delta_score_2_{0}".format(e))
         if specs_with_3_psms.count() / psm_counts_per_spec.count() > min_data:
-            delta_lookup[f"Score_processed_{e}"].append(
-                {"column": f"delta_score_3_{e}", "iloc": 2}
+            delta_lookup["Score_processed_{0}".format(e)].append(
+                {"column": "delta_score_3_{0}".format(e), "iloc": 2}
             )
-            features["col_features_alt"].add(f"delta_score_3_{e}")
+            features["col_features_alt"].add("delta_score_3_{0}".format(e))
 
     #
     core_id_cols = [
@@ -447,8 +503,8 @@ def col_features_alt(df, min_data=0.7, features=None):
         if l2 == "":
             new_columns.append(l1)
         else:
-            new_columns.append(f"{l1}_{l2}")
-            features["col_features_alt"].add(f"{l1}_{l2}")
+            new_columns.append("{0}_{1}".format(l1, l2))
+            features["col_features_alt"].add("{0}_{1}".format(l1, l2))
     cdf.columns = new_columns
     for c in cdf.columns:
         if c.startswith("Score_processed"):
@@ -614,13 +670,13 @@ def determine_cols_to_be_dropped(df, features=None):
 
 
 def calc_features(
-    df, cleavage_site=None, old_cols=None, min_data=0.0, features=None
+    df, enzyme=None, old_cols=None, min_data=0.0, features=None
 ):
     """
     Main function to calculate features from unified ursgal dataframe.
     Args:
         df (pd.DataFrame): ursgal dataframe containing experiment data
-        cleavage_site (str): enzyme cleavage site (Currently only "C" implemented and tested)
+        enzyme (str): enzyme cleavage site given as '<cleaved amino acids>;<N or C>;<inhibiting amino acids>'
         old_cols (List): columns initially in the dataframe
         min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
         features (dict):
@@ -632,12 +688,13 @@ def calc_features(
     pd.set_option("max_columns", 10000)
     print("Preprocessing df")
     df, features = preprocess_df(df, features)
-    # print(features)
-    # exit(1)
+    print('Number of rows in DataFrame:', df.shape[0])
+
     print("Calculating row features")
     df, features = row_features(
-        df, cleavage_site=cleavage_site, features=features
+        df, enzyme=enzyme, features=features
     )
+    print('Number of rows in DataFrame:', df.shape[0])
 
     # df, features = col_features(df, min_data=min_data, features=features)
     cols_to_drop = determine_cols_to_be_dropped(df, features=features)
@@ -646,4 +703,5 @@ def calc_features(
     print("Calculating col features")
     df, features = col_features_alt(df, features=features)
     # df.to_csv("test4.csv", index=False)
+    print('Number of rows in DataFrame:', df.shape[0])
     return df, features
