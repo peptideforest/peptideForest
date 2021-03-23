@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import pprint
+import math
 
 
 # Regex
@@ -436,6 +437,8 @@ def col_features_alt(df, min_data=0.7, features=None):
             # we have nones
             print("Filling nan in column ", c)
             df[c].fillna(0, inplace=True)
+    trunc = (lambda x: math.trunc(1e9 * x) / 1e9)
+    df[["Mass", "dM"]] = df[["Mass", "dM"]].applymap(trunc)
     cdf = pd.pivot_table(
         df,
         index=core_id_cols + id_cols_full,
