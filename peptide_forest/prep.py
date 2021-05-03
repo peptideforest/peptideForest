@@ -1,10 +1,9 @@
 import re
 import warnings
+
+import click
 import numpy as np
 import pandas as pd
-import pprint
-import math
-
 
 # Regex
 ENGINES = {
@@ -63,6 +62,24 @@ def test_sequence_aa_c(
 #     """
 #     return aa in CLEAVAGE_SITES or aa_start in [1, 2]
 
+
+def mass_sanity_check(df):
+    already_warned = False
+    for name, grp in df.groupby(["Spectrum ID", "Sequence", "Charge", "Modifications"]):
+        if len(grp) == 1:
+            continue
+        masses = grp["uCalc m/z"].values
+        if not (masses[0] == masses).all():
+            if not already_warned:
+                warnings.warn("uCalc m/z are deviating across engines for identical predictions. Rerunning ursgal is recommended.")
+                if click.confirm("Would you like to continue with majority masses?", default=False):
+                    pass
+                else:
+                    raise ValueError("uCalc m/z are deviating across engines for identical predictions. Rerunning ursgal is recommended.")
+                already_warned = True
+            majority_mass = pd.value_counts(masses, sort=True, ascending=False).index.tolist()[0]
+            df.loc[grp.index, "uCalc m/z"] = majority_mass
+    return df
 
 def parse_protein_ids(protein_id,):
     """
@@ -336,6 +353,7 @@ def row_features(
     features["transformed_features"].add("Score")
 
     df["Mass"] = (df["uCalc m/z"] - proton) * df["Charge"]
+    df = mass_sanity_check(df)
     features["row_features"].add("Mass")
     features["transformed_features"].add("uCalc m/z")
 
@@ -437,8 +455,6 @@ def col_features_alt(df, min_data=0.7, features=None):
             # we have nones
             print("Filling nan in column ", c)
             df[c].fillna(0, inplace=True)
-    trunc = (lambda x: math.trunc(1e6 * x) / 1e6)
-    df[["Mass", "dM"]] = df[["Mass", "dM"]].applymap(trunc)
     cdf = pd.pivot_table(
         df,
         index=core_id_cols + id_cols_full,
