@@ -183,10 +183,6 @@ def run_peptide_forest(
         features=features,
     )
 
-    for name, grp in df_training.groupby(["Spectrum ID", "Sequence", "Modifications", "Charge"]):
-        if len(grp) != 1:
-            print(name)
-
     print("Final feature columns:", features["final_features"])
     # Fit model
     print(f"Extracted all features in", "{features}".format(**timer))
