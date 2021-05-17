@@ -1,7 +1,4 @@
-import pandas as pd
 import numpy as np
-import pytest
-import os
 
 import peptide_forest
 
@@ -39,11 +36,8 @@ def test_transform_score():
     assert df[(df["engine"] == "omssa")]["Score"].min() <= 1e-30
     # ^-- make sure the test data has omssa exception, ie score <=1e-30
 
-    assert (
-        df[df["engine"] == "omssa"]["Score_processed"].equals(
-            -np.log(df[df["engine"] == "omssa"]["Score"])
-        )
-        is False
+    assert ~df[df["engine"] == "omssa"]["Score_processed"].equals(
+        -np.log(df[df["engine"] == "omssa"]["Score"])
     )
     # test if conversion is not simply -np.log10 as mascot
 

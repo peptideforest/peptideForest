@@ -19,7 +19,8 @@ CLEAVAGE_SITES = {"R", "K", "-"}
 
 
 def test_cleavage_aa(
-    aa_field, aa_start,
+    aa_field,
+    aa_start,
 ):
     """
     Test whether pre/post amino acid is consistent with enzyme cleavage site.
@@ -34,7 +35,8 @@ def test_cleavage_aa(
 
 
 def test_sequence_aa_c(
-    aa, post_aa,
+    aa,
+    post_aa,
 ):
     """
     Test whether start/end of sequence is consistent with enzyme cleavage site, or if it is cut at end.
@@ -48,40 +50,66 @@ def test_sequence_aa_c(
     return aa in CLEAVAGE_SITES or "-" in all_post_aas
 
 
-# only if cleavage site included
-# def test_sequence_aa_n(
-#     aa, aa_start,
-# ):
-#     """
-#     Test whether start/end of sequence is consistent with enzyme cleavage site, or if it is cut at end.
-#     Args:
-#         aa (str): start/end of sequence
-#         aa_start (str): start of sequence
-#     Returns:
-#         (bool): True if start/end is consistent with cleavage site, False otherwise
-#     """
-#     return aa in CLEAVAGE_SITES or aa_start in [1, 2]
-
-
 def mass_sanity_check(df):
+    new_df = df.copy(deep=True)
     already_warned = False
-    for name, grp in df.groupby(["Spectrum ID", "Sequence", "Charge", "Modifications"]):
-        if len(grp) == 1:
+    for name, grp in new_df.groupby(
+        ["Spectrum ID", "Sequence", "Charge", "Modifications"]
+    ):
+        if grp["uCalc m/z"].nunique() == 1 and grp["Exp m/z"].nunique() == 1:
             continue
-        masses = grp["uCalc m/z"].values
-        if not (masses[0] == masses).all():
-            if not already_warned:
-                warnings.warn("uCalc m/z are deviating across engines for identical predictions. Rerunning ursgal is recommended.")
-                if click.confirm("Would you like to continue with majority masses?", default=False):
-                    pass
-                else:
-                    raise ValueError("uCalc m/z are deviating across engines for identical predictions. Rerunning ursgal is recommended.")
-                already_warned = True
-            majority_mass = pd.value_counts(masses, sort=True, ascending=False).index.tolist()[0]
-            df.loc[grp.index, "uCalc m/z"] = majority_mass
-    return df
+        if not already_warned:
+            warnings.warn(
+                "Recorded mass values are deviating across engines for identical predictions. Rerunning ursgal is recommended."
+            )
+            if click.confirm(
+                "Would you like to continue with majority masses?", default=False
+            ):
+                pass
+            else:
+                raise ValueError(
+                    "Recorded mass values are deviating across engines for identical predictions. Rerunning ursgal is recommended."
+                )
+            already_warned = True
+        masses_calc = grp["uCalc m/z"].values
+        masses_exp = grp["Exp m/z"].values
+        majority_mass_calc = pd.value_counts(
+            masses_calc, sort=True, ascending=False
+        ).index.tolist()[0]
+        new_df.loc[grp.index, "uCalc m/z"] = majority_mass_calc
+        majority_mass_exp = pd.value_counts(
+            masses_exp, sort=True, ascending=False
+        ).index.tolist()[0]
+        new_df.loc[grp.index, "Exp m/z"] = majority_mass_exp
+        if (
+            new_df.loc[grp.index, "uCalc m/z"].nunique() != 1
+            or new_df.loc[grp.index, "Exp m/z"].nunique() != 1
+        ):
+            print("here")
+    return new_df
 
-def parse_protein_ids(protein_id,):
+
+def calc_deltas(grp, delta_lookup=None):
+    for e in delta_lookup.keys():
+        _3largest_values = grp[e].nlargest(3)
+        # what if 0
+        if _3largest_values.iloc[0] == 0:
+            for delta_dict in delta_lookup[e]:
+                grp[delta_dict["column"]] = np.nan
+        else:
+            for delta_dict in delta_lookup[e]:
+                try:
+                    grp[delta_dict["column"]] = (
+                        grp[e] - _3largest_values.iloc[delta_dict["iloc"]]
+                    )
+                except IndexError:
+                    pass
+    return grp
+
+
+def parse_protein_ids(
+    protein_id,
+):
     """
     Turns ursgal dataframe column "Protein ID" into a list of all protein IDs.
     Args:
@@ -114,56 +142,6 @@ def transform_score(score, score_stats):
     else:
         transformed_score = score
     return transformed_score
-
-
-# def calc_delta_score_i(df, i, min_data=0.7, features=None):
-#     """
-#     Calculate delta_score_i, which is the difference in score between a PSM and the ith ranked PSM for a given
-#     spectrum. It is calculated for targets and decoys combined. It is only calculated when the fraction of
-#     spectra with more than i PSMs  is greater than min_data. Missing values are replaced by the mean.
-#     It is calculated for each engine.
-#     Args:
-#         df (pd.DataFrame): ursgal dataframe
-#         i (int): rank to compare to (i.e. i=2 -> subtract score of 2nd ranked PSM)
-#         min_data (float): minimum fraction of spectra for which we require that there are at least i PSMs
-#     Returns:
-#         df (pd.DataFrame): ursgal dataframe with delta_score_i added
-#     """
-#     col = f"delta_score_{i}"
-#     features["calc_delta_score_i"].add(col)
-#     # Initialize to nan (for PSMs from different engines)
-#     df[col] = np.nan
-
-#     for engine in df["engine"].unique():
-
-#         # Get data for engine
-#         df_engine = df[df["engine"] == engine]
-
-#         # Get number of PSMs for each spectrum ID
-#         psm_counts = df_engine["Spectrum ID"].value_counts()
-
-#         # Test if there enough spectra with more than i target and i decoy PSMs
-#         if len(psm_counts[psm_counts >= i]) / len(psm_counts) > min_data:
-#             # Name of the new column
-
-#             inds = df_engine.loc[
-#                 df_engine["Spectrum ID"].isin(
-#                     psm_counts[psm_counts >= i].index
-#                 ),
-#                 :,
-#             ].index
-#             ith_best = df_engine.loc[inds, :].groupby("Spectrum ID")
-#             ith_best = ith_best["Score_processed"].transform(
-#                 lambda x: x.nlargest(i).min()
-#             )
-#             df.loc[inds, col] = df.loc[inds, "Score_processed"] - ith_best
-
-#             # Replace missing with mean
-#             mean_val = df.loc[inds, col].mean()
-
-#             df.loc[inds, col] = mean_val
-
-#     return df, features
 
 
 def preprocess_df(df, features=None):
@@ -222,111 +200,12 @@ def get_stats(df):
         stats[engine] = {}
         engine_df = df[df["engine"] == engine]
 
-        # print(engine_df)
-        # Minimum score (transformed)
-        # CF: wrong does not set miniumum value to 1e-30 for OMSSA
-        # stats[engine]["min_score"] = -np.log10(
-        #     engine_df.loc[engine_df["Score"] >= 1e-30, "Score"].min()
-        # )
-        # CF": corrected:
-        # 1e-30 and omssa only
         if engine == "omssa" and engine_df.Score.min() < 1e-30:
             stats[engine]["min_score"] = 1e-30
         else:
             stats[engine]["min_score"] = engine_df.Score.min()
         stats[engine]["max_score"] = engine_df.Score.max()
     return stats
-
-
-def combine_engine_data2(df, features=None):
-    pass
-
-
-def combine_engine_data(df, features=None):
-    """
-    Calculate row-level features from unified ursgal dataframe.
-    Features are added as columns inplace in dataframe.
-    Args:
-        df (pd.DataFrame): dataframe containing search engine results
-        feature_cols (list): list of calculated feature columns in dataframe
-    Returns:
-        df (pd.DataFrame):  dataframe with results for each search engine combined for each individual
-                            experimental-theoretical PSM.
-    """
-
-    # Get a list of columns that will be different for each engine.
-    # Mass based columns can be slightly different between engines. The average is taken at the end.
-
-    cols_single = ["Score_processed", "delta_score_2", "delta_score_3", "Mass"]
-
-    # Columns to group by
-    cols_u = [
-        "Spectrum ID",
-        "Sequence",
-        "Modifications",
-        "Protein ID",
-        "Is decoy",
-    ]
-
-    # Get a list of columns that should be the same for each engine
-    cols_same = []
-    for f in feature_cols:
-        if f not in cols_single + cols_u:
-            cols_same.append(f)
-
-    cols = cols_u + cols_same + cols_single
-
-    # Initialize the new dataframe
-    df_combine = pd.DataFrame(columns=cols)
-
-    # Go through each engine and get the results
-    for engine in df["engine"].unique():
-        df_engine = df.loc[df["engine"] == engine, cols]
-        # Rename the columns that will have different names
-        cols_single_engine = [f"{c}_{engine}" for c in cols_single]
-        df_engine.columns = cols_u + cols_same + cols_single_engine
-
-        # Merge results for each engine together (or start the dataframe)
-        if df_combine.empty:
-            df_combine = df_engine.copy(deep=True)
-        else:
-            df_combine = df_combine.merge(
-                df_engine, how="outer", on=(cols_u + cols_same)
-            )
-
-    # Drop columns that are all NaNs
-    df_combine = df_combine.dropna(axis=1, how="all")
-
-    # Drop columns that contain all the same result
-    df_combine = df_combine.drop(
-        [c for c in df_combine.columns if len(df_combine[c].unique()) == 1],
-        axis=1,
-    )
-
-    # Drop rows that are identical
-    df_combine = df_combine.drop_duplicates()
-
-    # Average mass based columns and drop the engine specific ones
-    eng_names = [engine for engine in df["engine"].unique()]
-    cols = [f"Mass_{eng_name}" for eng_name in eng_names]
-    df_combine["Mass"] = df_combine[cols].mean(axis=1)
-    df_combine = df_combine.drop(cols, axis=1)
-
-    # Fill delta_scores for not-assigned PSMs with ith best score for that spectrum by engine
-    cols = [c for c in df_combine.columns if "delta_score" in c]
-    for col in cols:
-        eng = col[14:]
-        ith = int(col[12])
-        inds = df_combine[df_combine[col].isna()].index
-        spec_groups = df_combine.groupby("Spectrum ID")
-        ith_score_per_spec = spec_groups[f"Score_processed_{eng}"].transform(
-            lambda x: x.nlargest(ith).min()
-        )
-        df_combine.loc[inds, col] = ith_score_per_spec
-        # If no ith best score could be assigned replace with max for column
-        df_combine.loc[df_combine[col].isna(), col] = df_combine[col].max()
-
-    return df_combine
 
 
 def row_features(
@@ -352,8 +231,8 @@ def row_features(
 
     features["transformed_features"].add("Score")
 
-    df["Mass"] = (df["uCalc m/z"] - proton) * df["Charge"]
     df = mass_sanity_check(df)
+    df["Mass"] = (df["uCalc m/z"] - proton) * df["Charge"]
     features["row_features"].add("Mass")
     features["transformed_features"].add("uCalc m/z")
 
@@ -364,47 +243,25 @@ def row_features(
     # Only works with trypsin for now
     if cleavage_site == "C":
         df["enzN"] = df.apply(
-            lambda x: test_cleavage_aa(
-                x["Sequence Pre AA"], x["Sequence Start"]
-            ),
+            lambda x: test_cleavage_aa(x["Sequence Pre AA"], x["Sequence Start"]),
             axis=1,
         )
         features["row_features"].add("enzN")
 
         df["enzC"] = df.apply(
-            lambda x: test_sequence_aa_c(
-                x["Sequence"][-1], x["Sequence Post AA"]
-            ),
+            lambda x: test_sequence_aa_c(x["Sequence"][-1], x["Sequence Post AA"]),
             axis=1,
         )
         features["row_features"].add("enzC")
 
     else:
-        raise ValueError(
-            "Only cleavage sites consistent with trypsin are accepted."
-        )
+        raise ValueError("Only cleavage sites consistent with trypsin are accepted.")
 
     df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
     df["PepLen"] = df["Sequence"].apply(len)
     df["CountProt"] = df["Protein ID"].apply(parse_protein_ids).apply(len)
 
     features["row_features"] |= set(["enzInt", "PepLen", "CountProt"])
-
-    # Get maximum charge to use for columns
-    # if max_charge is None:
-    #     max_charge = df["Charge"].max()
-
-    # # Create categorical charge columns
-    # for i in range(1, max_charge):
-    #     # pd.to_numeric(df['Sequence Start'], downcast="integer")
-    #     df[f"Charge{i}"] = (df["Charge"] == i).astype(int)
-    #     # df[f"Charge{i}"] = df[f"Charge{i}"].astype("category")
-    #     features["row_features"].add(f"Charge{i}")
-
-    # df[f">Charge{max_charge}"] = (df["Charge"] >= max_charge).astype(int)
-    # features["row_features"].add(f">Charge{max_charge}")
-    # features["transformed_features"].add("Charge")
-
     features["row_features"].add("Charge")
 
     return df, features
@@ -481,43 +338,8 @@ def col_features_alt(df, min_data=0.7, features=None):
         for delta_dict in delta_lookup[e]:
             cdf[delta_dict["column"]] = np.nan
 
-    def calc_deltas(grp, delta_lookup=None):
-        for e in delta_lookup.keys():
-            _3largest_values = grp[e].nlargest(3)
-            # what if 0
-            if _3largest_values.iloc[0] == 0:
-                for delta_dict in delta_lookup[e]:
-                    grp[delta_dict["column"]] = np.nan
-            else:
-                for delta_dict in delta_lookup[e]:
-                    try:
-                        grp[delta_dict["column"]] = (
-                            grp[e] - _3largest_values.iloc[delta_dict["iloc"]]
-                        )
-                    except IndexError:
-                        pass
-        return grp
+    cdf = cdf.groupby("Spectrum ID").apply(calc_deltas, delta_lookup=delta_lookup)
 
-    cdf = cdf.groupby("Spectrum ID").apply(
-        calc_deltas, delta_lookup=delta_lookup
-    )
-
-    # for spec_id, spec_grp in cdf.groupby("Spectrum ID"):
-    #     for e in delta_lookup.keys():
-    #         _3largest_values = spec_grp[e].nlargest(3)
-    #         # what if 0
-    #         if _3largest_values.iloc[0] == 0:
-    #             for delta_dict in delta_lookup[e]:
-    #                 cdf.loc[spec_grp.index, delta_dict["column"]] = np.nan
-    #         else:
-    #             for delta_dict in delta_lookup[e]:
-    #                 try:
-    #                     cdf.loc[spec_grp.index, delta_dict["column"]] = (
-    #                         spec_grp[e]
-    #                         - _3largest_values.iloc[delta_dict["iloc"]]
-    #                     )
-    #                 except IndexError:
-    #                     pass
     for c in cdf.columns:
         if c.startswith("delta_score"):
             cdf[c].fillna(cdf[c].min(), inplace=True)
@@ -534,49 +356,6 @@ def col_features(df, min_data=0.7, features=None):
     Returns:
         df (pd.DataFrame): input dataframe with added col-level features for each PSM
     """
-    # # delta_score_2: difference between first and second score for a spectrum.
-    # # If < min_data have two scores for both target and decoys, don't calculate.
-    # df, features = calc_delta_score_i(
-    #     df, i=2, min_data=min_data, features=features
-    # )
-
-    # # delta_score_3: difference between first and third score for a spectrum.
-    # # If < min_data have three scores for both target and decoys, don't calculate.
-    # df, features = calc_delta_score_i(
-    #     df, i=3, min_data=min_data, features=features
-    # )
-
-    # delta_lookup = {}
-    # for e, engine_grp in df.groupby("engine"):
-    #     psm_counts_per_spec = engine_grp["Spectrum ID"].value_counts()
-    #     specs_with_2_psms = psm_counts_per_spec[psm_counts_per_spec >= 2]
-    #     specs_with_3_psms = psm_counts_per_spec[psm_counts_per_spec >= 3]
-    #     if specs_with_2_psms.count() / psm_counts_per_spec.count() > min_data:
-    #         delta_lookup[e] = [{"column": "delta_score_2", "iloc": 1}]
-    #         # df.loc[engine_grp.index, "delta_score_2"] = np.nan
-    #     if specs_with_3_psms.count() / psm_counts_per_spec.count() > min_data:
-    #         delta_lookup[e].append({"column": "delta_score_3", "iloc": 2})
-    #         # df.loc[engine_grp.index, "delta_score_2"] = np.nan
-
-    # for spec_id, spec_grp in df.groupby("Spectrum ID"):
-    #     for e in delta_lookup.keys():
-    #         engine_grp = spec_grp[spec_grp["engine"] == e]
-    #         if engine_grp.empty:
-    #             continue
-    #         _3largest_values = engine_grp["Score_processed"].nlargest(3)
-    #         for delta_dict in delta_lookup[e]:
-    #             # setting all delta to the max delta
-    #             df.loc[spec_grp.index, delta_dict["column"]] = (
-    #                 0 - _3largest_values.iloc[0]
-    #             )
-    #             try:
-    #                 df.loc[engine_grp.index, delta_dict["column"]] = (
-    #                     engine_grp["Score_processed"]
-    #                     - _3largest_values.iloc[delta_dict["iloc"]]
-    #                 )
-    #             except IndexError:
-    #                 pass
-
     for e, engine_grp in df.groupby("engine"):
         psm_counts_per_spec = engine_grp["Spectrum ID"].value_counts()
         specs_with_2_psms = psm_counts_per_spec[psm_counts_per_spec >= 2]
@@ -596,9 +375,7 @@ def col_features(df, min_data=0.7, features=None):
                 # Setting max distance by default
 
                 for delta_dict in delta_lookup:
-                    df.loc[
-                        grp.index, delta_dict["column"]
-                    ] = _3largest_values.iloc[0]
+                    df.loc[grp.index, delta_dict["column"]] = _3largest_values.iloc[0]
 
                     try:
                         df.loc[grp.index, delta_dict["column"]] = (
@@ -609,12 +386,8 @@ def col_features(df, min_data=0.7, features=None):
                         pass
 
     # log of the number of times the peptide sequence for a spectrum is found in the set
-    df["lnNumPep"] = (
-        df.groupby("Sequence")["Sequence"].transform("count").apply(np.log)
-    )
-    features["cols_features"] |= set(
-        ["lnNumPep", "delta_score_2", "delta_score_3"]
-    )
+    df["lnNumPep"] = df.groupby("Sequence")["Sequence"].transform("count").apply(np.log)
+    features["cols_features"] |= set(["lnNumPep", "delta_score_2", "delta_score_3"])
     return df, features
 
 
@@ -632,9 +405,7 @@ def determine_cols_to_be_dropped(df, features=None):
     return cols_to_drop
 
 
-def calc_features(
-    df, cleavage_site=None, old_cols=None, min_data=0.0, features=None
-):
+def calc_features(df, cleavage_site=None, old_cols=None, min_data=0.0, features=None):
     """
     Main function to calculate features from unified ursgal dataframe.
     Args:
@@ -654,9 +425,7 @@ def calc_features(
     # print(features)
     # exit(1)
     print("Calculating row features")
-    df, features = row_features(
-        df, cleavage_site=cleavage_site, features=features
-    )
+    df, features = row_features(df, cleavage_site=cleavage_site, features=features)
 
     # df, features = col_features(df, min_data=min_data, features=features)
     cols_to_drop = determine_cols_to_be_dropped(df, features=features)

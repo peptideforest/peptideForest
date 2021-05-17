@@ -46,6 +46,6 @@ def test_get_q_vals():
         assert list(frame.index) == [9, 2, 1, 0]
         assert all(frame["Decoy"].astype(bool) == frame["Is decoy"])
         assert all(frame["Decoy"].astype(bool) == ~frame["Target"].astype(bool))
-        assert list(frame["FDR"]) == [0.0, 2.7, 1.35, 0.9]
+        assert list(frame["FDR"]) == [0.0, 0.9, 0.45, 0.3]
     assert df_test_fdr_true["FDR"].equals(df_test_fdr_true["q-value"])
-    assert list(df_test_fdr_false["q-value"]) == [0, 2.7, 2.7, 2.7]
+    assert list(df_test_fdr_false["q-value"]) == [0, 0.9, 0.9, 0.9]

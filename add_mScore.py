@@ -1,7 +1,7 @@
-import sys
+import csv
 import glob
 import os
-import csv
+import sys
 from collections import defaultdict as ddict
 
 

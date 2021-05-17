@@ -1,11 +1,12 @@
-from peptide_forest import results
-
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
-import numpy as np
 import itertools
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+from peptide_forest import results
 
 
 def plot_num_psms_by_method(df, methods, output_file, dpi, show_plot):

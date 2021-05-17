@@ -1,11 +1,11 @@
+import itertools
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import itertools
-import matplotlib.pyplot as plt
 import seaborn as sns
 
 import peptide_forest
-
 
 tmts = ["126", "127L", "127H", "128L", "128H", "129L", "129H", "130L", "130H", "131L"]
 

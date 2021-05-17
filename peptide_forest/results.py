@@ -1,10 +1,12 @@
-from peptide_forest import models, classifier
 import numpy as np
 import pandas as pd
 
+from peptide_forest import classifier, models
+
 
 def mark_top_targets(
-    df, q_cut,
+    df,
+    q_cut,
 ):
     """
     Identify which PSMs in a dataframe are top targets (i.e. is the highest ranked target PSM for a given spectrum
@@ -37,7 +39,10 @@ def mark_top_targets(
 
 
 def calc_all_final_q_vals(
-    df, frac_tp, top_psm_only, initial_engine,
+    df,
+    frac_tp,
+    top_psm_only,
+    initial_engine,
 ):
     """
     Calculate q-value for given score column.
@@ -72,7 +77,9 @@ def calc_all_final_q_vals(
     return df
 
 
-def get_ranks(df,):
+def get_ranks(
+    df,
+):
     """
     Add a column with the rank of each PSM for all Score_processed columns.
     Args:
@@ -111,9 +118,7 @@ def get_shifted_psms(df, x_name, y_name, n_return):
 
     # Non top targets that are now top targets
     df_new_top_targets = (
-        df[~df[tt_x] & df[tt_y]]
-        .sort_values(col_x, ascending=False)
-        .copy(deep=True)
+        df[~df[tt_x] & df[tt_y]].sort_values(col_x, ascending=False).copy(deep=True)
     )
     df_new_top_targets = df_new_top_targets.reset_index()
     print(
@@ -135,8 +140,7 @@ def get_shifted_psms(df, x_name, y_name, n_return):
             if any(
                 [
                     sequence != df_spectrum["Sequence"].values[0],
-                    protein_id
-                    != df_spectrum["Protein ID"].astype(str).values[0],
+                    protein_id != df_spectrum["Protein ID"].astype(str).values[0],
                     mods != df_spectrum["Modifications"].values[0],
                 ]
             ):
@@ -144,9 +148,7 @@ def get_shifted_psms(df, x_name, y_name, n_return):
 
     # Top targets that are now not top targets
     df_old_top_targets = (
-        df[df[tt_x] & ~df[tt_y]]
-        .sort_values(col_x, ascending=True)
-        .copy(deep=True)
+        df[df[tt_x] & ~df[tt_y]].sort_values(col_x, ascending=True).copy(deep=True)
     )
     df_old_top_targets = df_old_top_targets.reset_index()
     print(
@@ -174,15 +176,14 @@ def get_shifted_psms(df, x_name, y_name, n_return):
             if any(
                 [
                     sequence != df_spectrum["Sequence"].values[0],
-                    protein_id
-                    != df_spectrum["Protein ID"].astype(str).values[0],
+                    protein_id != df_spectrum["Protein ID"].astype(str).values[0],
                     mods != df_spectrum["Modifications"].values[0],
                 ]
             ):
                 df_old_top_targets.loc[i, "down_rank_for_spectrum"] = True
-                df_old_top_targets.loc[
-                    i, "new_best_psm_is_top_target"
-                ] = df_spectrum[f"top_target_{y_name}"].values[0]
+                df_old_top_targets.loc[i, "new_best_psm_is_top_target"] = df_spectrum[
+                    f"top_target_{y_name}"
+                ].values[0]
 
     return df_new_top_targets, df_old_top_targets
 
@@ -268,11 +269,7 @@ def get_num_psms_against_q_cut(
     # Get q-value list
     if q_val_cut is None:
         q_val_cut = sorted(
-            [
-                float(f"{i}e-{j}")
-                for i in np.arange(1, 10)
-                for j in np.arange(4, 1, -1)
-            ]
+            [float(f"{i}e-{j}") for i in np.arange(1, 10) for j in np.arange(4, 1, -1)]
         ) + [1e-1]
 
     # Get a list of methods
@@ -291,7 +288,7 @@ def get_num_psms_against_q_cut(
         df = mark_top_targets(df, q_cut=cut)
         # Calculate the number of q-values for this cut-off
         df_num_psms = df[[c for c in df.columns if "top_target_" in c]].sum()
-        df_num_psms_q.loc[str(cut), :] = df_num_psms[df_num_psms_q.columns]
+        df_num_psms_q.loc[str(cut), :] = df_num_psms[methods]
 
         # Calculate results for any engine identifies a PSM as a top-target
         tmp = df[engine_cols].any(axis=1)

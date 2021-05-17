@@ -1,7 +1,8 @@
-import pandas as pd
 import math
-import peptide_forest
 
+import pandas as pd
+
+import peptide_forest
 
 train_a = pd.DataFrame(
     {
