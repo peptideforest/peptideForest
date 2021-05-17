@@ -1,12 +1,12 @@
-from peptide_forest import classifier, setup_dataset
-
-import warnings
 import types
+import warnings
+
 import numpy as np
 import pandas as pd
-
 from sklearn import model_selection, preprocessing
 from sklearn.exceptions import DataConversionWarning
+
+from peptide_forest import classifier, setup_dataset
 
 
 def get_q_vals(
@@ -84,7 +84,8 @@ def get_q_vals(
 
 
 def get_train_test_sets(
-    df, use_cross_validation,
+    df,
+    use_cross_validation,
 ):
     """
     Split dataframe into multiple sets for training.
@@ -105,13 +106,9 @@ def get_train_test_sets(
         np.random.shuffle(spec_ids)
         div_by_three_len = 3 * int(np.floor(len(spec_ids) / 3))
         spec_ids_list = np.split(spec_ids[:div_by_three_len], 3)
-        spec_ids_list[0] = np.append(
-            spec_ids_list[0], spec_ids[div_by_three_len:]
-        )
+        spec_ids_list[0] = np.append(spec_ids_list[0], spec_ids[div_by_three_len:])
         for spec_ids in spec_ids_list:
-            training_data.append(
-                df[df["Spectrum ID"].isin(spec_ids)].copy(deep=True)
-            )
+            training_data.append(df[df["Spectrum ID"].isin(spec_ids)].copy(deep=True))
     else:
         train_decoys, test_decoys = model_selection.train_test_split(
             df[df["Is decoy"]], test_size=0.5, random_state=0
@@ -152,9 +149,7 @@ def find_psms_to_keep(df, score_col):
     # Index of spectra where more than one PSM has the max score
     inds = num_with_top_val.index[num_with_top_val > 1]
     # Get dataframe for those spectra and take only PSMs that have the max score
-    df_with_top_val = df[df["Spectrum ID"].isin(inds) & df[eq_col]].copy(
-        deep=True
-    )
+    df_with_top_val = df[df["Spectrum ID"].isin(inds) & df[eq_col]].copy(deep=True)
     # Check how many decoys there are for each spectrum
     df_num_decoys = df_with_top_val.groupby("Spectrum ID")["Is decoy"].agg(
         ["count", "sum", "nunique"]
@@ -163,14 +158,10 @@ def find_psms_to_keep(df, score_col):
     # Target and decoy are ranked top
     inds_drop = set(df_num_decoys[df_num_decoys["nunique"] == 2].index)
     # Only targets are top
-    inds_drop = inds_drop.union(
-        set(df_num_decoys[df_num_decoys["sum"] == 0].index)
-    )
+    inds_drop = inds_drop.union(set(df_num_decoys[df_num_decoys["sum"] == 0].index))
 
     # Get spectra where there are only decoys with the max score, one of which will be kept
-    inds_keep = df_num_decoys[
-        df_num_decoys["sum"] == df_num_decoys["count"]
-    ].index
+    inds_keep = df_num_decoys[df_num_decoys["sum"] == df_num_decoys["count"]].index
 
     # Get list of PSMs to drop: choose one at random to keep when both were decoys
     psms_keep = list(
@@ -183,9 +174,7 @@ def find_psms_to_keep(df, score_col):
     # And drop the other one
     psms_drop = list(
         df[
-            df["Spectrum ID"].isin(inds_keep)
-            & df[eq_col]
-            & (~df.index.isin(psms_keep))
+            df["Spectrum ID"].isin(inds_keep) & df[eq_col] & (~df.index.isin(psms_keep))
         ].index
     )
 
@@ -202,7 +191,10 @@ def find_psms_to_keep(df, score_col):
 
 
 def calc_num_psms(
-    df, score_col, q_cut, frac_tp,
+    df,
+    score_col,
+    q_cut,
+    frac_tp,
 ):
     """
     Calculate the number of PSMs with q-value < q_cut, using the following criteria:
@@ -220,9 +212,7 @@ def calc_num_psms(
 
     """
     # Get the q-values
-    df_scores_new = get_q_vals(
-        df, score_col, frac_tp=frac_tp, top_psm_only=True
-    )
+    df_scores_new = get_q_vals(df, score_col, frac_tp=frac_tp, top_psm_only=True)
     # Order by the q-value, and keep only the first PSM for each spectra
     df_scores_sub = df_scores_new.sort_values("q-value", ascending=True)
     df_scores_sub = df_scores_sub.drop_duplicates("Spectrum ID")
@@ -251,14 +241,17 @@ def get_top_targets(df, score_col, q_cut, frac_tp):
     df_scores = get_q_vals(
         df, score_col, frac_tp=frac_tp, top_psm_only=False, get_fdr=False
     )
-    inds = df_scores[
-        (df_scores["q-value"] <= q_cut) & (~df_scores["Is decoy"])
-    ].index
+    inds = df_scores[(df_scores["q-value"] <= q_cut) & (~df_scores["Is decoy"])].index
     return df.loc[inds, :]
 
 
 def get_train_set(
-    df, score_col, q_cut, frac_tp, train_top_data, sample_frac,
+    df,
+    score_col,
+    q_cut,
+    frac_tp,
+    train_top_data,
+    sample_frac,
 ):
     """
     Return training dataset containing sample of decoys and all target PSMs with q-value less than 1%
@@ -275,9 +268,7 @@ def get_train_set(
     """
     if train_top_data:
         # Take only the top target and top decoy for each spectrum
-        df_to_train = setup_dataset.get_top_target_decoy(
-            df, score_col=score_col
-        )
+        df_to_train = setup_dataset.get_top_target_decoy(df, score_col=score_col)
     else:
         df_to_train = df.copy(deep=True)
     train_targets = get_top_targets(
@@ -310,9 +301,7 @@ def replace_missing_data_cv(train_j, train_k, test):
     """
     del_score_cols = [f for f in train_j.columns if "delta_score" in f]
     for del_score_col in del_score_cols:
-        min_val = min(
-            train_j[del_score_col].min(), train_k[del_score_col].min()
-        )
+        min_val = min(train_j[del_score_col].min(), train_k[del_score_col].min())
         train_j[del_score_col] = train_j[del_score_col].fillna(min_val)
         train_k[del_score_col] = train_k[del_score_col].fillna(min_val)
         test[del_score_col] = test[del_score_col].fillna(min_val)
@@ -332,12 +321,12 @@ def replace_missing_data_top_targets(training_data):
     del_score_cols = [f for f in training_data[0].columns if "delta_score" in f]
     for del_score_col in del_score_cols:
         min_val = training_data[0][del_score_col].min()
-        training_data[0][del_score_col] = training_data[0][
-            del_score_col
-        ].fillna(min_val)
-        training_data[1][del_score_col] = training_data[1][
-            del_score_col
-        ].fillna(min_val)
+        training_data[0][del_score_col] = training_data[0][del_score_col].fillna(
+            min_val
+        )
+        training_data[1][del_score_col] = training_data[1][del_score_col].fillna(
+            min_val
+        )
 
     return training_data
 
@@ -378,9 +367,7 @@ def get_training_model(training_type="RF", hp_dict_in=None):
     if training_type not in training_types.keys():
         raise ValueError(
             f"{training_type} not supported. Select one of: ",
-            "\n".join(
-                "{0}:- for {1}".format(k, v) for k, v in training_types.items()
-            ),
+            "\n".join("{0}:- for {1}".format(k, v) for k, v in training_types.items()),
         )
 
     if training_type == "RF":
@@ -468,19 +455,13 @@ def fit_model_cv(
 
     # Fit the model to the data
     clfs_sub = []
-    df_training.loc[:, "model_score_train"] = [
-        0 for _ in np.arange(len(df_training))
-    ]
+    df_training.loc[:, "model_score_train"] = [0 for _ in np.arange(len(df_training))]
     for it in np.arange(len(training_data)):
         j, k = [s for s in [0, 1, 2] if s != it]
         # copy the data (so that the scaling of the data does not change the original)
         test = training_data[it].copy(deep=True)
-        train_j = training_data[j][list(old_cols.union([score_col]))].copy(
-            deep=True
-        )
-        train_k = training_data[k][list(old_cols.union([score_col]))].copy(
-            deep=True
-        )
+        train_j = training_data[j][list(old_cols.union([score_col]))].copy(deep=True)
+        train_k = training_data[k][list(old_cols.union([score_col]))].copy(deep=True)
 
         # Fill in missing values
         train_j, train_k, test = replace_missing_data_cv(train_j, train_k, test)
@@ -498,15 +479,9 @@ def fit_model_cv(
 
         # Scale the data
         scaler = preprocessing.StandardScaler().fit(train.loc[:, feature_cols])
-        train.loc[:, feature_cols] = scaler.transform(
-            train.loc[:, feature_cols]
-        )
-        train_j.loc[:, feature_cols] = scaler.transform(
-            train_j.loc[:, feature_cols]
-        )
-        train_k.loc[:, feature_cols] = scaler.transform(
-            train_k.loc[:, feature_cols]
-        )
+        train.loc[:, feature_cols] = scaler.transform(train.loc[:, feature_cols])
+        train_j.loc[:, feature_cols] = scaler.transform(train_j.loc[:, feature_cols])
+        train_k.loc[:, feature_cols] = scaler.transform(train_k.loc[:, feature_cols])
         test.loc[:, feature_cols] = scaler.transform(test.loc[:, feature_cols])
 
         # Get the classifier
@@ -525,18 +500,16 @@ def fit_model_cv(
             feature_importance.append(feature_importance_sub)
 
         # Score each of the splits
-        training_data[it].loc[:, "model_score"] = clf.score_psm(
-            test[feature_cols]
-        )
+        training_data[it].loc[:, "model_score"] = clf.score_psm(test[feature_cols])
         training_data[j].loc[:, "model_score_train"] = clf.score_psm(
             train_j[feature_cols]
         )
         training_data[k].loc[:, "model_score_train"] = clf.score_psm(
             train_k[feature_cols]
         )
-        df_training.loc[training_data[it].index, "model_score"] = training_data[
-            it
-        ]["model_score"]
+        df_training.loc[training_data[it].index, "model_score"] = training_data[it][
+            "model_score"
+        ]
 
         # Get the training score, which we take as the average score over each time the
         # PSM is trained on
@@ -546,9 +519,9 @@ def fit_model_cv(
         df_training.loc[train_k.index, "model_score_train"] += training_data[k][
             "model_score_train"
         ].values
-    df_training.loc[:, "model_score_train"] = df_training[
-        "model_score_train"
-    ] / (len(training_data) - 1)
+    df_training.loc[:, "model_score_train"] = df_training["model_score_train"] / (
+        len(training_data) - 1
+    )
     clfs.append(clfs_sub)
 
     return clfs, df_training, feature_importance
@@ -616,9 +589,7 @@ def fit_model_at(
     # Scale the data
     scaler = preprocessing.StandardScaler().fit(train.loc[:, feature_cols])
     train.loc[:, feature_cols] = scaler.transform(train.loc[:, feature_cols])
-    train_all.loc[:, feature_cols] = scaler.transform(
-        train_all.loc[:, feature_cols]
-    )
+    train_all.loc[:, feature_cols] = scaler.transform(train_all.loc[:, feature_cols])
     test.loc[:, feature_cols] = scaler.transform(test.loc[:, feature_cols])
 
     # Get the classifier
@@ -637,9 +608,7 @@ def fit_model_at(
 
     df_training.loc[:, "model_score"] = -1000
     df_training.loc[:, "model_score_train"] = -1000
-    training_data[1].loc[:, "model_score"] = clfs_sub.score_psm(
-        test[feature_cols]
-    )
+    training_data[1].loc[:, "model_score"] = clfs_sub.score_psm(test[feature_cols])
     training_data[0].loc[:, "model_score_train"] = clfs_sub.score_psm(
         train_all[feature_cols]
     )
@@ -791,9 +760,9 @@ def fit(
 
         # start averaging the scores after the initial training iterations are done
         if i_it >= n_train:
-            df_training.loc[:, "model_score_all"] += df_training[
-                "model_score"
-            ].apply(lambda x: [x])
+            df_training.loc[:, "model_score_all"] += df_training["model_score"].apply(
+                lambda x: [x]
+            )
             df_training.loc[:, "model_score_avg"] = df_training[
                 "model_score_all"
             ].apply(np.mean)
@@ -806,9 +775,7 @@ def fit(
 
         # see how many PSMs are below 1% in the target set
         psms["test"].append(
-            calc_num_psms(
-                df_training, "model_score", q_cut=q_cut, frac_tp=frac_tp
-            )
+            calc_num_psms(df_training, "model_score", q_cut=q_cut, frac_tp=frac_tp)
         )
         psms["train"].append(
             calc_num_psms(
@@ -868,14 +835,12 @@ def fit(
     cols_to_drop = [c for c in df_training.columns if "model_score" in c]
     df_training = df_training.drop(cols_to_drop, axis=1)
 
-    df_training[
-        f"Score_{classifier}_from_{initial_score_col}".lower()
-    ] = df_training[f"Score_processed_{classifier}"]
+    df_training[f"Score_{classifier}_from_{initial_score_col}".lower()] = df_training[
+        f"Score_processed_{classifier}"
+    ]
 
     df_training = df_training.drop(f"Score_processed_{classifier}", axis=1)
     cols = [f"score_{classifier}_from_{initial_score_col}".lower()]
-    df_training[f"Score_processed_{classifier}"] = df_training[cols].mean(
-        axis=1
-    )
+    df_training[f"Score_processed_{classifier}"] = df_training[cols].mean(axis=1)
 
     return clfs, psms, psms_avg, psms_engine, df_training, df_feature_importance

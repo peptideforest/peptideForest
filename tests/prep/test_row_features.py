@@ -1,8 +1,3 @@
-import pandas as pd
-import numpy as np
-import pytest
-import os
-
 import peptide_forest
 
 path_dict_medium = {
@@ -17,17 +12,14 @@ path_dict_medium = {
 def test_row_features():
     max_charge = 7
     df = peptide_forest.setup_dataset.combine_ursgal_csv_files(path_dict_medium)
-    df = peptide_forest.prep.row_features(df, "C", proton=1, max_charge=max_charge)
+    df = peptide_forest.prep.row_features(
+        df,
+        "C",
+        proton=1,
+        max_charge=max_charge,
+        features={"row_features": set([]), "transformed_features": set([])},
+    )[0]
 
     assert df["Mass"].unique() == 3000
     assert df[df["Comments"] == "CountProt equals 2"]["CountProt"].unique() == 2
-
-    for charge in range(1, max_charge - 1):
-        assert f"Charge{int(charge)}" in df.columns
-    assert f">Charge{max_charge}" in df.columns
-
-    for index, row in df.iterrows():
-        if row["Charge"] >= max_charge:
-            assert row[f">Charge{max_charge}"] == 1
-        else:
-            assert row[f"Charge{row['Charge']}"] == 1
+    assert all(df["Charge"] == [3, 3, 3, 3, 3, 3, 1, 2, 3, 3, 3, 10])

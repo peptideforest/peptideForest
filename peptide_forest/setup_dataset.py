@@ -1,8 +1,9 @@
-import peptide_forest
-from peptide_forest import runtime, prep
 import os
+
 import pandas as pd
-import json
+
+import peptide_forest
+from peptide_forest import prep, runtime
 
 
 def combine_ursgal_csv_files(path_dict):
@@ -60,9 +61,7 @@ def combine_ursgal_csv_files(path_dict):
     return input_df
 
 
-def extract_features(
-    df, cleavage_site, min_data, path_dict=None, features=None
-):
+def extract_features(df, cleavage_site, min_data, path_dict=None, features=None):
     """
     Calculate features from dataframe containing raw data from a single experiment.
 
@@ -94,7 +93,10 @@ def extract_features(
             pass
 
     df, features = prep.calc_features(
-        df, cleavage_site=cleavage_site, min_data=min_data, features=features,
+        df,
+        cleavage_site=cleavage_site,
+        min_data=min_data,
+        features=features,
     )
     # exit("<><><>><")
     # q_value_cols = [f for f in df.columns if "q-value" in f]
@@ -117,7 +119,6 @@ def extract_features(
         - features["transformed_features"]
         - set(["Is decoy"])
     )
-    import pprint
 
     return df, features
 

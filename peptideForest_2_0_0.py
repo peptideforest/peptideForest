@@ -3,10 +3,12 @@ import json
 import multiprocessing
 import os
 import pprint
+from collections import defaultdict as ddict
+
 import click
 import pandas as pd
 from treeinterpreter import treeinterpreter as ti
-from collections import defaultdict as ddict
+
 import peptide_forest
 
 
@@ -182,10 +184,6 @@ def run_peptide_forest(
     )
 
     print("Final feature columns:", features["final_features"])
-    print("Dataframe info:")
-    print(df_training[features["final_features"]].info())
-    print("Datasframe description:")
-    print(df_training[features["final_features"]].describe())
     # Fit model
     print(f"Extracted all features in", "{features}".format(**timer))
     print("\nFitting Model ...")
@@ -246,9 +244,7 @@ def run_peptide_forest(
         local_importance = pd.DataFrame(
             data=abs(contributions), columns=features["final_features"]
         )
-        local_importance = local_importance.div(
-            local_importance.sum(axis=1), axis=0
-        )
+        local_importance = local_importance.div(local_importance.sum(axis=1), axis=0)
         local_importance = local_importance[
             local_importance.columns[local_importance.median(axis=0) > 0.01]
         ]

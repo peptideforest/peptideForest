@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 pd.set_option("max_columns", 100)
 import peptide_forest
