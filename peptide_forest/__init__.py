@@ -1,6 +1,2 @@
+from peptide_forest.peptide_forest import PeptideForest
 import peptide_forest.knowledge_base
-import peptide_forest.models
-import peptide_forest.plot
-import peptide_forest.results
-import peptide_forest.runtime
-import peptide_forest.setup_dataset
