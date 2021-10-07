@@ -1,6 +1,7 @@
 import numpy as np
 import multiprocessing as mp
 from functools import partial
+from itertools import repeat
 
 import pandas as pd
 
@@ -16,6 +17,15 @@ def _parallel_apply(df, func):
     return df
 
 
+def _parallel_calc(df, iterable):
+    with mp.Pool(mp.cpu_count() - 1) as pool:
+        new_cols = pd.concat(
+            pool.starmap(calc_delta, zip(repeat(df), iterable)), axis=1
+        )
+
+    return pd.concat([df, new_cols], axis=1)
+
+
 def add_stats(stats, df):
     df["_score_min"] = df.apply(lambda row: stats[row["Engine"]]["min_score"], axis=1)
     df["_score_max"] = df.apply(lambda row: stats[row["Engine"]]["max_score"], axis=1)
@@ -24,7 +34,42 @@ def add_stats(stats, df):
 
 
 def check_mass_sanity(df):
-    return (df.groupby(["Spectrum ID", "Sequence", "Charge", "Modifications"]).agg({"uCalc m/z": "nunique", "Exp m/z": "nunique"}) != 1).any(axis=0).any()
+    return (
+        (
+            df.groupby(["Spectrum ID", "Sequence", "Charge", "Modifications"]).agg(
+                {"uCalc m/z": "nunique", "Exp m/z": "nunique"}
+            )
+            != 1
+        )
+        .any(axis=0)
+        .any()
+    )
+
+
+def calc_delta(df, delta_col):
+    n = int(delta_col.split("_")[2])
+    eng = delta_col[14:]
+    score_col = f"Score_processed_{eng}"
+    max = df.reset_index().groupby("Spectrum ID")[[score_col, "index"]].agg("max")
+    if n == 2:
+        nth_largest = (
+            df.reset_index()
+            .drop(labels=max["index"], axis=0)
+            .groupby("Spectrum ID")[[score_col, "index"]]
+            .agg("max")
+        )
+    if n == 3:
+        skip_df = df.reset_index().drop(labels=max["index"], axis=0)
+        skip_max = skip_df.groupby("Spectrum ID")[[score_col, "index"]].agg("max")
+        nth_largest = (
+            df.reset_index()
+            .drop(labels=max["index"].to_list() + skip_max["index"].to_list(), axis=0)
+            .groupby("Spectrum ID")[[score_col, "index"]]
+            .agg("max")
+        )
+
+    deltas = max[score_col] - nth_largest[score_col]
+    return df["Spectrum ID"].map(deltas)
 
 
 def calc_col_features(df):
@@ -32,8 +77,12 @@ def calc_col_features(df):
     min_data = 0.7
     delta_columns = []
     size = df.groupby(["Engine", "Spectrum ID"]).size().droplevel(1)
-    d2 = (size >= 2).groupby("Engine").agg("sum") / (size > 0).groupby("Engine").agg("sum")
-    d3 = (size >= 3).groupby("Engine").agg("sum") / (size > 0).groupby("Engine").agg("sum")
+    d2 = (size >= 2).groupby("Engine").agg("sum") / (size > 0).groupby("Engine").agg(
+        "sum"
+    )
+    d3 = (size >= 3).groupby("Engine").agg("sum") / (size > 0).groupby("Engine").agg(
+        "sum"
+    )
     delta_columns += [f"delta_score_2_{col}" for col in d2[d2 >= min_data].index]
     delta_columns += [f"delta_score_3_{col}" for col in d3[d3 >= min_data].index]
 
@@ -46,31 +95,28 @@ def calc_col_features(df):
         "Protein ID",
     ]
     value_cols = ["Score_processed"]
-    remaining_idx_cols = [c for c in df.columns if not c in core_idx_cols + value_cols and c != "Engine"]
+    remaining_idx_cols = [
+        c for c in df.columns if not c in core_idx_cols + value_cols and c != "Engine"
+    ]
 
     # Pivot
     df = pd.pivot_table(
         df,
         index=core_idx_cols + remaining_idx_cols,
         values=value_cols,
-        columns="Engine",)
+        columns="Engine",
+    )
 
     df.columns = ["_".join(t) for t in df.columns.to_list()]
     # Fill scores
     score_cols = [c for c in df.columns if c.startswith("Score_processed_")]
-    df[score_cols] = df[score_cols].fillna(0.)
+    df[score_cols] = df[score_cols].fillna(0.0)
     df.reset_index(inplace=True)
 
-    for delta_col in delta_columns:
-        n = int(delta_col.split("_")[2])
-        eng = delta_col[14:]
-        max = df.groupby("Spectrum ID")[f"Score_processed_{eng}"].agg("max")
-        nth_largest = df.groupby("Spectrum ID")[f"Score_processed_{eng}"].nlargest(n)
-        nth_largest = nth_largest.loc[nth_largest.groupby(level=0).tail(1).index].droplevel(1)
-        max - nth_largest
-
+    new_cols = _parallel_calc(df, delta_columns)
 
     return df
+
 
 def calc_row_features(df):
     min_max_stats = df.groupby("Engine").agg({"Score": ["min", "max"]})["Score"]
@@ -100,14 +146,22 @@ def calc_row_features(df):
 
     # Check for consistent masses
     if check_mass_sanity(df):
-        raise ValueError("Recorded mass values are deviating across engines for identical matches. Rerunning ursgal is recommended.")
+        raise ValueError(
+            "Recorded mass values are deviating across engines for identical matches. Rerunning ursgal is recommended."
+        )
 
-    df["Mass"] = (df["uCalc m/z"] - peptide_forest.knowledge_base.parameters["proton"]) * df["Charge"]
+    df["Mass"] = (
+        df["uCalc m/z"] - peptide_forest.knowledge_base.parameters["proton"]
+    ) * df["Charge"]
     df["dM"] = abs(df["uCalc m/z"] - df["Exp m/z"])
 
     # Trpysin specific cleavages
-    df["enzN"] = (df["Sequence Pre AA"].str.contains(r"[RK-]") | df["Sequence Start"].isin(["1", "2"]))
-    df["enzC"] = (df["Sequence Post AA"].str.contains(r"[-]") | df["Sequence"].str[-1].str.contains(r"[RK-]"))
+    df["enzN"] = df["Sequence Pre AA"].str.contains(r"[RK-]") | df[
+        "Sequence Start"
+    ].isin(["1", "2"])
+    df["enzC"] = df["Sequence Post AA"].str.contains(r"[-]") | df["Sequence"].str[
+        -1
+    ].str.contains(r"[RK-]")
     df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
 
     # More stats
@@ -115,9 +169,13 @@ def calc_row_features(df):
     df["CountProt"] = df["Protein ID"].str.split(r"<\|>|;").apply(set).apply(len)
 
     # Drop columns that are no longer relevant
-    df.drop(columns=peptide_forest.knowledge_base.parameters["remove_after_row_features"], inplace=True)
+    df.drop(
+        columns=peptide_forest.knowledge_base.parameters["remove_after_row_features"],
+        inplace=True,
+    )
 
     return df
+
 
 def calc_features(df):
     with Timer("Computed features"):

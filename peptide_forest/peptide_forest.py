@@ -5,6 +5,7 @@ import peptide_forest.knowledge_base
 import peptide_forest.prep
 import pandas as pd
 
+
 class PeptideForest:
     def __init__(self, initial_engine, ursgal_path_dict, output):
         # Attributes
@@ -27,7 +28,10 @@ class PeptideForest:
         for file in self.ursgal_dict.keys():
             with open(file) as f:
                 all_cols.append(set(f.readline().replace("\n", "").split(",")))
-        shared_cols = list(set.intersection(*all_cols) - set(peptide_forest.knowledge_base.parameters["remove_cols"]))
+        shared_cols = list(
+            set.intersection(*all_cols)
+            - set(peptide_forest.knowledge_base.parameters["remove_cols"])
+        )
 
         # Read in engines one by one
         for file, info in self.ursgal_dict.items():
@@ -46,19 +50,31 @@ class PeptideForest:
                 df.drop_duplicates(inplace=True)
                 rows_dropped = init_len - len(df)
                 if rows_dropped != 0:
-                    raise Warning(f"{rows_dropped} duplicated rows were dropped in {file}.")
+                    raise Warning(
+                        f"{rows_dropped} duplicated rows were dropped in {file}."
+                    )
 
                 engine_lvl_dfs.append(df)
 
         combined_df = pd.concat(engine_lvl_dfs, sort=True).reset_index(drop=True)
-        combined_df.fillna({"Sequence Post AA": "-", "Sequence Pre AA": "-", "Modifications": "None"}, inplace=True)
+        combined_df.fillna(
+            {"Sequence Post AA": "-", "Sequence Pre AA": "-", "Modifications": "None"},
+            inplace=True,
+        )
         combined_df = combined_df.convert_dtypes()
 
         # Assert there are no overlaps between sequences in target and decoys
-        if any(combined_df.groupby("Sequence").agg({"Is decoy": "nunique"})["Is decoy"] != 1):
+        if any(
+            combined_df.groupby("Sequence").agg({"Is decoy": "nunique"})["Is decoy"]
+            != 1
+        ):
             raise ValueError("Target and decoy sequences overlap.")
 
-        combined_df.drop(labels=combined_df[combined_df["Sequence"].str.contains("X") == True].index, axis=0, inplace=True)
+        combined_df.drop(
+            labels=combined_df[combined_df["Sequence"].str.contains("X") == True].index,
+            axis=0,
+            inplace=True,
+        )
 
         if "mScore" in combined_df.columns:
             min_mscore = combined_df[combined_df["mScore"] != 0]["mScore"].min()

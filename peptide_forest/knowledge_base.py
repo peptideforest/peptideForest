@@ -18,6 +18,6 @@ parameters = {
         "_score_min",
         "_score_max",
         "Exp m/z",
-        "uCalc m/z"
-    ]
+        "uCalc m/z",
+    ],
 }
