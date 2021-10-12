@@ -7,6 +7,17 @@ def process_final(
     sensitivity,
     q_cut,
 ):
+    """
+    Add final outputs to dataframe the classifier was trained with.
+    Args:
+        df (pd.DataFrame): input data
+        init_eng (str): initial engine to rank results by
+        sensitivity (float): proportion of positive results to true positives in the data
+        q_cut (float): q-value cutoff for PSM selection
+
+    Returns:
+        df (pd.DataFrame): final dataframe for output to csv
+    """
     score_cols = [c for c in df.columns if "Score_processed_" in c]
     for score_col in score_cols:
         # Get all final q-values

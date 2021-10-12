@@ -1,12 +1,11 @@
-import numpy as np
 import multiprocessing as mp
 from functools import partial
 from itertools import repeat
 
+import numpy as np
 import pandas as pd
 
 import peptide_forest.knowledge_base
-from peptide_forest.tools import Timer
 
 
 def _parallel_apply(df, func):
@@ -64,7 +63,7 @@ def check_mass_sanity(df):
     """
     Checks for consistent mass values across unique PSMs.
     Args:
-        df (pd.DataFrame): input data with delta columns appended
+        df (pd.DataFrame): input data
 
     Returns:
         (bool): True, if masses are unique
@@ -83,19 +82,23 @@ def check_mass_sanity(df):
 
 def calc_delta(df, delta_col):
     """
-    
+    Computes score difference of highest and 2nd/3rd highest score in a spectrum for a given engine.
     Args:
-        df ():
-        delta_col ():
+        df (pd.DataFrame): df
+        delta_col (str): name of the delta column to be calculated (e.g delta_score_3_engine_B)
 
     Returns:
+        df (pd.DataFrame): input data with delta columns appended
 
     """
+    # Get information from new column name
     n = int(delta_col.split("_")[2])
     eng = delta_col[14:]
     score_col = f"Score_processed_{eng}"
+    # Find maximum score per spec
     max = df.reset_index().groupby("Spectrum ID")[[score_col, "index"]].agg("max")
     if n == 2:
+        # Drop maximum; new maximum will be second highest score
         nth_largest = (
             df.reset_index()
             .drop(labels=max["index"], axis=0)
@@ -103,6 +106,7 @@ def calc_delta(df, delta_col):
             .agg("max")
         )
     if n == 3:
+        # Drop maximum twice: new max is third highest score
         skip_df = df.reset_index().drop(labels=max["index"], axis=0)
         skip_max = skip_df.groupby("Spectrum ID")[[score_col, "index"]].agg("max")
         nth_largest = (
@@ -112,11 +116,20 @@ def calc_delta(df, delta_col):
             .agg("max")
         )
 
+    # Calculate difference and expand to entire column length for spectrum
     deltas = max[score_col] - nth_largest[score_col]
     return df["Spectrum ID"].map(deltas).rename(delta_col)
 
 
 def calc_col_features(df):
+    """
+    Compute all column level features for input data.
+    Args:
+        df (pd.DataFrame): input data
+
+    Returns:
+        df (pd.DataFrame): input data with added column level features
+    """
     # Determine delta columns to calculate
     min_data = 0.7
     delta_columns = []
@@ -130,6 +143,7 @@ def calc_col_features(df):
     delta_columns += [f"delta_score_2_{col}" for col in d2[d2 >= min_data].index]
     delta_columns += [f"delta_score_3_{col}" for col in d3[d3 >= min_data].index]
 
+    # Collect columns used in indices
     core_idx_cols = [
         "Spectrum Title",
         "Spectrum ID",
@@ -157,6 +171,7 @@ def calc_col_features(df):
     df[score_cols] = df[score_cols].fillna(0.0)
     df.reset_index(inplace=True)
 
+    # Calculate delta columns
     df = _parallel_calc(df, delta_columns)
     # Fill missing values with minimum for each column
     df = df.fillna({col: df[col].min() for col in delta_columns})
@@ -165,6 +180,15 @@ def calc_col_features(df):
 
 
 def calc_row_features(df):
+    """
+    Compute all row level features for input data.
+    Args:
+        df (pd.DataFrame): input data
+
+    Returns:
+        df (pd.DataFrame): input data with added row level features
+    """
+    # Collect stats with min and max scores on engine-level and process
     min_max_stats = df.groupby("Engine").agg({"Score": ["min", "max"]})["Score"]
     stats = {
         eng: {
@@ -176,6 +200,7 @@ def calc_row_features(df):
         )
     }
 
+    # Add stats columns and process scores accordingly
     mp_add_stats = partial(add_stats, stats)
     df = _parallel_apply(df, mp_add_stats)
     df["Score_processed"] = df["Score"]
@@ -196,6 +221,7 @@ def calc_row_features(df):
             "Recorded mass values are deviating across engines for identical matches. Rerunning ursgal is recommended."
         )
 
+    # Compute masses and dM's
     df["Mass"] = (
         df["uCalc m/z"] - peptide_forest.knowledge_base.parameters["proton"]
     ) * df["Charge"]
@@ -210,7 +236,7 @@ def calc_row_features(df):
     ].str.contains(r"[RK-]")
     df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
 
-    # More stats
+    # More data based training features
     df["PepLen"] = df["Sequence"].apply(len)
     df["CountProt"] = df["Protein ID"].str.split(r"<\|>|;").apply(set).apply(len)
 

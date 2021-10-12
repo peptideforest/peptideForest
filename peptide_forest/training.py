@@ -1,14 +1,14 @@
+import multiprocessing as mp
 import types
 
-from tqdm import tqdm
+import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
 
 from peptide_forest import knowledge_base
-import pandas as pd
-import numpy as np
-import multiprocessing as mp
 
 
 def find_psms_to_keep(df_scores, score_col):
@@ -72,7 +72,14 @@ def find_psms_to_keep(df_scores, score_col):
     return df_scores
 
 
-def calc_q_vals(df, score_col, sensitivity, top_psm_only, get_fdr, init_score_col, ):
+def calc_q_vals(
+    df,
+    score_col,
+    sensitivity,
+    top_psm_only,
+    get_fdr,
+    init_score_col,
+):
     """
     Calculates q-values for a given scoring column.
     Args:
@@ -191,6 +198,19 @@ def get_rf_reg_classifier(hyperparameters):
 
 
 def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
+    """
+    Processes single-epoch of cross validated training.
+    Args:
+        df (pd.DataFrame): dataframe containing search engine scores for all PSMs
+        score_col (str): column to score PSMs by
+        cv_split_data (list): list with indices of data to split by
+        sensitivity (float): proportion of positive results to true positives in the data
+        q_cut (float): q-value cutoff for PSM selection
+
+    Returns:
+        df (pd.DataFrame): dataframe with training columns added
+        feature_importances (list): list of arrays with the feature importance for all splits in epoch
+    """
     # Reset scores
     df.loc[:, "model_score"] = 0
     df.loc[:, "model_score_train"] = 0
@@ -263,12 +283,24 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
     return df, feature_importances
 
 
-def train(df, init_eng):
-    SENSITIVITY = 0.9
-    Q_CUT = 0.01
-    Q_CUT_TRAIN = 0.1
-    N_TRAIN = 10
-    N_EVAL = 10
+def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
+    """
+    Trains classifier on data for a set number of training and evaluation epochs.
+    Args:
+        df (pd.DataFrame): input data
+        init_eng (str): initial engine to rank results by
+        sensitivity (float): proportion of positive results to true positives in the data
+        q_cut (float): q-value cutoff for PSM selection
+        q_cut_train (float): q-value cutoff for PSM selection to use during training
+        n_train (int): number of training epochs
+        n_eval (int): number of evaluation epochs
+
+    Returns:
+        df (pd.DataFrame): dataframe with training columns added
+        feature_importances (list): list of arrays with the feature importance for all splits over all eval epochs
+        psms (dict): number of top target PSMs found after each epoch
+
+    """
     psms_per_iter = []
     feature_importances = []
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
@@ -287,12 +319,12 @@ def train(df, init_eng):
         calc_num_psms(
             df=df_training,
             init_score_col=f"Score_processed_{init_eng}",
-            q_cut=Q_CUT,
-            sensitivity=SENSITIVITY,
+            q_cut=q_cut,
+            sensitivity=sensitivity,
         )
     )
 
-    pbar = tqdm(range(N_TRAIN + N_EVAL))
+    pbar = tqdm(range(n_train + n_eval))
     for epoch in pbar:
         if epoch == 0:
             # Rank by initial engine's score column during first iteration of training
@@ -307,8 +339,8 @@ def train(df, init_eng):
             df=df_training,
             score_col=score_col,
             cv_split_data=train_cv_splits,
-            sensitivity=SENSITIVITY,
-            q_cut=Q_CUT_TRAIN,
+            sensitivity=sensitivity,
+            q_cut=q_cut_train,
         )
 
         # Record how many PSMs are below q-cut in the target set
@@ -316,8 +348,8 @@ def train(df, init_eng):
             calc_num_psms(
                 df=df_training,
                 init_score_col="model_score_train",
-                q_cut=Q_CUT,
-                sensitivity=SENSITIVITY,
+                q_cut=q_cut,
+                sensitivity=sensitivity,
             )
         )
 
@@ -325,12 +357,12 @@ def train(df, init_eng):
             calc_num_psms(
                 df=df_training,
                 init_score_col="model_score",
-                q_cut=Q_CUT,
-                sensitivity=SENSITIVITY,
+                q_cut=q_cut,
+                sensitivity=sensitivity,
             )
         )
 
-        if epoch >= N_TRAIN:
+        if epoch >= n_train:
             df_training.loc[:, "model_score_train_all"] += df_training[
                 "model_score_train"
             ]
@@ -341,20 +373,20 @@ def train(df, init_eng):
             {"Train PSMs": psms["train"][epoch], "Test PSMs": psms["test"][epoch]}
         )
 
-    df_training.loc[:, "model_score_train_all"] /= N_EVAL
-    df_training.loc[:, "model_score_all"] /= N_EVAL
+    df_training.loc[:, "model_score_train_all"] /= n_eval
+    df_training.loc[:, "model_score_all"] /= n_eval
     psms["train_avg"] = calc_num_psms(
         df=df_training,
         init_score_col="model_score_train_all",
-        q_cut=Q_CUT,
-        sensitivity=SENSITIVITY,
+        q_cut=q_cut,
+        sensitivity=sensitivity,
     )
 
     psms["test_avg"] = calc_num_psms(
         df=df_training,
         init_score_col="model_score_all",
-        q_cut=Q_CUT,
-        sensitivity=SENSITIVITY,
+        q_cut=q_cut,
+        sensitivity=sensitivity,
     )
 
     print(

@@ -1,12 +1,12 @@
-from pathlib import Path
 import json
-from peptide_forest.tools import Timer
+
+import pandas as pd
+
 import peptide_forest.knowledge_base
 import peptide_forest.prep
-import peptide_forest.training
 import peptide_forest.results
-import pandas as pd
-import sys
+import peptide_forest.training
+from peptide_forest.tools import Timer
 
 
 class PeptideForest:
@@ -19,16 +19,11 @@ class PeptideForest:
 
         self.input_df = None
         self.timer = Timer(description="\nPeptide forest completed in")
-        self.timer.__enter__()
-
-    def __del__(self):
-        self.timer.__exit__(*sys.exc_info())
-
-    def _safe_write(self, path):
-        config_path = Path(path)
-        config_path.mkdir(parents=True, exist_ok=True)
 
     def prep_ursgal_csvs(self):
+        """
+        Combines engine files named in ursgal dict and preprocesses dataframe for training.
+        """
         engine_lvl_dfs = []
 
         # Retrieve list of columns shared across all files
@@ -91,25 +86,45 @@ class PeptideForest:
         self.input_df = combined_df
 
     def calc_features(self):
+        """
+        Calculates and adds features to dataframe
+        """
         print("\nCalculating features...")
         with Timer("Computed features"):
             self.input_df = peptide_forest.prep.calc_row_features(self.input_df)
             self.input_df = peptide_forest.prep.calc_col_features(self.input_df)
 
     def fit(self):
+        """
+        Performs cross-validated training and evaluation.
+        """
         print(f"\nTraining from initial engine: {self.init_eng}")
         with Timer(description="Trained model in"):
             (
                 self.trained_df,
                 self.feature_importances,
                 self.n_psms,
-            ) = peptide_forest.training.train(df=self.input_df, init_eng=self.init_eng)
+            ) = peptide_forest.training.train(
+                df=self.input_df,
+                init_eng=self.init_eng,
+                sensitivity=0.9,
+                q_cut=0.01,
+                q_cut_train=0.10,
+                n_train=10,
+                n_eval=10,
+            )
 
     def get_results(self):
+        """
+        Interprets classifier output and appends final data to dataframe.
+        """
         with Timer(description="\nProcessed results in"):
             self.output_df = peptide_forest.results.process_final(
                 df=self.trained_df, init_eng=self.init_eng, sensitivity=0.9, q_cut=0.01
             )
 
     def write_output(self):
+        """
+        Writes final csv to file.
+        """
         self.output_df.to_csv(self.output_path)

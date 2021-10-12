@@ -1,9 +1,0 @@
-seaborn
-matplotlib
-scikit-learn
-numpy
-pandas
-click
-pytest
-plotly
-nb-clean
