@@ -9,7 +9,7 @@ import click
 import pandas as pd
 from treeinterpreter import treeinterpreter as ti
 
-import peptide_forest
+import peptide_forest_old as peptide_forest
 
 
 @click.command()

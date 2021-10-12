@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from peptide_forest import classifier, models
+from peptide_forest_old import classifier, models
 
 
 def mark_top_targets(

@@ -6,7 +6,7 @@ import pandas as pd
 from sklearn import model_selection, preprocessing
 from sklearn.exceptions import DataConversionWarning
 
-from peptide_forest import classifier, setup_dataset
+from peptide_forest_old import classifier, setup_dataset
 
 
 def get_q_vals(

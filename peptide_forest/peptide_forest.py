@@ -3,18 +3,26 @@ import json
 from peptide_forest.tools import Timer
 import peptide_forest.knowledge_base
 import peptide_forest.prep
+import peptide_forest.training
+import peptide_forest.results
 import pandas as pd
+import sys
 
 
 class PeptideForest:
     def __init__(self, initial_engine, ursgal_path_dict, output):
         # Attributes
-        self.ini_eng = initial_engine
-        self.output = output
+        self.init_eng = initial_engine
+        self.output_path = output
         with open(ursgal_path_dict) as json_file:
             self.ursgal_dict = json.load(json_file)
 
         self.input_df = None
+        self.timer = Timer(description="\nPeptide forest completed in")
+        self.timer.__enter__()
+
+    def __del__(self):
+        self.timer.__exit__(*sys.exc_info())
 
     def _safe_write(self, path):
         config_path = Path(path)
@@ -83,4 +91,25 @@ class PeptideForest:
         self.input_df = combined_df
 
     def calc_features(self):
-        peptide_forest.prep.calc_features(self.input_df)
+        print("\nCalculating features...")
+        with Timer("Computed features"):
+            self.input_df = peptide_forest.prep.calc_row_features(self.input_df)
+            self.input_df = peptide_forest.prep.calc_col_features(self.input_df)
+
+    def fit(self):
+        print(f"\nTraining from initial engine: {self.init_eng}")
+        with Timer(description="Trained model in"):
+            (
+                self.trained_df,
+                self.feature_importances,
+                self.n_psms,
+            ) = peptide_forest.training.train(df=self.input_df, init_eng=self.init_eng)
+
+    def get_results(self):
+        with Timer(description="\nProcessed results in"):
+            self.output_df = peptide_forest.results.process_final(
+                df=self.trained_df, init_eng=self.init_eng, sensitivity=0.9, q_cut=0.01
+            )
+
+    def write_output(self):
+        self.output_df.to_csv(self.output_path)

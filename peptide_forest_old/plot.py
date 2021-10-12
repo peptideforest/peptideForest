@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from peptide_forest import results
+from peptide_forest_old import results
 
 
 def plot_num_psms_by_method(df, methods, output_file, dpi, show_plot):

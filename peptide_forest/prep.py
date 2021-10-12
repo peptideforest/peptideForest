@@ -10,6 +10,15 @@ from peptide_forest.tools import Timer
 
 
 def _parallel_apply(df, func):
+    """
+    Maps a function across a dataframe using multiprocessing.
+    Args:
+        df (pd.DataFrame): input data
+        func (method): function to be mapped across the data
+
+    Returns:
+        df (pd.DataFrame): input data with function applied
+    """
     chunks = np.array_split(df, mp.cpu_count() - 1)
     with mp.Pool(mp.cpu_count() - 1) as pool:
         df = pd.concat(pool.map(func, chunks))
@@ -18,6 +27,15 @@ def _parallel_apply(df, func):
 
 
 def _parallel_calc(df, iterable):
+    """
+    Calculates data columns using multiprocessing.
+    Args:
+        df (pd.DataFrame): input data
+        iterable (list): columns to be calculated
+
+    Returns:
+        df (pd.DataFrame): input data with delta columns appended
+    """
     with mp.Pool(mp.cpu_count() - 1) as pool:
         new_cols = pd.concat(
             pool.starmap(calc_delta, zip(repeat(df), iterable)), axis=1
@@ -27,6 +45,15 @@ def _parallel_calc(df, iterable):
 
 
 def add_stats(stats, df):
+    """
+    Adds score stats to dataframe.
+    Args:
+        stats (dict): stats (min/max) for relevant columns
+        df (pd.DataFrame): input data
+
+    Returns:
+        df (pd.DataFrame): input data with delta columns appended
+    """
     df["_score_min"] = df.apply(lambda row: stats[row["Engine"]]["min_score"], axis=1)
     df["_score_max"] = df.apply(lambda row: stats[row["Engine"]]["max_score"], axis=1)
 
@@ -34,6 +61,14 @@ def add_stats(stats, df):
 
 
 def check_mass_sanity(df):
+    """
+    Checks for consistent mass values across unique PSMs.
+    Args:
+        df (pd.DataFrame): input data with delta columns appended
+
+    Returns:
+        (bool): True, if masses are unique
+    """
     return (
         (
             df.groupby(["Spectrum ID", "Sequence", "Charge", "Modifications"]).agg(
@@ -47,6 +82,15 @@ def check_mass_sanity(df):
 
 
 def calc_delta(df, delta_col):
+    """
+    
+    Args:
+        df ():
+        delta_col ():
+
+    Returns:
+
+    """
     n = int(delta_col.split("_")[2])
     eng = delta_col[14:]
     score_col = f"Score_processed_{eng}"
@@ -69,7 +113,7 @@ def calc_delta(df, delta_col):
         )
 
     deltas = max[score_col] - nth_largest[score_col]
-    return df["Spectrum ID"].map(deltas)
+    return df["Spectrum ID"].map(deltas).rename(delta_col)
 
 
 def calc_col_features(df):
@@ -113,7 +157,9 @@ def calc_col_features(df):
     df[score_cols] = df[score_cols].fillna(0.0)
     df.reset_index(inplace=True)
 
-    new_cols = _parallel_calc(df, delta_columns)
+    df = _parallel_calc(df, delta_columns)
+    # Fill missing values with minimum for each column
+    df = df.fillna({col: df[col].min() for col in delta_columns})
 
     return df
 
@@ -135,12 +181,12 @@ def calc_row_features(df):
     df["Score_processed"] = df["Score"]
     df["Score_processed"].where(
         cond=~((df["_score_max"] < 1) & (df["Score"] <= df["_score_min"])),
-        other=-np.log10(df["_score_min"]),
+        other=-np.log10(df["_score_min"], where=df["_score_min"] > 0.0),
         inplace=True,
     )
     df["Score_processed"].where(
         cond=~((df["_score_max"] < 1) & (df["Score"] > df["_score_min"])),
-        other=-np.log10(df["Score"]),
+        other=-np.log10(df["Score"], where=df["Score"] > 0.0),
         inplace=True,
     )
 
@@ -175,16 +221,3 @@ def calc_row_features(df):
     )
 
     return df
-
-
-def calc_features(df):
-    with Timer("Computed features"):
-        print("\nCalculating features:")
-
-        with Timer("Computed row-level features"):
-            print("Working on row-level features...")
-            df = calc_row_features(df)
-
-        with Timer("Computed column-level features"):
-            print("Working on column-level features...")
-            df = calc_col_features(df)

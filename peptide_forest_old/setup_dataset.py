@@ -2,8 +2,8 @@ import os
 
 import pandas as pd
 
-import peptide_forest
-from peptide_forest import prep, runtime
+import peptide_forest_old
+from peptide_forest_old import prep, runtime
 
 
 def combine_ursgal_csv_files(path_dict):
@@ -32,7 +32,7 @@ def combine_ursgal_csv_files(path_dict):
         print(f"Slurping in df for {file_output} in {slurp_time['slurp']}")
 
         df.drop(
-            columns=peptide_forest.knowledge_base.parameteres[
+            columns=peptide_forest_old.knowledge_base.parameteres[
                 "columns_to_be_removed_from_input_csvs"
             ],
             errors="ignore",
