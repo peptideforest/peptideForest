@@ -95,30 +95,16 @@ def calc_delta(df, delta_col):
     n = int(delta_col.split("_")[2])
     eng = delta_col[14:]
     score_col = f"Score_processed_{eng}"
-    # Find maximum score per spec
-    max = df.reset_index().groupby("Spectrum ID")[[score_col, "index"]].agg("max")
-    if n == 2:
-        # Drop maximum; new maximum will be second highest score
-        nth_largest = (
-            df.reset_index()
-            .drop(labels=max["index"], axis=0)
-            .groupby("Spectrum ID")[[score_col, "index"]]
-            .agg("max")
-        )
-    if n == 3:
-        # Drop maximum twice: new max is third highest score
-        skip_df = df.reset_index().drop(labels=max["index"], axis=0)
-        skip_max = skip_df.groupby("Spectrum ID")[[score_col, "index"]].agg("max")
-        nth_largest = (
-            df.reset_index()
-            .drop(labels=max["index"].to_list() + skip_max["index"].to_list(), axis=0)
-            .groupby("Spectrum ID")[[score_col, "index"]]
-            .agg("max")
-        )
 
-    # Calculate difference and expand to entire column length for spectrum
-    deltas = max[score_col] - nth_largest[score_col]
-    return df["Spectrum ID"].map(deltas).rename(delta_col)
+    # Find nth highest score per spectrum
+    nth_score = df.sort_values(score_col, ascending=False).groupby("Spectrum ID")[score_col].nth(n=(n-1))
+    # Set to nan if 0
+    nth_score.replace(0.0, pd.NA, inplace=True)
+    # Calculate different to all other scores in group
+    deltas = df.sort_values(score_col)[score_col] - df.sort_values(score_col)["Spectrum ID"].map(nth_score)
+
+    # Return expanded column to multiprocessing pool
+    return deltas.rename(delta_col)
 
 
 def calc_col_features(df):
