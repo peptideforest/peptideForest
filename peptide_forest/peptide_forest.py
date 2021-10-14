@@ -1,5 +1,6 @@
 import json
 import warnings
+from loguru import logger
 
 import pandas as pd
 
@@ -96,7 +97,7 @@ class PeptideForest:
         """
         Calculates and adds features to dataframe
         """
-        print("\nCalculating features...")
+        logger.info("Calculating features...")
         with Timer("Computed features"):
             self.input_df = peptide_forest.prep.calc_row_features(self.input_df)
             self.input_df = peptide_forest.prep.calc_col_features(self.input_df)
@@ -105,7 +106,7 @@ class PeptideForest:
         """
         Performs cross-validated training and evaluation.
         """
-        print(f"\nTraining from initial engine: {self.init_eng}")
+        logger.info(f"Training from initial engine: {self.init_eng}")
         with Timer(description="Trained model in"):
             (
                 self.trained_df,
@@ -125,7 +126,7 @@ class PeptideForest:
         """
         Interprets classifier output and appends final data to dataframe.
         """
-        with Timer(description="\nProcessed results in"):
+        with Timer(description="Processed results in"):
             self.output_df = peptide_forest.results.process_final(
                 df=self.trained_df, init_eng=self.init_eng, sensitivity=0.9, q_cut=0.01
             )

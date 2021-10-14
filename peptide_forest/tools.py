@@ -1,5 +1,7 @@
 import datetime
 
+from loguru import logger
+
 
 class Timer:
     """
@@ -17,7 +19,7 @@ class Timer:
                 seconds=(datetime.datetime.now() - self.start).total_seconds()
             )
         )
-        print(f"{self.description} in {dt}")
+        logger.info(f"{self.description} in {dt}")
 
     def __del__(self):
         if self.context is False:

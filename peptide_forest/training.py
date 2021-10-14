@@ -1,8 +1,10 @@
 import multiprocessing as mp
+import sys
 import types
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
@@ -29,15 +31,17 @@ def find_psms_to_keep(df_scores, score_col):
     score_is_max = max_per_spec_id == df_scores[score_col]
     # Find Spectrum IDs where condition is met by one PSM
     specs_with_more_than_one_top_score = (
-        df_scores.loc[score_is_max]
-        .groupby("Spectrum ID")[score_col]
-        .count()
-        > 1
+        df_scores.loc[score_is_max].groupby("Spectrum ID")[score_col].count() > 1
     )
-    specs_with_more_than_one_top_score = specs_with_more_than_one_top_score[specs_with_more_than_one_top_score].index
+    specs_with_more_than_one_top_score = specs_with_more_than_one_top_score[
+        specs_with_more_than_one_top_score
+    ].index
     # Get stats for decoys in those spectrums
     decoys_per_spec = (
-        df_scores[df_scores["Spectrum ID"].isin(specs_with_more_than_one_top_score) & score_is_max]
+        df_scores[
+            df_scores["Spectrum ID"].isin(specs_with_more_than_one_top_score)
+            & score_is_max
+        ]
         .groupby("Spectrum ID")["Is decoy"]
         .agg("sum")
     )
@@ -307,6 +311,8 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         )
     )
 
+    logger.remove()
+    logger.add(lambda msg: tqdm.write(msg, end=""))
     pbar = tqdm(range(n_train + n_eval))
     for epoch in pbar:
         if epoch == 0:
@@ -356,6 +362,8 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
             {"Train PSMs": psms["train"][epoch], "Test PSMs": psms["test"][epoch]}
         )
 
+    logger.remove()
+    logger.add(sys.stdout)
     df_training.loc[:, "model_score_train_all"] /= n_eval
     df_training.loc[:, "model_score_all"] /= n_eval
     psms["train_avg"] = calc_num_psms(
@@ -372,7 +380,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         sensitivity=sensitivity,
     )
 
-    print(
+    logger.info(
         "Average PSMs [Train/Test]:" + "\t" * 2,
         psms["train_avg"],
         "\t" * 3,
@@ -387,8 +395,8 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         {"feature_importance": feature_importances, "standard deviation": sigma},
         index=knowledge_base.parameters["training_features"],
     ).sort_values("feature_importance", ascending=False)
-    print("\nTop 5 most important features: ")
-    print(df_feature_importance.iloc[:5, :])
+    logger.debug("Top 5 most important features: ")
+    logger.debug(df_feature_importance.iloc[:5, :])
 
     # Add averaged scores to df as classifier score
     df.loc[:, "Score_processed_peptide_forest"] = df_training["model_score_all"]
