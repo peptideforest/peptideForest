@@ -2,7 +2,7 @@ import os
 
 import pandas as pd
 
-import add_mScore
+from peptide_forest import add_mScore
 
 
 def test_get_mScore():

@@ -18,14 +18,14 @@ def _parallel_apply(df, func):
     Returns:
         df (pd.DataFrame): input data with function applied
     """
-    chunks = np.array_split(df, mp.cpu_count() - 1)
+    chunks = np.array_split(df, min(mp.cpu_count() - 1, len(df)))
     with mp.Pool(mp.cpu_count() - 1) as pool:
         df = pd.concat(pool.map(func, chunks))
 
     return df
 
 
-def _parallel_calc(df, iterable):
+def _parallel_calc_delta(df, iterable):
     """
     Calculates data columns using multiprocessing.
     Args:
@@ -66,7 +66,7 @@ def check_mass_sanity(df):
         df (pd.DataFrame): input data
 
     Returns:
-        (bool): True, if masses are unique
+        (bool): False, if masses are unique
     """
     return (
         (
@@ -97,27 +97,58 @@ def calc_delta(df, delta_col):
     score_col = f"Score_processed_{eng}"
 
     # Find nth highest score per spectrum
-    nth_score = df.sort_values(score_col, ascending=False).groupby("Spectrum ID")[score_col].nth(n=(n-1))
+    nth_score = (
+        df.sort_values(score_col, ascending=False)
+        .groupby("Spectrum ID")[score_col]
+        .nth(n=(n - 1))
+    )
     # Set to nan if 0
     nth_score.replace(0.0, pd.NA, inplace=True)
     # Calculate different to all other scores in group
-    deltas = df.sort_values(score_col)[score_col] - df.sort_values(score_col)["Spectrum ID"].map(nth_score)
+    deltas = df.sort_values(score_col)[score_col] - df.sort_values(score_col)[
+        "Spectrum ID"
+    ].map(nth_score)
 
     # Return expanded column to multiprocessing pool
     return deltas.rename(delta_col)
 
 
-def calc_col_features(df):
+def get_stats(df):
+    """
+    Collects engine-level stats and applies modifications for score calculation.
+    Args:
+        df (pd.DataFrame): input data
+
+    Returns:
+        stats (dict): keys are engines with values being dicts describing min and max possible scores.
+    """
+    # Collect stats with min and max scores on engine-level and process
+    min_max_stats = df.groupby("Engine").agg({"Score": ["min", "max"]})["Score"]
+    stats = {
+        eng: {
+            "min_score": 1e-30 if "omssa" in eng and min_score < 1e-30 else min_score,
+            "max_score": max_score,
+        }
+        for eng, min_score, max_score in zip(
+            min_max_stats.index, min_max_stats["min"], min_max_stats["max"]
+        )
+    }
+
+    return stats
+
+
+def calc_col_features(df, min_data=0.7):
     """
     Compute all column level features for input data.
     Args:
         df (pd.DataFrame): input data
+        min_data (float): fraction of PSMs with higher number of i PSMs per spectrum id
+                          and engine than total number of spectra per engine
 
     Returns:
         df (pd.DataFrame): input data with added column level features
     """
     # Determine delta columns to calculate
-    min_data = 0.7
     delta_columns = []
     size = df.groupby(["Engine", "Spectrum ID"]).size().droplevel(1)
     d2 = (size >= 2).groupby("Engine").agg("sum") / (size > 0).groupby("Engine").agg(
@@ -158,7 +189,7 @@ def calc_col_features(df):
     df.reset_index(inplace=True)
 
     # Calculate delta columns
-    df = _parallel_calc(df, delta_columns)
+    df = _parallel_calc_delta(df, delta_columns)
     # Fill missing values with minimum for each column
     df = df.fillna({col: df[col].min() for col in delta_columns})
 
@@ -174,17 +205,8 @@ def calc_row_features(df):
     Returns:
         df (pd.DataFrame): input data with added row level features
     """
-    # Collect stats with min and max scores on engine-level and process
-    min_max_stats = df.groupby("Engine").agg({"Score": ["min", "max"]})["Score"]
-    stats = {
-        eng: {
-            "min_score": 1e-30 if "omssa" in eng and min_score < 1e-30 else min_score,
-            "max_score": max_score,
-        }
-        for eng, min_score, max_score in zip(
-            min_max_stats.index, min_max_stats["min"], min_max_stats["max"]
-        )
-    }
+    # Get stats
+    stats = get_stats(df=df)
 
     # Add stats columns and process scores accordingly
     mp_add_stats = partial(add_stats, stats)

@@ -106,11 +106,11 @@ def calc_q_vals(
     else:
         df_scores.sort_values(score_col, ascending=False, inplace=True)
 
-    if top_psm_only is True:
-        # TODO: maybe remove during training --> this was moved down into if
-        # Remove PSMs from q-value calculations if the highest score for a given spectrum is shared by two or more PSMs.
-        df_scores = find_psms_to_keep(df_scores, score_col)
+    # TODO: maybe remove during training --> this was moved down into if --> moved back for the target decoy overlaps
+    # Remove PSMs from q-value calculations if the highest score for a given spectrum is shared by two or more PSMs.
+    df_scores = find_psms_to_keep(df_scores, score_col)
 
+    if top_psm_only is True:
         # Use only the top PSM
         df_scores = df_scores.drop_duplicates("Spectrum ID")
 
@@ -133,13 +133,13 @@ def calc_q_vals(
     return df_scores
 
 
-def calc_num_psms(df, init_score_col, q_cut, sensitivity):
+def calc_num_psms(df, score_col, q_cut, sensitivity):
     """
     Computes number of PSMs for dataframe which meet cutoff criterium.
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
-        init_score_col (str): initial engine to rank results by
-        q_cut (float): q-value cutoff for PSM selection
+        score_col (str): initial engine to rank results by
+        q_cut (float): q-value cutoff dfor PSM selection
         sensitivity (float): proportion of positive results to true positives in the data
 
     Returns:
@@ -148,7 +148,7 @@ def calc_num_psms(df, init_score_col, q_cut, sensitivity):
     # Get the q-values
     df_scores_new = calc_q_vals(
         df,
-        init_score_col,
+        score_col,
         sensitivity=sensitivity,
         top_psm_only=True,
         get_fdr=True,
@@ -237,7 +237,6 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         )
 
         # Filter for target PSMs with q-value < q_cut
-        # TODO: should find_psms_to_keep be called here? drops 2.5k psms --> try and not call during training
         train_q_vals = calc_q_vals(
             df=train_data,
             score_col=score_col,
@@ -318,7 +317,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
     psms_per_iter.append(
         calc_num_psms(
             df=df_training,
-            init_score_col=f"Score_processed_{init_eng}",
+            score_col=f"Score_processed_{init_eng}",
             q_cut=q_cut,
             sensitivity=sensitivity,
         )
@@ -347,7 +346,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         psms["train"].append(
             calc_num_psms(
                 df=df_training,
-                init_score_col="model_score_train",
+                score_col="model_score_train",
                 q_cut=q_cut,
                 sensitivity=sensitivity,
             )
@@ -356,7 +355,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         psms["test"].append(
             calc_num_psms(
                 df=df_training,
-                init_score_col="model_score",
+                score_col="model_score",
                 q_cut=q_cut,
                 sensitivity=sensitivity,
             )
@@ -377,14 +376,14 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
     df_training.loc[:, "model_score_all"] /= n_eval
     psms["train_avg"] = calc_num_psms(
         df=df_training,
-        init_score_col="model_score_train_all",
+        score_col="model_score_train_all",
         q_cut=q_cut,
         sensitivity=sensitivity,
     )
 
     psms["test_avg"] = calc_num_psms(
         df=df_training,
-        init_score_col="model_score_all",
+        score_col="model_score_all",
         q_cut=q_cut,
         sensitivity=sensitivity,
     )

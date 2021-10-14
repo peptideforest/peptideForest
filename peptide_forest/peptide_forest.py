@@ -1,4 +1,5 @@
 import json
+import warnings
 
 import pandas as pd
 
@@ -14,7 +15,7 @@ class PeptideForest:
         # Attributes
         self.init_eng = initial_engine
         self.output_path = output
-        with open(ursgal_path_dict) as json_file:
+        with open(ursgal_path_dict, "r") as json_file:
             self.ursgal_dict = json.load(json_file)
 
         self.input_df = None
@@ -29,7 +30,7 @@ class PeptideForest:
         # Retrieve list of columns shared across all files
         all_cols = []
         for file in self.ursgal_dict.keys():
-            with open(file) as f:
+            with open(file, encoding="utf-8-sig") as f:
                 all_cols.append(set(f.readline().replace("\n", "").split(",")))
         shared_cols = list(
             set.intersection(*all_cols)
@@ -67,11 +68,17 @@ class PeptideForest:
         combined_df = combined_df.convert_dtypes()
 
         # Assert there are no overlaps between sequences in target and decoys
-        if any(
+        shared_seq_target_decoy = (
             combined_df.groupby("Sequence").agg({"Is decoy": "nunique"})["Is decoy"]
             != 1
-        ):
-            raise ValueError("Target and decoy sequences overlap.")
+        )
+        if any(shared_seq_target_decoy):
+            warnings.warn("Target and decoy sequences overlap.")
+            combined_df = combined_df.loc[
+                ~combined_df["Sequence"].isin(
+                    shared_seq_target_decoy[shared_seq_target_decoy].index
+                )
+            ]
 
         combined_df.drop(
             labels=combined_df[combined_df["Sequence"].str.contains("X") == True].index,
