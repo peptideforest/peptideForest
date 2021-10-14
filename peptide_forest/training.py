@@ -28,46 +28,29 @@ def find_psms_to_keep(df_scores, score_col):
     # Find those PSMs where the score equals the maximum for that spectrum
     score_is_max = max_per_spec_id == df_scores[score_col]
     # Find Spectrum IDs where condition is met by one PSM
-    top_spec_ids = (
-        df_scores.loc[score_is_max & (max_per_spec_id != 0.0)]
+    specs_with_more_than_one_top_score = (
+        df_scores.loc[score_is_max]
         .groupby("Spectrum ID")[score_col]
         .count()
         > 1
     )
-    top_spec_ids = top_spec_ids[top_spec_ids].index
+    specs_with_more_than_one_top_score = specs_with_more_than_one_top_score[specs_with_more_than_one_top_score].index
     # Get stats for decoys in those spectrums
     decoys_per_spec = (
-        df_scores[df_scores["Spectrum ID"].isin(top_spec_ids) & score_is_max]
+        df_scores[df_scores["Spectrum ID"].isin(specs_with_more_than_one_top_score) & score_is_max]
         .groupby("Spectrum ID")["Is decoy"]
-        .agg(["count", "sum", "nunique"])
+        .agg("sum")
     )
 
-    # Mark spectra to be removed and ones that are kept
-    spec_ids_drop = (decoys_per_spec["nunique"] == 2) | (decoys_per_spec["sum"] == 0)
+    # Mark spectra which are to be removed
+    # Condition is remove spectra with more than one top scoring PSM, if at least one of the top PSMs is a decoy
+
+    spec_ids_drop = decoys_per_spec > 0
     spec_ids_drop = spec_ids_drop[spec_ids_drop].index
-    spec_ids_keep = decoys_per_spec["sum"] == decoys_per_spec["count"]
-    spec_ids_keep = spec_ids_keep[spec_ids_keep].index
-
-    # For those that are to be kept, keep a random one
-    psms_keep_random = (
-        df_scores[df_scores["Spectrum ID"].isin(spec_ids_keep) & score_is_max]
-        .sample(frac=1)
-        .drop_duplicates("Spectrum ID")
-        .index
-    )
-    # Get indices for spectra that need to be dropped
-    psms_drop = df_scores[
-        df_scores["Spectrum ID"].isin(spec_ids_keep)
-        & score_is_max
-        & ~df_scores.index.isin(psms_keep_random)
-    ].index
 
     # Drop them
-    df_scores.drop(
-        df_scores[df_scores["Spectrum ID"].isin(spec_ids_drop)].index.tolist()
-        + psms_drop.tolist(),
-        inplace=True,
-    )
+    drop_inds = df_scores["Spectrum ID"].isin(spec_ids_drop)
+    df_scores = df_scores[~drop_inds]
 
     return df_scores
 
@@ -106,7 +89,6 @@ def calc_q_vals(
     else:
         df_scores.sort_values(score_col, ascending=False, inplace=True)
 
-    # TODO: maybe remove during training --> this was moved down into if --> moved back for the target decoy overlaps
     # Remove PSMs from q-value calculations if the highest score for a given spectrum is shared by two or more PSMs.
     df_scores = find_psms_to_keep(df_scores, score_col)
 
@@ -119,6 +101,8 @@ def calc_q_vals(
     target_decoy_hot_one = pd.get_dummies(df_scores["Is decoy"]).rename(
         {False: "Target", True: "Decoy"}, axis=1
     )
+    if "Decoy" not in target_decoy_hot_one.columns:
+        target_decoy_hot_one["Decoy"] = 0
     df_scores = pd.concat([df_scores, target_decoy_hot_one], axis=1)
     df_scores["FDR"] = (
         sensitivity * df_scores["Decoy"].cumsum() / df_scores["Target"].cumsum()
