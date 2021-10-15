@@ -244,7 +244,9 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
 
         # Scale the data
-        features = knowledge_base.parameters["training_features"]
+        features = set(train_data.columns).difference(
+            set(knowledge_base.parameters["non_trainable_columns"])
+        )
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         train.loc[:, features] = scaler.transform(train.loc[:, features])
@@ -381,22 +383,21 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
     )
 
     logger.info(
-        "Average PSMs [Train/Test]:" + "\t" * 2,
-        psms["train_avg"],
-        "\t" * 3,
-        psms["test_avg"],
-        "\n",
+        f"Average PSMs [Train/Test]:\t\t{psms['train_avg']}\t\t{psms['test_avg']}"
     )
 
     # Show feature importances and deviations for eval epochs
     sigma = np.std(feature_importances, axis=0)
     feature_importances = np.mean(feature_importances, axis=0)
+    features = set(df_training.columns).difference(
+        set(knowledge_base.parameters["non_trainable_columns"])
+    )
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
-        index=knowledge_base.parameters["training_features"],
+        index=list(features),
     ).sort_values("feature_importance", ascending=False)
-    logger.debug("Top 5 most important features: ")
-    logger.debug(df_feature_importance.iloc[:5, :])
+    logger.debug("Feature importances: ")
+    logger.debug(df_feature_importance)
 
     # Add averaged scores to df as classifier score
     df.loc[:, "Score_processed_peptide_forest"] = df_training["model_score_all"]

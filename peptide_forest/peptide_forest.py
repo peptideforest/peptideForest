@@ -12,7 +12,7 @@ from peptide_forest.tools import Timer
 
 
 class PeptideForest:
-    def __init__(self, initial_engine, ursgal_path_dict, output):
+    def __init__(self, ursgal_path_dict, output, initial_engine=None):
         # Attributes
         self.init_eng = initial_engine
         self.output_path = output
@@ -55,7 +55,7 @@ class PeptideForest:
                 df.drop_duplicates(inplace=True)
                 rows_dropped = init_len - len(df)
                 if rows_dropped != 0:
-                    raise Warning(
+                    warnings.warn(
                         f"{rows_dropped} duplicated rows were dropped in {file}."
                     )
 
@@ -106,7 +106,21 @@ class PeptideForest:
         """
         Performs cross-validated training and evaluation.
         """
-        logger.info(f"Training from initial engine: {self.init_eng}")
+        # Find initial engine with the highest number of target PSMs under 1% q-val
+        if self.init_eng is None:
+            psms_per_eng = {}
+            for eng in self.input_df["Search Engine"].unique():
+                psms_per_eng[eng] = peptide_forest.training.calc_num_psms(
+                    self.input_df,
+                    score_col=f"Score_processed_{eng}",
+                    q_cut=0.01,
+                    sensitivity=0.9,
+                )
+            self.init_eng = max(psms_per_eng, key=psms_per_eng.get)
+
+        logger.info(
+            f"Training from {self.init_eng} with {psms_per_eng[self.init_eng]} top target PSMs"
+        )
         with Timer(description="Trained model in"):
             (
                 self.trained_df,
