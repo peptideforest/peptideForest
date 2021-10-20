@@ -4,7 +4,6 @@ parameters = {
         "Retention Time (s)",
         "Complies search criteria",
         "Conflicting uparam",
-        # "Spectrum Title",
         "Mass Difference",
         "Raw data location",
         "Rank",

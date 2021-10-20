@@ -107,20 +107,25 @@ class PeptideForest:
         Performs cross-validated training and evaluation.
         """
         # Find initial engine with the highest number of target PSMs under 1% q-val
-        if self.init_eng is None:
-            psms_per_eng = {}
-            for eng in self.input_df["Search Engine"].unique():
-                psms_per_eng[eng] = peptide_forest.training.calc_num_psms(
-                    self.input_df,
-                    score_col=f"Score_processed_{eng}",
-                    q_cut=0.01,
-                    sensitivity=0.9,
-                )
-            self.init_eng = max(psms_per_eng, key=psms_per_eng.get)
+        psms_per_eng = {}
+        score_processed_cols = [c for c in self.input_df if "Score_processed_" in c]
+        for eng_score in score_processed_cols:
+            psms_per_eng[
+                eng_score.replace("Score_processed_", "")
+            ] = peptide_forest.training.calc_num_psms(
+                self.input_df,
+                score_col=eng_score,
+                q_cut=0.01,
+                sensitivity=0.9,
+            )
+        logger.debug(f"PSMs per engine with q-val < 1%: {psms_per_eng}")
 
+        if self.init_eng is None:
+            self.init_eng = max(psms_per_eng, key=psms_per_eng.get)
         logger.info(
             f"Training from {self.init_eng} with {psms_per_eng[self.init_eng]} top target PSMs"
         )
+
         with Timer(description="Trained model in"):
             (
                 self.trained_df,
