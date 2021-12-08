@@ -1,8 +1,8 @@
 import json
 import warnings
-from loguru import logger
 
 import pandas as pd
+from loguru import logger
 
 import peptide_forest.knowledge_base
 import peptide_forest.prep
@@ -40,11 +40,10 @@ class PeptideForest:
 
         # Read in engines one by one
         for file, info in self.ursgal_dict.items():
-            with Timer(description=f"Slurping in df for {info['engine']}"):
+            with Timer(description=f"Slurped in unified csv for {info['engine']}"):
                 df = pd.read_csv(file, usecols=shared_cols + [info["score_col"]])
 
                 # Add information
-                df["Engine"] = info["engine"]
                 df["Score"] = df[info["score_col"]]
 
                 # Drop irrelevant columns
@@ -55,7 +54,7 @@ class PeptideForest:
                 df.drop_duplicates(inplace=True)
                 rows_dropped = init_len - len(df)
                 if rows_dropped != 0:
-                    warnings.warn(
+                    logger.warning(
                         f"{rows_dropped} duplicated rows were dropped in {file}."
                     )
 

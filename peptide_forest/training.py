@@ -109,7 +109,7 @@ def calc_q_vals(
         target_decoy_hot_one["Decoy"] = 0
     df_scores = pd.concat([df_scores, target_decoy_hot_one], axis=1)
     df_scores["FDR"] = (
-        sensitivity * df_scores["Decoy"].cumsum() / df_scores["Target"].cumsum()
+        sensitivity * df_scores["Decoy"].cumsum() / (df_scores["Target"].cumsum() + df_scores["Decoy"].cumsum())
     )
 
     # Compute q-values
@@ -245,7 +245,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
 
         # Scale the data
         features = set(train_data.columns).difference(
-            set(knowledge_base.parameters["non_trainable_columns"])
+            set([c for c in train_data.columns for r in knowledge_base.parameters["non_trainable_columns"] if c.startswith(r)])
         )
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
@@ -390,14 +390,13 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
     sigma = np.std(feature_importances, axis=0)
     feature_importances = np.mean(feature_importances, axis=0)
     features = set(df_training.columns).difference(
-        set(knowledge_base.parameters["non_trainable_columns"])
+        set([c for c in df_training.columns for r in knowledge_base.parameters["non_trainable_columns"] if c.startswith(r)])
     )
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
         index=list(features),
     ).sort_values("feature_importance", ascending=False)
-    logger.debug("Feature importances: ")
-    logger.debug(df_feature_importance)
+    logger.debug(f"Feature importances:\n{df_feature_importance}")
 
     # Add averaged scores to df as classifier score
     df.loc[:, "Score_processed_peptide_forest"] = df_training["model_score_all"]

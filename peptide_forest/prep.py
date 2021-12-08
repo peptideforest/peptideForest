@@ -4,6 +4,9 @@ from itertools import repeat
 
 import numpy as np
 import pandas as pd
+from loguru import logger
+from sklearn.preprocessing import minmax_scale
+import uparma
 
 import peptide_forest.knowledge_base
 
@@ -36,9 +39,14 @@ def _parallel_calc_delta(df, iterable):
         df (pd.DataFrame): input data with delta columns appended
     """
     with mp.Pool(mp.cpu_count() - 1) as pool:
-        new_cols = pd.concat(
-            pool.starmap(calc_delta, zip(repeat(df), iterable)), axis=1
-        )
+        single_delta_cols = list(pool.starmap(calc_delta, zip(repeat(df), iterable)))
+        if len(single_delta_cols) == 0:
+            logger.warning(
+                "No score columns fulfil conditions for delta column calculation. "
+                "Proceeding without delta columns."
+            )
+            return df
+        new_cols = pd.concat(single_delta_cols, axis=1)
 
     return pd.concat([df, new_cols], axis=1)
 
@@ -53,8 +61,8 @@ def add_stats(stats, df):
     Returns:
         df (pd.DataFrame): input data with delta columns appended
     """
-    df["_score_min"] = df.apply(lambda row: stats[row["Engine"]]["min_score"], axis=1)
-    df["_score_max"] = df.apply(lambda row: stats[row["Engine"]]["max_score"], axis=1)
+    df["_score_min"] = df.apply(lambda row: stats[row["Search Engine"]]["min_score"], axis=1)
+    df["_score_max"] = df.apply(lambda row: stats[row["Search Engine"]]["max_score"], axis=1)
 
     return df
 
@@ -123,7 +131,7 @@ def get_stats(df):
         stats (dict): keys are engines with values being dicts describing min and max possible scores.
     """
     # Collect stats with min and max scores on engine-level and process
-    min_max_stats = df.groupby("Engine").agg({"Score": ["min", "max"]})["Score"]
+    min_max_stats = df.groupby("Search Engine").agg({"Score": ["min", "max"]})["Score"]
     stats = {
         eng: {
             "min_score": 1e-30 if "omssa" in eng and min_score < 1e-30 else min_score,
@@ -150,28 +158,39 @@ def calc_col_features(df, min_data=0.7):
     """
     # Determine delta columns to calculate
     delta_columns = []
-    size = df.groupby(["Engine", "Spectrum ID"]).size().droplevel(1)
-    d2 = (size >= 2).groupby("Engine").agg("sum") / (size > 0).groupby("Engine").agg(
+    size = df.groupby(["Search Engine", "Spectrum ID"]).size().droplevel(1)
+    d2 = (size >= 2).groupby("Search Engine").agg("sum") / (size > 0).groupby("Search Engine").agg(
         "sum"
     )
-    d3 = (size >= 3).groupby("Engine").agg("sum") / (size > 0).groupby("Engine").agg(
+    d3 = (size >= 3).groupby("Search Engine").agg("sum") / (size > 0).groupby("Search Engine").agg(
         "sum"
     )
     delta_columns += [f"delta_score_2_{col}" for col in d2[d2 >= min_data].index]
     delta_columns += [f"delta_score_3_{col}" for col in d3[d3 >= min_data].index]
 
+    # Convert all scores so that a higher score is better
+    udict = uparma.UParma()
+    engines = df["Search Engine"].unique()
+    bigger_score_translations = udict.get_default_params("unify_csv_style_1")["bigger_scores_better"]["translated_value"]
+    bigger_score_better_engs = [bigger_score_translations.get(e, False) for e in engines]
+    scores_that_need_to_be_inverted = [c for c, bsb in zip(engines, bigger_score_better_engs) if bsb is False]
+    inds = df[df["Search Engine"].isin(scores_that_need_to_be_inverted)].index
+    df.loc[inds, "Score_processed"] = -np.log10(df.loc[inds, "Score_processed"])
+    df.loc[:, "Score_processed"] = df.groupby("Search Engine")["Score_processed"].transform(lambda x: minmax_scale(x))
+
     # Collect columns used in indices
     core_idx_cols = [
-        "Spectrum Title",
+        # "Spectrum Title",
         "Spectrum ID",
         "Sequence",
         "Modifications",
         "Is decoy",
         "Protein ID",
+        "Charge"
     ]
     value_cols = ["Score_processed"]
     remaining_idx_cols = [
-        c for c in df.columns if not c in core_idx_cols + value_cols and c != "Engine"
+        c for c in df.columns if not c in core_idx_cols + value_cols and c != "Search Engine"
     ]
 
     # Pivot
@@ -179,19 +198,21 @@ def calc_col_features(df, min_data=0.7):
         df,
         index=core_idx_cols + remaining_idx_cols,
         values=value_cols,
-        columns="Engine",
+        columns="Search Engine",
     )
-
     df.columns = ["_".join(t) for t in df.columns.to_list()]
-    # Fill scores
-    score_cols = [c for c in df.columns if c.startswith("Score_processed_")]
-    df[score_cols] = df[score_cols].fillna(0.0)
     df.reset_index(inplace=True)
+
+    # Note reported PSMs and fill scores
+    score_cols = [c for c in df.columns if "Score_processed_" in c]
+    for col in score_cols:
+        df.loc[:, f"reported_by_{col.replace('Score_processed_', '')}"] = ~df[col].isna()
+    df.fillna({col: 0.0 for col in score_cols}, inplace=True)
 
     # Calculate delta columns
     df = _parallel_calc_delta(df, delta_columns)
     # Fill missing values with minimum for each column
-    df = df.fillna({col: df[col].min() for col in delta_columns})
+    df.fillna({col: df[col].min() for col in delta_columns}, inplace=True)
 
     return df
 
@@ -212,37 +233,12 @@ def calc_row_features(df):
     mp_add_stats = partial(add_stats, stats)
     df = _parallel_apply(df, mp_add_stats)
     df["Score_processed"] = df["Score"]
-    df["Score_processed"].where(
-        cond=~((df["_score_max"] < 1) & (df["Score"] <= df["_score_min"])),
-        other=-np.log10(df["_score_min"], where=df["_score_min"] > 0.0),
-        inplace=True,
-    )
-    df["Score_processed"].where(
-        cond=~((df["_score_max"] < 1) & (df["Score"] > df["_score_min"])),
-        other=-np.log10(df["Score"], where=df["Score"] > 0.0),
-        inplace=True,
-    )
 
     # Check for consistent masses
     if check_mass_sanity(df):
         raise ValueError(
             "Recorded mass values are deviating across engines for identical matches. Rerunning ursgal is recommended."
         )
-
-    # Compute masses and dM's
-    df["Mass"] = (
-        df["uCalc m/z"] - peptide_forest.knowledge_base.parameters["proton"]
-    ) * df["Charge"]
-    df["dM"] = abs(df["uCalc m/z"] - df["Exp m/z"])
-
-    # Trpysin specific cleavages
-    df["enzN"] = df["Sequence Pre AA"].str.contains(r"[RK-]") | df[
-        "Sequence Start"
-    ].isin(["1", "2"])
-    df["enzC"] = df["Sequence Post AA"].str.contains(r"[-]") | df["Sequence"].str[
-        -1
-    ].str.contains(r"[RK-]")
-    df["enzInt"] = df["Sequence"].str.count(r"[R|K]")
 
     # More data based training features
     df["PepLen"] = df["Sequence"].apply(len)
