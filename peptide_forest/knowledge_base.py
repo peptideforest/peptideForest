@@ -7,7 +7,7 @@ parameters = {
         "Rank",
         "Calc m/z",
         "Chemical Composition",
-        "Spectrum Title"
+        "Spectrum Title",
     ],
     "proton": 1.00727646677,
     "remove_after_row_features": [
@@ -32,7 +32,7 @@ parameters = {
         "model_score_train",
         "model_score_train_all",
         "prev_score_train",
-        "reported_by_"
+        "reported_by_",
     },
     "hyperparameters": {"n_estimators": 100, "max_depth": 22, "max_features": 7},
 }

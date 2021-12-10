@@ -5,9 +5,23 @@ import peptide_forest
 df = pd.DataFrame(
     {
         "Score_processed_test_eng": [10, 7, 8, 8, 8, 8, 7, 6, 7, 10, 5, 5, 4],
-        "Spectrum ID":              [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 5, 5, 5],
-        "Is decoy":                 [0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
-        "Sequence": ["AA", "AT", "AG", "AC", "CA", "CT", "CG", "CC", "TA", "TT", "AA", "AB", "AC"],
+        "Spectrum ID": [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 5, 5, 5],
+        "Is decoy": [0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1],
+        "Sequence": [
+            "AA",
+            "AT",
+            "AG",
+            "AC",
+            "CA",
+            "CT",
+            "CG",
+            "CC",
+            "TA",
+            "TT",
+            "AA",
+            "AB",
+            "AC",
+        ],
     }
 )
 df["Is decoy"] = df["Is decoy"].astype(bool)
@@ -53,4 +67,12 @@ def test_get_q_vals():
         assert all(frame["Decoy"].astype(bool) == ~frame["Target"].astype(bool))
         assert list(frame["FDR"]) == [0.0, 0.0, 0.45, 0.3, 0.225, 0.18, 0.36]
     assert df_test_fdr_true["FDR"].equals(df_test_fdr_true["q-value"])
-    assert list(df_test_fdr_false["q-value"]) == [0.0, 0.0, 0.45, 0.45, 0.45, 0.45, 0.45]
+    assert list(df_test_fdr_false["q-value"]) == [
+        0.0,
+        0.0,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+    ]

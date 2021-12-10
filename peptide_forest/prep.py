@@ -4,9 +4,9 @@ from itertools import repeat
 
 import numpy as np
 import pandas as pd
+import uparma
 from loguru import logger
 from sklearn.preprocessing import minmax_scale
-import uparma
 
 import peptide_forest.knowledge_base
 
@@ -61,8 +61,12 @@ def add_stats(stats, df):
     Returns:
         df (pd.DataFrame): input data with delta columns appended
     """
-    df["_score_min"] = df.apply(lambda row: stats[row["Search Engine"]]["min_score"], axis=1)
-    df["_score_max"] = df.apply(lambda row: stats[row["Search Engine"]]["max_score"], axis=1)
+    df["_score_min"] = df.apply(
+        lambda row: stats[row["Search Engine"]]["min_score"], axis=1
+    )
+    df["_score_max"] = df.apply(
+        lambda row: stats[row["Search Engine"]]["max_score"], axis=1
+    )
 
     return df
 
@@ -159,24 +163,32 @@ def calc_col_features(df, min_data=0.7):
     # Determine delta columns to calculate
     delta_columns = []
     size = df.groupby(["Search Engine", "Spectrum ID"]).size().droplevel(1)
-    d2 = (size >= 2).groupby("Search Engine").agg("sum") / (size > 0).groupby("Search Engine").agg(
-        "sum"
-    )
-    d3 = (size >= 3).groupby("Search Engine").agg("sum") / (size > 0).groupby("Search Engine").agg(
-        "sum"
-    )
+    d2 = (size >= 2).groupby("Search Engine").agg("sum") / (size > 0).groupby(
+        "Search Engine"
+    ).agg("sum")
+    d3 = (size >= 3).groupby("Search Engine").agg("sum") / (size > 0).groupby(
+        "Search Engine"
+    ).agg("sum")
     delta_columns += [f"delta_score_2_{col}" for col in d2[d2 >= min_data].index]
     delta_columns += [f"delta_score_3_{col}" for col in d3[d3 >= min_data].index]
 
     # Convert all scores so that a higher score is better
     udict = uparma.UParma()
     engines = df["Search Engine"].unique()
-    bigger_score_translations = udict.get_default_params("unify_csv_style_1")["bigger_scores_better"]["translated_value"]
-    bigger_score_better_engs = [bigger_score_translations.get(e, False) for e in engines]
-    scores_that_need_to_be_inverted = [c for c, bsb in zip(engines, bigger_score_better_engs) if bsb is False]
+    bigger_score_translations = udict.get_default_params("unify_csv_style_1")[
+        "bigger_scores_better"
+    ]["translated_value"]
+    bigger_score_better_engs = [
+        bigger_score_translations.get(e, False) for e in engines
+    ]
+    scores_that_need_to_be_inverted = [
+        c for c, bsb in zip(engines, bigger_score_better_engs) if bsb is False
+    ]
     inds = df[df["Search Engine"].isin(scores_that_need_to_be_inverted)].index
     df.loc[inds, "Score_processed"] = -np.log10(df.loc[inds, "Score_processed"])
-    df.loc[:, "Score_processed"] = df.groupby("Search Engine")["Score_processed"].transform(lambda x: minmax_scale(x))
+    df.loc[:, "Score_processed"] = df.groupby("Search Engine")[
+        "Score_processed"
+    ].transform(lambda x: minmax_scale(x))
 
     # Collect columns used in indices
     core_idx_cols = [
@@ -186,11 +198,13 @@ def calc_col_features(df, min_data=0.7):
         "Modifications",
         "Is decoy",
         "Protein ID",
-        "Charge"
+        "Charge",
     ]
     value_cols = ["Score_processed"]
     remaining_idx_cols = [
-        c for c in df.columns if not c in core_idx_cols + value_cols and c != "Search Engine"
+        c
+        for c in df.columns
+        if not c in core_idx_cols + value_cols and c != "Search Engine"
     ]
 
     # Pivot
@@ -206,7 +220,9 @@ def calc_col_features(df, min_data=0.7):
     # Note reported PSMs and fill scores
     score_cols = [c for c in df.columns if "Score_processed_" in c]
     for col in score_cols:
-        df.loc[:, f"reported_by_{col.replace('Score_processed_', '')}"] = ~df[col].isna()
+        df.loc[:, f"reported_by_{col.replace('Score_processed_', '')}"] = ~df[
+            col
+        ].isna()
     df.fillna({col: 0.0 for col in score_cols}, inplace=True)
 
     # Calculate delta columns

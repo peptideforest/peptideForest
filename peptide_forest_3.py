@@ -6,9 +6,9 @@ if __name__ == "__main__":
     mp.freeze_support()
     mp.set_start_method("fork", force=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', help='initial engine (optional)')
-    parser.add_argument('-u', help='ursgal path dict json')
-    parser.add_argument('-o', help='output file')
+    parser.add_argument("-i", help="initial engine (optional)")
+    parser.add_argument("-u", help="ursgal path dict json")
+    parser.add_argument("-o", help="output file")
     args = parser.parse_args()
 
     pf = peptide_forest.PeptideForest(

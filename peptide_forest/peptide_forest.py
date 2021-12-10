@@ -14,7 +14,7 @@ from peptide_forest.tools import Timer
 class PeptideForest:
     def __init__(self, ursgal_path_dict, output, initial_engine=None):
         # Attributes
-        self.init_eng = initial_engine
+        self.init_eng = None if initial_engine == "None" else initial_engine
         self.output_path = output
         with open(ursgal_path_dict, "r") as json_file:
             self.ursgal_dict = json.load(json_file)
