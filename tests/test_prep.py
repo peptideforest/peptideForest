@@ -14,7 +14,7 @@ path_dict_medium = {
 
 df_stats = pd.DataFrame(
     {
-        "Engine": [
+        "Search Engine": [
             "A",
             "A",
             "A",
@@ -65,7 +65,7 @@ df_mass = pd.DataFrame(
 
 df_deltas = pd.DataFrame(
     {
-        "Engine": ["A", "A", "A", "A", "B", "B", "B", "B", "B"],
+        "Search Engine": ["A", "A", "A", "A", "B", "B", "B", "B", "B"],
         "Score_processed_A": [1, 5, 6, 15, 11, 16, 26, 21, 25],
         "Score_processed_B": [1, 5, 6, 15, 11, 16, 26, 21, 25],
         "Spectrum ID": [1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -93,8 +93,8 @@ def test_add_stats():
     df_test = peptide_forest.prep.add_stats(stats, df_stats)
     min_vals = {"A": 1.0, "ASDFomssa_1_2_3": 1e-30, "B": 10.0, "C": 100.0}
     max_vals = {"A": 3, "ASDFomssa_1_2_3": 42, "B": 12, "C": 100}
-    assert df_test.groupby("Engine")["_score_min"].first().to_dict() == min_vals
-    assert df_test.groupby("Engine")["_score_max"].first().to_dict() == max_vals
+    assert df_test.groupby("Search Engine")["_score_min"].first().to_dict() == min_vals
+    assert df_test.groupby("Search Engine")["_score_max"].first().to_dict() == max_vals
 
 
 def test_check_mass_sanity():
@@ -140,34 +140,36 @@ def test_row_features():
     )
     pf.prep_ursgal_csvs()
     df_test = peptide_forest.prep.calc_row_features(pf.input_df)
-    assert set(df_test.columns) == set(
-        [
-            "Charge",
-            "Comments",
-            "Engine",
-            "Is decoy",
-            "Modifications",
-            "Protein ID",
-            "Sequence",
-            "Spectrum ID",
-            "Spectrum Title",
-            "Score_processed",
-            "Mass",
-            "dM",
-            "enzN",
-            "enzC",
-            "enzInt",
-            "PepLen",
-            "CountProt",
-        ]
+    assert (
+        len(
+            set(df_test.columns).difference(
+                {
+                    "Charge",
+                    "Raw data location",
+                    "Accuracy (ppm)",
+                    "Comments",
+                    "Search Engine",
+                    "Is decoy",
+                    "Modifications",
+                    "Protein ID",
+                    "Sequence",
+                    "Spectrum ID",
+                    "Spectrum Title",
+                    "Score_processed",
+                    "Mass",
+                    "dM",
+                    "enzN",
+                    "enzC",
+                    "enzInt",
+                    "PepLen",
+                    "CountProt",
+                }
+            )
+        )
+        == 0
     )
-    assert all(df_test["Score_processed"] == [20.0, 30.0, 29.0, 20.0, 10.0])
-    assert all(df_test["enzC"] == [True, False, False, True, True])
-    assert all(df_test["enzN"] == [True, True, True, True, True])
-    assert all(df_test["enzInt"] == [3, 0, 0, 1, 2])
     assert all(df_test["PepLen"] == [9, 5, 5, 5, 7])
     assert all(df_test["CountProt"] == [1, 2, 2, 1, 1])
-    assert all(df_test["dM"] == 0)
 
 
 def test_col_features():
@@ -179,28 +181,37 @@ def test_col_features():
     pf.prep_ursgal_csvs()
     df_test = peptide_forest.prep.calc_row_features(pf.input_df)
     df_test = peptide_forest.prep.calc_col_features(df_test, min_data=0.2)
-    assert set(df_test.columns) == set(
-        [
-            "Spectrum Title",
-            "Spectrum ID",
-            "Sequence",
-            "Modifications",
-            "Is decoy",
-            "Protein ID",
-            "Charge",
-            "Comments",
-            "Mass",
-            "dM",
-            "enzN",
-            "enzC",
-            "enzInt",
-            "PepLen",
-            "CountProt",
-            "Score_processed_mascot",
-            "Score_processed_omssa",
-            "delta_score_2_omssa",
-        ]
+    assert (
+        len(
+            set(df_test.columns).difference(
+                {
+                    "Spectrum Title",
+                    "Spectrum ID",
+                    "Sequence",
+                    "Modifications",
+                    "Is decoy",
+                    "Protein ID",
+                    "Charge",
+                    "Comments",
+                    "Mass",
+                    "dM",
+                    "enzN",
+                    "enzC",
+                    "enzInt",
+                    "PepLen",
+                    "CountProt",
+                    "Score_processed_mascot_2_6_2",
+                    "Score_processed_omssa_2_1_9",
+                    "delta_score_2_omssa_2_1_9",
+                    "reported_by_mascot_2_6_2",
+                    "reported_by_omssa_2_1_9",
+                    "Raw data location",
+                    "Accuracy (ppm)",
+                }
+            )
+        )
+        == 0
     )
-    assert all(df_test["Score_processed_mascot"] == [0.0, 0.0, 0.0, 0.0, 20.0])
-    assert all(df_test["Score_processed_omssa"] == [30.0, 29.0, 20.0, 10.0, 0.0])
-    assert all(df_test["delta_score_2_omssa"] == [1.0, 0.0, 0.0, 0.0, 0.0])
+    assert all(df_test["Score_processed_mascot_2_6_2"] == [0.0, 0.0, 0.0, 0.0, 20.0])
+    assert all(df_test["Score_processed_omssa_2_1_9"] == [30.0, 29.0, 20.0, 10.0, 0.0])
+    assert all(df_test["delta_score_2_omssa_2_1_9"] == [1.0, 0.0, 0.0, 0.0, 0.0])

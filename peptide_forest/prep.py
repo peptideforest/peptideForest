@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import uparma
 from loguru import logger
-from sklearn.preprocessing import minmax_scale
 
 import peptide_forest.knowledge_base
 
@@ -186,9 +185,6 @@ def calc_col_features(df, min_data=0.7):
     ]
     inds = df[df["Search Engine"].isin(scores_that_need_to_be_inverted)].index
     df.loc[inds, "Score_processed"] = -np.log10(df.loc[inds, "Score_processed"])
-    df.loc[:, "Score_processed"] = df.groupby("Search Engine")[
-        "Score_processed"
-    ].transform(lambda x: minmax_scale(x))
 
     # Collect columns used in indices
     core_idx_cols = [
