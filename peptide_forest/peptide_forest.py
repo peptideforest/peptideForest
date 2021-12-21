@@ -148,9 +148,9 @@ class PeptideForest:
             self.output_df = peptide_forest.results.process_final(
                 df=self.trained_df, init_eng=self.init_eng, sensitivity=0.9, q_cut=0.01
             )
-            self.output_df[
-                ["Modifications", "Sequence Post AA", "Sequence Pre AA"]
-            ].replace({"-": None, "None": None}, inplace=True, regex=False)
+            self.output_df["Modifications"].replace(
+                {"None": None}, inplace=True, regex=False
+            )
 
     def write_output(self):
         """
