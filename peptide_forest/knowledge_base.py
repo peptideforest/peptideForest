@@ -1,9 +1,5 @@
 parameters = {
     "remove_cols": [
-        "Retention Time (s)",
-        "Complies search criteria",
-        "Conflicting uparam",
-        "Raw data location",
         "Rank",
         "Calc m/z",
         "Chemical Composition",
@@ -22,6 +18,8 @@ parameters = {
         "uCalc m/z",
     ],
     "non_trainable_columns": {
+        "Raw data location",
+        "Retention Time (s)",
         "Spectrum ID",
         "Sequence",
         "Modifications",
