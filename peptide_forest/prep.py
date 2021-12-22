@@ -1,3 +1,4 @@
+"""Preparation of input data for training."""
 import multiprocessing as mp
 from functools import partial
 from itertools import repeat
@@ -11,8 +12,8 @@ import peptide_forest.knowledge_base
 
 
 def _parallel_apply(df, func):
-    """
-    Maps a function across a dataframe using multiprocessing.
+    """Map a function across a dataframe using multiprocessing.
+
     Args:
         df (pd.DataFrame): input data
         func (method): function to be mapped across the data
@@ -28,8 +29,8 @@ def _parallel_apply(df, func):
 
 
 def _parallel_calc_delta(df, iterable):
-    """
-    Calculates data columns using multiprocessing.
+    """Calculate data columns using multiprocessing.
+
     Args:
         df (pd.DataFrame): input data
         iterable (list): columns to be calculated
@@ -51,8 +52,8 @@ def _parallel_calc_delta(df, iterable):
 
 
 def add_stats(stats, df):
-    """
-    Adds score stats to dataframe.
+    """Add score stats to dataframe.
+
     Args:
         stats (dict): stats (min/max) for relevant columns
         df (pd.DataFrame): input data
@@ -71,8 +72,8 @@ def add_stats(stats, df):
 
 
 def check_mass_sanity(df):
-    """
-    Checks for consistent mass values across unique PSMs.
+    """Check for consistent mass values across unique PSMs.
+
     Args:
         df (pd.DataFrame): input data
 
@@ -92,8 +93,8 @@ def check_mass_sanity(df):
 
 
 def calc_delta(df, delta_col):
-    """
-    Computes score difference of highest and 2nd/3rd highest score in a spectrum for a given engine.
+    """Compute score difference of highest and 2nd/3rd highest score in a spectrum for a given engine.
+
     Args:
         df (pd.DataFrame): df
         delta_col (str): name of the delta column to be calculated (e.g delta_score_3_engine_B)
@@ -125,8 +126,8 @@ def calc_delta(df, delta_col):
 
 
 def get_stats(df):
-    """
-    Collects engine-level stats and applies modifications for score calculation.
+    """Collect engine-level stats and applies modifications for score calculation.
+
     Args:
         df (pd.DataFrame): input data
 
@@ -149,8 +150,8 @@ def get_stats(df):
 
 
 def calc_col_features(df, min_data=0.7):
-    """
-    Compute all column level features for input data.
+    """Compute all column level features for input data.
+
     Args:
         df (pd.DataFrame): input data
         min_data (float): fraction of PSMs with higher number of i PSMs per spectrum id
@@ -178,7 +179,7 @@ def calc_col_features(df, min_data=0.7):
         "bigger_scores_better"
     ]["translated_value"]
     bigger_score_better_engs = [
-        bigger_score_translations.get(e, False) for e in engines
+        bigger_score_translations[e] for e in engines
     ]
     scores_that_need_to_be_inverted = [
         c for c, bsb in zip(engines, bigger_score_better_engs) if bsb is False
@@ -230,8 +231,8 @@ def calc_col_features(df, min_data=0.7):
 
 
 def calc_row_features(df):
-    """
-    Compute all row level features for input data.
+    """Compute all row level features for input data.
+
     Args:
         df (pd.DataFrame): input data
 

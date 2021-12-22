@@ -1,5 +1,5 @@
+"""Main Peptide Forest class."""
 import json
-import warnings
 
 import pandas as pd
 from loguru import logger
@@ -12,7 +12,18 @@ from peptide_forest.tools import Timer
 
 
 class PeptideForest:
+    """Main class to handle peptide forest functionalities."""
+
     def __init__(self, ursgal_path_dict, output, initial_engine=None):
+        """Initialize new peptide forest class object.
+        
+        Args:
+            ursgal_path_dict (dict): a dictionary containing input files as keys with another level of dicts indicating
+                                        scoring column and engine name. 
+            output (str): output file path 
+            initial_engine (str, None): sets initial scoring engine if engine name is given. defaults to None where the
+                                        engine with most PSMs at q-cut is chosen.
+        """ ""
         # Attributes
         self.init_eng = None if initial_engine == "None" else initial_engine
         self.output_path = output
@@ -23,9 +34,7 @@ class PeptideForest:
         self.timer = Timer(description="\nPeptide forest completed in")
 
     def prep_ursgal_csvs(self):
-        """
-        Combines engine files named in ursgal dict and preprocesses dataframe for training.
-        """
+        """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
         engine_lvl_dfs = []
 
         # Retrieve list of columns shared across all files
@@ -73,7 +82,7 @@ class PeptideForest:
             != 1
         )
         if any(shared_seq_target_decoy):
-            warnings.warn("Target and decoy sequences overlap.")
+            logger.warning("Target and decoy sequences overlap.")
             combined_df = combined_df.loc[
                 ~combined_df["Sequence"].isin(
                     shared_seq_target_decoy[shared_seq_target_decoy].index
@@ -93,18 +102,14 @@ class PeptideForest:
         self.input_df = combined_df
 
     def calc_features(self):
-        """
-        Calculates and adds features to dataframe
-        """
+        """Calculate and adds features to dataframe."""
         logger.info("Calculating features...")
         with Timer("Computed features"):
             self.input_df = peptide_forest.prep.calc_row_features(self.input_df)
             self.input_df = peptide_forest.prep.calc_col_features(self.input_df)
 
     def fit(self):
-        """
-        Performs cross-validated training and evaluation.
-        """
+        """Perform cross-validated training and evaluation."""
         # Find initial engine with the highest number of target PSMs under 1% q-val
         psms_per_eng = {}
         score_processed_cols = [c for c in self.input_df if "Score_processed_" in c]
@@ -141,9 +146,7 @@ class PeptideForest:
             )
 
     def get_results(self):
-        """
-        Interprets classifier output and appends final data to dataframe.
-        """
+        """Interpret classifier output and appends final data to dataframe."""
         with Timer(description="Processed results in"):
             self.output_df = peptide_forest.results.process_final(
                 df=self.trained_df, init_eng=self.init_eng, sensitivity=0.9, q_cut=0.01
@@ -153,7 +156,5 @@ class PeptideForest:
             )
 
     def write_output(self):
-        """
-        Writes final csv to file.
-        """
+        """Write final csv to file."""
         self.output_df.to_csv(self.output_path)

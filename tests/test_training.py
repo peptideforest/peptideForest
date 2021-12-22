@@ -1,6 +1,6 @@
 import pandas as pd
 
-import peptide_forest
+from peptide_forest import training
 
 df = pd.DataFrame(
     {
@@ -28,21 +28,21 @@ df["Is decoy"] = df["Is decoy"].astype(bool)
 
 
 def test_find_psms_to_keep():
-    df_test = peptide_forest.training.find_psms_to_keep(
+    df_test = training.find_psms_to_keep(
         df, score_col="Score_processed_test_eng"
     )
     assert df_test.index.tolist() == [0, 1, 2, 9, 10, 11, 12]
 
 
 def test_calc_num_psms():
-    test_psms = peptide_forest.training.calc_num_psms(
+    test_psms = training.calc_num_psms(
         df=df, score_col="Score_processed_test_eng", q_cut=0.5, sensitivity=0.9
     )
     assert test_psms == 3
 
 
 def test_get_q_vals():
-    df_test_fdr_true = peptide_forest.training.calc_q_vals(
+    df_test_fdr_true = training.calc_q_vals(
         df,
         score_col="Score_processed_test_eng",
         sensitivity=0.9,
@@ -50,7 +50,7 @@ def test_get_q_vals():
         init_score_col=None,
         get_fdr=True,
     )
-    df_test_fdr_false = peptide_forest.training.calc_q_vals(
+    df_test_fdr_false = training.calc_q_vals(
         df,
         score_col="Score_processed_test_eng",
         sensitivity=0.9,

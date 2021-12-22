@@ -1,3 +1,4 @@
+"""Knowledge database for peptide forest internal use."""
 parameters = {
     "remove_cols": [
         "Rank",

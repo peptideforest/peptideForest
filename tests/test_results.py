@@ -1,6 +1,6 @@
 import pandas as pd
 
-import peptide_forest
+from peptide_forest import results, training
 
 df_q_vals = pd.DataFrame(
     {
@@ -29,10 +29,10 @@ df_rank = pd.DataFrame(
 
 def calc_all_final_q_vals():
 
-    df_test = peptide_forest.results.process_final(
+    df_test = results.process_final(
         df=df_q_vals, sensitivity=0.9, init_eng="Score_processed_initial", q_cut=0.01
     )
-    df_initial = peptide_forest.training.calc_q_vals(
+    df_initial = training.calc_q_vals(
         df=df_q_vals,
         score_col="Score_processed_initial",
         sensitivity=0.9,
@@ -40,7 +40,7 @@ def calc_all_final_q_vals():
         init_score_col="Score_processed_initial",
         get_fdr=True,
     )
-    df_a = peptide_forest.training.calc_q_vals(
+    df_a = training.calc_q_vals(
         df=df_q_vals,
         score_col="Score_processed_a",
         sensitivity=0.9,
@@ -48,7 +48,7 @@ def calc_all_final_q_vals():
         init_score_col="Score_processed_initial",
         get_fdr=True,
     )
-    df_b = peptide_forest.training.calc_q_vals(
+    df_b = training.calc_q_vals(
         df=df_q_vals,
         score_col="Score_processed_b",
         sensitivity=0.9,
@@ -69,7 +69,7 @@ def calc_all_final_q_vals():
 
 
 def get_ranks():
-    df_test = peptide_forest.results.process_final(
+    df_test = results.process_final(
         df=df_rank, sensitivity=0.9, init_eng="Score_processed_initial", q_cut=0.01
     )
     assert all(df_test["rank_a"] == [1, 5, 6, 7, 2, 4, 9, 8, 10, 3])
@@ -78,7 +78,7 @@ def get_ranks():
 
 
 def mark_top_targets():
-    df_test = peptide_forest.results.process_final(
+    df_test = results.process_final(
         df=df_q_vals, sensitivity=0.9, init_eng="Score_processed_initial", q_cut=0.5
     )
     assert df_test[df_test["top_target_a"] == 1].index == 9

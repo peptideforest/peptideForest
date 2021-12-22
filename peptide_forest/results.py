@@ -1,3 +1,4 @@
+"""Process results for trained model."""
 from peptide_forest.training import calc_q_vals
 
 
@@ -7,8 +8,8 @@ def process_final(
     sensitivity,
     q_cut,
 ):
-    """
-    Add final outputs to dataframe the classifier was trained with.
+    """Add final outputs to dataframe the classifier was trained with.
+
     Args:
         df (pd.DataFrame): input data
         init_eng (str): initial engine to rank results by

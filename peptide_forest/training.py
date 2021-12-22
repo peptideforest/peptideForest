@@ -1,3 +1,4 @@
+"""Train peptide forest."""
 import multiprocessing as mp
 import sys
 import types
@@ -14,8 +15,8 @@ from peptide_forest import knowledge_base
 
 
 def find_psms_to_keep(df_scores, score_col):
-    """
-    Remove PSMs from q-value calculations if the highest score for a given spectrum is shared by two or more PSMs.
+    """Remove PSMs from q-value calculations if the highest score for a given spectrum is shared by two or more PSMs.
+
     Args:
         df_scores (pd.DataFrame): dataframe containing search engine scores for all PSMs
         score_col (str): column to score PSMs by
@@ -67,8 +68,8 @@ def calc_q_vals(
     get_fdr,
     init_score_col,
 ):
-    """
-    Calculates q-values for a given scoring column.
+    """Calculate q-values for a given scoring column.
+
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
         score_col (str): column to score PSMs by
@@ -124,8 +125,8 @@ def calc_q_vals(
 
 
 def calc_num_psms(df, score_col, q_cut, sensitivity):
-    """
-    Computes number of PSMs for dataframe which meet cutoff criterium.
+    """Compute number of PSMs for dataframe which meet cutoff criterium.
+
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
         score_col (str): initial engine to rank results by
@@ -159,8 +160,8 @@ def calc_num_psms(df, score_col, q_cut, sensitivity):
 
 
 def _score_psms(clf, data):
-    """
-    Applies scoring function to classifier prediction.
+    """Apply scoring function to classifier prediction.
+
     Args:
         clf (sklearn.ensemble.RandomForestRegressor): trained classifier
         data (array): input data for prediction
@@ -172,8 +173,8 @@ def _score_psms(clf, data):
 
 
 def get_rf_reg_classifier(hyperparameters):
-    """
-    Initializes random forest regressor.
+    """Initialize random forest regressor.
+
     Args:
         hyperparameters (dict): sklearn hyperparameters for classifier
 
@@ -188,8 +189,8 @@ def get_rf_reg_classifier(hyperparameters):
 
 
 def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
-    """
-    Processes single-epoch of cross validated training.
+    """Process single-epoch of cross validated training.
+
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
         score_col (str): column to score PSMs by
@@ -282,8 +283,8 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
 
 
 def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
-    """
-    Trains classifier on data for a set number of training and evaluation epochs.
+    """Train classifier on input data for a set number of training and evaluation epochs.
+
     Args:
         df (pd.DataFrame): input data
         init_eng (str): initial engine to rank results by

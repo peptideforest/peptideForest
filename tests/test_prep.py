@@ -2,14 +2,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import peptide_forest
+from peptide_forest import prep, PeptideForest
 
 path_dict_medium = {
-    "tests/_data/mascot_dat2csv_1_0_0.csv": {
+    pytest._test_path / "_data" / "mascot_dat2csv_1_0_0.csv" : {
         "engine": "mascot",
         "score_col": "Mascot:Score",
     },
-    "tests/_data/omssa_2_1_9.csv": {"engine": "omssa", "score_col": "OMSSA:pvalue"},
+    pytest._test_path / "_data" / "omssa_2_1_9.csv": {"engine": "omssa", "score_col": "OMSSA:pvalue"},
 }
 
 df_stats = pd.DataFrame(
@@ -89,8 +89,8 @@ deltas = [
 
 def test_add_stats():
     # Test correct values are inserted mapped to whole df
-    stats = peptide_forest.prep.get_stats(df_stats)
-    df_test = peptide_forest.prep.add_stats(stats, df_stats)
+    stats = prep.get_stats(df_stats)
+    df_test = prep.add_stats(stats, df_stats)
     min_vals = {"A": 1.0, "ASDFomssa_1_2_3": 1e-30, "B": 10.0, "C": 100.0}
     max_vals = {"A": 3, "ASDFomssa_1_2_3": 42, "B": 12, "C": 100}
     assert df_test.groupby("Search Engine")["_score_min"].first().to_dict() == min_vals
@@ -98,8 +98,8 @@ def test_add_stats():
 
 
 def test_check_mass_sanity():
-    assert peptide_forest.prep.check_mass_sanity(df_mass) == True
-    assert peptide_forest.prep.check_mass_sanity(df_mass.drop(index=[6, 7, 8])) == False
+    assert prep.check_mass_sanity(df_mass) == True
+    assert prep.check_mass_sanity(df_mass.drop(index=[6, 7, 8])) == False
 
 
 def test_calc_delta():
@@ -109,7 +109,7 @@ def test_calc_delta():
         "delta_score_2_B",
         "delta_score_3_B",
     ]
-    df_test = peptide_forest.prep._parallel_calc_delta(df_deltas, delta_cols)
+    df_test = prep._parallel_calc_delta(df_deltas, delta_cols)
     assert set(df_deltas.columns).union(set(delta_cols)) == set(
         df_test.columns.to_list()
     )
@@ -118,7 +118,7 @@ def test_calc_delta():
 
 def test_get_stats():
     # Test easy correct stats for non-omssa engines
-    stats = peptide_forest.prep.get_stats(df_stats)
+    stats = prep.get_stats(df_stats)
     assert stats["A"]["min_score"] == 1
     assert stats["A"]["max_score"] == 3
     assert stats["B"]["min_score"] == 10
@@ -133,13 +133,13 @@ def test_get_stats():
 
 @pytest.mark.filterwarnings("ignore")
 def test_row_features():
-    pf = peptide_forest.PeptideForest(
+    pf = PeptideForest(
         initial_engine="omssa",
-        ursgal_path_dict="tests/_data/path_dict_medium.json",
+        ursgal_path_dict=pytest._test_path /"_data" / "path_dict_medium.json",
         output=None,
     )
     pf.prep_ursgal_csvs()
-    df_test = peptide_forest.prep.calc_row_features(pf.input_df)
+    df_test = prep.calc_row_features(pf.input_df)
     assert (
         len(
             set(df_test.columns).difference(
@@ -173,14 +173,14 @@ def test_row_features():
 
 
 def test_col_features():
-    pf = peptide_forest.PeptideForest(
+    pf = PeptideForest(
         initial_engine="omssa",
-        ursgal_path_dict="tests/_data/path_dict_medium.json",
+        ursgal_path_dict= pytest._test_path / "_data" / "path_dict_medium.json",
         output=None,
     )
     pf.prep_ursgal_csvs()
-    df_test = peptide_forest.prep.calc_row_features(pf.input_df)
-    df_test = peptide_forest.prep.calc_col_features(df_test, min_data=0.2)
+    df_test = prep.calc_row_features(pf.input_df)
+    df_test = prep.calc_col_features(df_test, min_data=0.2)
     assert (
         len(
             set(df_test.columns).difference(
