@@ -5,11 +5,15 @@ import pytest
 from peptide_forest import prep, PeptideForest
 
 path_dict_medium = {
-    pytest._test_path / "_data" / "mascot_dat2csv_1_0_0.csv" : {
+    pytest._test_path
+    / "_data"
+    / "mascot_dat2csv_1_0_0.csv": {
         "engine": "mascot",
         "score_col": "Mascot:Score",
     },
-    pytest._test_path / "_data" / "omssa_2_1_9.csv": {"engine": "omssa", "score_col": "OMSSA:pvalue"},
+    pytest._test_path
+    / "_data"
+    / "omssa_2_1_9.csv": {"engine": "omssa", "score_col": "OMSSA:pvalue"},
 }
 
 df_stats = pd.DataFrame(
@@ -135,7 +139,7 @@ def test_get_stats():
 def test_row_features():
     pf = PeptideForest(
         initial_engine="omssa",
-        ursgal_path_dict=pytest._test_path /"_data" / "path_dict_medium.json",
+        ursgal_path_dict=pytest._test_path / "_data" / "path_dict_medium.json",
         output=None,
     )
     pf.prep_ursgal_csvs()
@@ -175,7 +179,7 @@ def test_row_features():
 def test_col_features():
     pf = PeptideForest(
         initial_engine="omssa",
-        ursgal_path_dict= pytest._test_path / "_data" / "path_dict_medium.json",
+        ursgal_path_dict=pytest._test_path / "_data" / "path_dict_medium.json",
         output=None,
     )
     pf.prep_ursgal_csvs()

@@ -28,9 +28,7 @@ df["Is decoy"] = df["Is decoy"].astype(bool)
 
 
 def test_find_psms_to_keep():
-    df_test = training.find_psms_to_keep(
-        df, score_col="Score_processed_test_eng"
-    )
+    df_test = training.find_psms_to_keep(df, score_col="Score_processed_test_eng")
     assert df_test.index.tolist() == [0, 1, 2, 9, 10, 11, 12]
 
 

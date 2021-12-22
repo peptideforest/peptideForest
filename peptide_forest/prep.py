@@ -178,9 +178,7 @@ def calc_col_features(df, min_data=0.7):
     bigger_score_translations = udict.get_default_params("unify_csv_style_1")[
         "bigger_scores_better"
     ]["translated_value"]
-    bigger_score_better_engs = [
-        bigger_score_translations[e] for e in engines
-    ]
+    bigger_score_better_engs = [bigger_score_translations[e] for e in engines]
     scores_that_need_to_be_inverted = [
         c for c, bsb in zip(engines, bigger_score_better_engs) if bsb is False
     ]
