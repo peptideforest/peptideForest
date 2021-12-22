@@ -1,7 +1,7 @@
-﻿Spectrum ID,OMSSA:pvalue,Protein ID,Sequence,Modifications,Charge,Spectrum Title,Mass Difference,Raw data location,Rank,uCalc m/z,Accuracy (ppm),Is decoy,Sequence Pre AA,Sequence Post AA,Sequence Stop,Sequence Start,Comments,Exp m/z
-1,1.00E-303,Prot1,AAAAA,None,1,,,,,3001,0,0,R,L,,4,,3001
-1,1.00E-20,Prot1,AAAAB,,2,,,,,1501,0,0,K,K,,50,,1501
-2,1.00E-30,Prot1<|>Prot2,BBBBB,,3,,,,,1001,1,0,M,F,,2,CountProt equals 2,1001
-2,1.00E-29,Prot1<|>Prot2,BBBBD,,3,,,,,1001,0,0,-,N,,1,CountProt equals 2,1001
-3,1.00E-20,Prot1,AAAAR,,3,,,,,1001,0,0,K,M,,10,test_sequence_aa_c,1001
-5,1.00E-10,Prot3,AAAAAAK,,10,,,,,301,0,0,K,M,,40<|>40<|>40<|>18<|>18<|>18<|>2<|>239<|>271<|>360<|>2,MaxChargeOverload,301
+﻿Spectrum ID,OMSSA:pvalue,Protein ID,Sequence,Modifications,Charge,Spectrum Title,Raw data location,Rank,uCalc m/z,Accuracy (ppm),Is decoy,Sequence Pre AA,Sequence Post AA,Sequence Stop,Sequence Start,Comments,Exp m/z,Search Engine
+1,1.00e-303,Prot1,AAAAA,None,1,"asdf",X,,3001,0,0,R,L,,4,,3001,omssa_2_1_9
+1,1.00e-20,Prot1,AAAAB,,2,"asdf",X,,1501,0,0,K,K,,50,,1501,omssa_2_1_9
+2,1.00e-30,Prot1<|>Prot2,BBBBB,,3,"asdf",X,,1001,1,0,M,F,,2,CountProt equals 2,1001,omssa_2_1_9
+2,1.00e-29,Prot1<|>Prot2,BBBBD,,3,"asdf",X,,1001,0,0,-,N,,1,CountProt equals 2,1001,omssa_2_1_9
+3,1.00e-20,Prot1,AAAAR,,3,"asdf",X,,1001,0,0,K,M,,10,test_sequence_aa_c,1001,omssa_2_1_9
+5,1.00e-10,Prot3,AAAKAAK,,10,"asdf",X,,301,0,0,K,M,,40<|>40<|>40<|>18<|>18<|>18<|>2<|>239<|>271<|>360<|>2,MaxChargeOverload,301,omssa_2_1_9
