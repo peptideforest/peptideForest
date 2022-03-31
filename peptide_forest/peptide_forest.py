@@ -14,21 +14,20 @@ from peptide_forest.tools import Timer
 class PeptideForest:
     """Main class to handle peptide forest functionalities."""
 
-    def __init__(self, ursgal_path_dict, output, initial_engine=None):
+    def __init__(self, config_path, output):
         """Initialize new peptide forest class object.
         
         Args:
-            ursgal_path_dict (dict): a dictionary containing input files as keys with another level of dicts indicating
-                                        scoring column and engine name. 
+            config_path (str): a path to a json file with configuration parameters
             output (str): output file path 
             initial_engine (str, None): sets initial scoring engine if engine name is given. defaults to None where the
                                         engine with most PSMs at q-cut is chosen.
         """ ""
         # Attributes
-        self.init_eng = None if initial_engine == "None" else initial_engine
         self.output_path = output
-        with open(ursgal_path_dict, "r") as json_file:
-            self.ursgal_dict = json.load(json_file)
+        with open(config_path, "r") as json_file:
+            self.params = json.load(json_file)
+        self.init_eng = self.params.get("initial_engine", None)
 
         self.input_df = None
         self.timer = Timer(description="\nPeptide forest completed in")
@@ -39,7 +38,7 @@ class PeptideForest:
 
         # Retrieve list of columns shared across all files
         all_cols = []
-        for file in self.ursgal_dict.keys():
+        for file in self.params["input_files"].keys():
             with open(file, encoding="utf-8-sig") as f:
                 all_cols.append(set(f.readline().replace("\n", "").split(",")))
         shared_cols = list(
@@ -48,7 +47,7 @@ class PeptideForest:
         )
 
         # Read in engines one by one
-        for file, info in self.ursgal_dict.items():
+        for file, info in self.params["input_files"].items():
             with Timer(description=f"Slurped in unified csv for {info['engine']}"):
                 df = pd.read_csv(file, usecols=shared_cols + [info["score_col"]])
 
@@ -119,8 +118,8 @@ class PeptideForest:
             ] = peptide_forest.training.calc_num_psms(
                 self.input_df,
                 score_col=eng_score,
-                q_cut=0.01,
-                sensitivity=0.9,
+                q_cut=self.params.get("q_cut", 0.01),
+                sensitivity=self.params.get("sensitivity", 0.9),
             )
         logger.debug(f"PSMs per engine with q-val < 1%: {psms_per_eng}")
 
@@ -138,18 +137,21 @@ class PeptideForest:
             ) = peptide_forest.training.train(
                 df=self.input_df,
                 init_eng=self.init_eng,
-                sensitivity=0.9,
-                q_cut=0.01,
-                q_cut_train=0.10,
-                n_train=10,
-                n_eval=10,
+                sensitivity=self.params.get("sensitivity", 0.9),
+                q_cut=self.params.get("q_cut", 0.01),
+                q_cut_train=self.params.get("q_cut_train", 0.10),
+                n_train=self.params.get("n_train", 10),
+                n_eval=self.params.get("n_eval", 10),
             )
 
     def get_results(self):
         """Interpret classifier output and appends final data to dataframe."""
         with Timer(description="Processed results in"):
             self.output_df = peptide_forest.results.process_final(
-                df=self.trained_df, init_eng=self.init_eng, sensitivity=0.9, q_cut=0.01
+                df=self.trained_df,
+                init_eng=self.init_eng,
+                sensitivity=self.params.get("sensitivity", 0.9),
+                q_cut=self.params.get("q_cut", 0.01),
             )
             self.output_df["Modifications"].replace(
                 {"None": None}, inplace=True, regex=False

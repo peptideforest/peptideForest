@@ -138,8 +138,7 @@ def test_get_stats():
 @pytest.mark.filterwarnings("ignore")
 def test_row_features():
     pf = PeptideForest(
-        initial_engine="omssa",
-        ursgal_path_dict=pytest._test_path / "_data" / "path_dict_medium.json",
+        config_path=pytest._test_path / "_data" / "path_dict_medium.json",
         output=None,
     )
     pf.prep_ursgal_csvs()
@@ -178,8 +177,7 @@ def test_row_features():
 
 def test_col_features():
     pf = PeptideForest(
-        initial_engine="omssa",
-        ursgal_path_dict=pytest._test_path / "_data" / "path_dict_medium.json",
+        config_path=pytest._test_path / "_data" / "path_dict_medium.json",
         output=None,
     )
     pf.prep_ursgal_csvs()
