@@ -153,7 +153,7 @@ class PeptideForest:
                 sensitivity=self.params.get("sensitivity", 0.9),
                 q_cut=self.params.get("q_cut", 0.01),
             )
-            self.output_df["Modifications"].replace(
+            self.output_df["modifications"].replace(
                 {"None": None}, inplace=True, regex=False
             )
 
