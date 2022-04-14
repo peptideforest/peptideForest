@@ -26,13 +26,13 @@ def find_psms_to_keep(df_scores, score_col):
     """
     # Get maxima per spectrum ID
     max_per_spec_id = (
-        df_scores.groupby("Spectrum ID")[score_col].transform(max).replace(0.0, pd.NA)
+        df_scores.groupby("spectrum_id")[score_col].transform(max).replace(0.0, pd.NA)
     )
     # Find those PSMs where the score equals the maximum for that spectrum
     score_is_max = max_per_spec_id == df_scores[score_col]
     # Find Spectrum IDs where condition is met by one PSM
     specs_with_more_than_one_top_score = (
-        df_scores.loc[score_is_max].groupby("Spectrum ID")[score_col].count() > 1
+        df_scores.loc[score_is_max].groupby("spectrum_id")[score_col].count() > 1
     )
     specs_with_more_than_one_top_score = specs_with_more_than_one_top_score[
         specs_with_more_than_one_top_score
@@ -40,10 +40,10 @@ def find_psms_to_keep(df_scores, score_col):
     # Get stats for decoys in those spectrums
     decoys_per_spec = (
         df_scores[
-            df_scores["Spectrum ID"].isin(specs_with_more_than_one_top_score)
+            df_scores["spectrum_id"].isin(specs_with_more_than_one_top_score)
             & score_is_max
         ]
-        .groupby("Spectrum ID")["Is decoy"]
+        .groupby("spectrum_id")["is_decoy"]
         .agg("sum")
     )
 
@@ -54,7 +54,7 @@ def find_psms_to_keep(df_scores, score_col):
     spec_ids_drop = spec_ids_drop[spec_ids_drop].index
 
     # Drop them
-    drop_inds = df_scores["Spectrum ID"].isin(spec_ids_drop)
+    drop_inds = df_scores["spectrum_id"].isin(spec_ids_drop)
     df_scores = df_scores[~drop_inds]
 
     return df_scores
@@ -85,9 +85,9 @@ def calc_q_vals(
     df_scores = df.copy(deep=True)
 
     # Sort by score_col
-    if init_score_col is not None and score_col == "Score_processed_peptide_forest":
+    if init_score_col is not None and score_col == "score_processed_peptide_forest":
         df_scores.sort_values(
-            [score_col, f"Score_processed_{init_score_col}"],
+            [score_col, f"score_processed_{init_score_col}"],
             ascending=[False, False],
             inplace=True,
         )
@@ -99,27 +99,27 @@ def calc_q_vals(
 
     if top_psm_only is True:
         # Use only the top PSM
-        df_scores = df_scores.drop_duplicates("Spectrum ID")
+        df_scores = df_scores.drop_duplicates("spectrum_id")
 
     # Calculate FDR by considering remaining decoys and targets
-    df_scores = df_scores[["Spectrum ID", "Sequence", score_col, "Is decoy"]]
-    target_decoy_hot_one = pd.get_dummies(df_scores["Is decoy"]).rename(
-        {False: "Target", True: "Decoy"}, axis=1
+    df_scores = df_scores[["spectrum_id", "sequence", score_col, "is_decoy"]]
+    target_decoy_hot_one = pd.get_dummies(df_scores["is_decoy"]).rename(
+        {False: "target", True: "decoy"}, axis=1
     )
-    if "Decoy" not in target_decoy_hot_one.columns:
-        target_decoy_hot_one["Decoy"] = 0
+    if "decoy" not in target_decoy_hot_one.columns:
+        target_decoy_hot_one["decoy"] = 0
     df_scores = pd.concat([df_scores, target_decoy_hot_one], axis=1)
-    df_scores["FDR"] = (
+    df_scores["fdr"] = (
         sensitivity
-        * df_scores["Decoy"].cumsum()
-        / (df_scores["Target"].cumsum() + df_scores["Decoy"].cumsum())
+        * df_scores["decoy"].cumsum()
+        / (df_scores["target"].cumsum() + df_scores["decoy"].cumsum())
     )
 
     # Compute q-values
     if get_fdr is True:
-        df_scores["q-value"] = df_scores["FDR"]
+        df_scores["q-value"] = df_scores["fdr"]
     else:
-        df_scores["q-value"] = df_scores["FDR"].cummax()
+        df_scores["q-value"] = df_scores["fdr"].cummax()
 
     return df_scores
 
@@ -152,7 +152,7 @@ def calc_num_psms(df, score_col, q_cut, sensitivity):
     # Get the number of target PSMs with q-value < 1%
     n_psms = len(
         df_scores_sub.loc[
-            (df_scores_sub["q-value"] <= q_cut) & (~df_scores_sub["Is decoy"]),
+            (df_scores_sub["q-value"] <= q_cut) & (~df_scores_sub["is_decoy"]),
             :,
         ]
     )
@@ -223,7 +223,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         # Use only top target and top decoy per spectrum
         train_data = (
             train.sort_values(score_col, ascending=False)
-            .drop_duplicates(["Spectrum ID", "Is decoy"])
+            .drop_duplicates(["spectrum_id", "is_decoy"])
             .copy(deep=True)
         )
 
@@ -235,13 +235,13 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
             top_psm_only=False,
             get_fdr=False,
             init_score_col=None,
-        )[["q-value", "Is decoy"]]
+        )[["q-value", "is_decoy"]]
         train_q_cut_met_targets = train_q_vals.loc[
-            (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["Is decoy"])
+            (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
         ].index
         train_targets = train_data.loc[train_q_cut_met_targets, :]
         # Get same number of decoys to match targets at random
-        train_decoys = train_data[train_data["Is decoy"]].sample(n=len(train_targets))
+        train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
 
         # Combine to form training dataset
         train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
@@ -266,7 +266,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         hyperparameters = knowledge_base.parameters["hyperparameters"]
         hyperparameters["n_jobs"] = mp.cpu_count() - 1
         rfreg = get_rf_reg_classifier(hyperparameters=hyperparameters)
-        rfreg.fit(X=train_data[features], y=train_data["Is decoy"])
+        rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
 
         # Record feature importances
         feature_importances.append(rfreg.feature_importances_)
@@ -305,19 +305,19 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
 
     # Remove all classifier columns and create safe copy
-    df.drop(columns=f"Score_processed_RF-reg", errors="ignore", inplace=True)
+    df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
     df_training = df.copy(deep=True)
 
     # Create cross-validation splits for training with equal number of spectra
     group_kfold = GroupKFold(n_splits=3)
-    groups = df_training["Spectrum ID"]
+    groups = df_training["spectrum_id"]
     train_cv_splits = list(group_kfold.split(X=df_training, groups=groups))
 
     # Record current number of PSMs with q-val < 1%
     psms_per_iter.append(
         calc_num_psms(
             df=df_training,
-            score_col=f"Score_processed_{init_eng}",
+            score_col=f"score_processed_{init_eng}",
             q_cut=q_cut,
             sensitivity=sensitivity,
         )
@@ -329,7 +329,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
     for epoch in pbar:
         if epoch == 0:
             # Rank by initial engine's score column during first iteration of training
-            score_col = f"Score_processed_{init_eng}"
+            score_col = f"score_processed_{init_eng}"
             df_training["model_score_all"] = 0
             df_training["model_score_train_all"] = 0
 
@@ -416,6 +416,6 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
     logger.debug(f"Feature importances:\n{df_feature_importance}")
 
     # Add averaged scores to df as classifier score
-    df.loc[:, "Score_processed_peptide_forest"] = df_training["model_score_all"]
+    df.loc[:, "score_processed_peptide_forest"] = df_training["model_score_all"]
 
     return df, df_feature_importance, psms

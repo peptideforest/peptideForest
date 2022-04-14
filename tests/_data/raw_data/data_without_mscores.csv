@@ -1,4 +1,4 @@
-,Spectrum ID,Sequence,Modifications,Charge
+,spectrum_id,sequence,modifications,charge
 0,1,>AAAA,moda<,1
 1,1,>AAAA,modb<,1
 2,1,>AAAA,modc<,1

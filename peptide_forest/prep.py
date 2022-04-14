@@ -62,10 +62,10 @@ def add_stats(stats, df):
         df (pd.DataFrame): input data with delta columns appended
     """
     df["_score_min"] = df.apply(
-        lambda row: stats[row["Search Engine"]]["min_score"], axis=1
+        lambda row: stats[row["search_engine"]]["min_score"], axis=1
     )
     df["_score_max"] = df.apply(
-        lambda row: stats[row["Search Engine"]]["max_score"], axis=1
+        lambda row: stats[row["search_engine"]]["max_score"], axis=1
     )
 
     return df
@@ -82,8 +82,8 @@ def check_mass_sanity(df):
     """
     return (
         (
-            df.groupby(["Spectrum ID", "Sequence", "Charge", "Modifications"]).agg(
-                {"uCalc m/z": "nunique", "Exp m/z": "nunique"}
+            df.groupby(["spectrum_id", "sequence", "charge", "modifications"]).agg(
+                {"ucalc_mz": "nunique", "exp_mz": "nunique"}
             )
             != 1
         )
@@ -106,19 +106,19 @@ def calc_delta(df, delta_col):
     # Get information from new column name
     n = int(delta_col.split("_")[2])
     eng = delta_col[14:]
-    score_col = f"Score_processed_{eng}"
+    score_col = f"score_processed_{eng}"
 
     # Find nth highest score per spectrum
     nth_score = (
         df.sort_values(score_col, ascending=False)
-        .groupby("Spectrum ID")[score_col]
+        .groupby("spectrum_id")[score_col]
         .nth(n=(n - 1))
     )
     # Set to nan if 0
     nth_score.replace(0.0, pd.NA, inplace=True)
     # Calculate different to all other scores in group
     deltas = df.sort_values(score_col)[score_col] - df.sort_values(score_col)[
-        "Spectrum ID"
+        "spectrum_id"
     ].map(nth_score)
 
     # Return expanded column to multiprocessing pool
@@ -135,7 +135,7 @@ def get_stats(df):
         stats (dict): keys are engines with values being dicts describing min and max possible scores.
     """
     # Collect stats with min and max scores on engine-level and process
-    min_max_stats = df.groupby("Search Engine").agg({"Score": ["min", "max"]})["Score"]
+    min_max_stats = df.groupby("search_engine").agg({"score": ["min", "max"]})["score"]
     stats = {
         eng: {
             "min_score": 1e-30 if "omssa" in eng and min_score < 1e-30 else min_score,
@@ -162,19 +162,19 @@ def calc_col_features(df, min_data=0.7):
     """
     # Determine delta columns to calculate
     delta_columns = []
-    size = df.groupby(["Search Engine", "Spectrum ID"]).size().droplevel(1)
-    d2 = (size >= 2).groupby("Search Engine").agg("sum") / (size > 0).groupby(
-        "Search Engine"
+    size = df.groupby(["search_engine", "spectrum_id"]).size().droplevel(1)
+    d2 = (size >= 2).groupby("search_engine").agg("sum") / (size > 0).groupby(
+        "search_engine"
     ).agg("sum")
-    d3 = (size >= 3).groupby("Search Engine").agg("sum") / (size > 0).groupby(
-        "Search Engine"
+    d3 = (size >= 3).groupby("search_engine").agg("sum") / (size > 0).groupby(
+        "search_engine"
     ).agg("sum")
     delta_columns += [f"delta_score_2_{col}" for col in d2[d2 >= min_data].index]
     delta_columns += [f"delta_score_3_{col}" for col in d3[d3 >= min_data].index]
 
     # Convert all scores so that a higher score is better
     udict = uparma.UParma()
-    engines = df["Search Engine"].unique()
+    engines = df["search_engine"].unique()
     bigger_score_translations = udict.get_default_params("unify_csv_style_1")[
         "bigger_scores_better"
     ]["translated_value"]
@@ -182,24 +182,24 @@ def calc_col_features(df, min_data=0.7):
     scores_that_need_to_be_inverted = [
         c for c, bsb in zip(engines, bigger_score_better_engs) if bsb is False
     ]
-    inds = df[df["Search Engine"].isin(scores_that_need_to_be_inverted)].index
-    df.loc[inds, "Score_processed"] = -np.log10(df.loc[inds, "Score_processed"])
+    inds = df[df["search_engine"].isin(scores_that_need_to_be_inverted)].index
+    df.loc[inds, "score_processed"] = -np.log10(df.loc[inds, "score_processed"])
 
     # Collect columns used in indices
     core_idx_cols = [
         # "Spectrum Title",
-        "Spectrum ID",
-        "Sequence",
-        "Modifications",
-        "Is decoy",
-        "Protein ID",
-        "Charge",
+        "spectrum_id",
+        "sequence",
+        "modifications",
+        "is_decoy",
+        "protein_id",
+        "charge",
     ]
-    value_cols = ["Score_processed"]
+    value_cols = ["score_processed"]
     remaining_idx_cols = [
         c
         for c in df.columns
-        if not c in core_idx_cols + value_cols and c != "Search Engine"
+        if not c in core_idx_cols + value_cols and c != "search_engine"
     ]
 
     # Pivot
@@ -207,15 +207,15 @@ def calc_col_features(df, min_data=0.7):
         df,
         index=core_idx_cols + remaining_idx_cols,
         values=value_cols,
-        columns="Search Engine",
+        columns="search_engine",
     )
     df.columns = ["_".join(t) for t in df.columns.to_list()]
     df.reset_index(inplace=True)
 
     # Note reported PSMs and fill scores
-    score_cols = [c for c in df.columns if "Score_processed_" in c]
+    score_cols = [c for c in df.columns if "score_processed_" in c]
     for col in score_cols:
-        df.loc[:, f"reported_by_{col.replace('Score_processed_', '')}"] = ~df[
+        df.loc[:, f"reported_by_{col.replace('score_processed_', '')}"] = ~df[
             col
         ].isna()
     df.fillna({col: 0.0 for col in score_cols}, inplace=True)
@@ -243,7 +243,7 @@ def calc_row_features(df):
     # Add stats columns and process scores accordingly
     mp_add_stats = partial(add_stats, stats)
     df = _parallel_apply(df, mp_add_stats)
-    df["Score_processed"] = df["Score"]
+    df["score_processed"] = df["score"]
 
     # Check for consistent masses
     if check_mass_sanity(df):
@@ -252,8 +252,8 @@ def calc_row_features(df):
         )
 
     # More data based training features
-    df["PepLen"] = df["Sequence"].apply(len)
-    df["CountProt"] = df["Protein ID"].str.split(r"<\|>|;").apply(set).apply(len)
+    df["pep_len"] = df["sequence"].apply(len)
+    df["count_prot"] = df["protein_id"].str.split(r"<\|>|;").apply(set).apply(len)
 
     # Drop columns that are no longer relevant
     df.drop(
