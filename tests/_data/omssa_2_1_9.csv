@@ -1,4 +1,4 @@
-﻿Spectrum ID,OMSSA:pvalue,Protein ID,Sequence,Modifications,Charge,Spectrum Title,Raw data location,Rank,uCalc m/z,Accuracy (ppm),Is decoy,Sequence Pre AA,Sequence Post AA,Sequence Stop,Sequence Start,Comments,Exp m/z,Search Engine
+﻿spectrum_id,omssa:pvalue,protein_id,sequence,modifications,charge,spectrum_title,raw_data_location,rank,ucalc_mz,accuracy_ppm,is_decoy,sequence_pre_aa,sequence_post_aa,sequence_stop,sequence_start,comments,exp_mz,search_engine
 1,1.00e-303,Prot1,AAAAA,None,1,"asdf",X,,3001,0,0,R,L,,4,,3001,omssa_2_1_9
 1,1.00e-20,Prot1,AAAAB,,2,"asdf",X,,1501,0,0,K,K,,50,,1501,omssa_2_1_9
 2,1.00e-30,Prot1<|>Prot2,BBBBB,,3,"asdf",X,,1001,1,0,M,F,,2,CountProt equals 2,1001,omssa_2_1_9

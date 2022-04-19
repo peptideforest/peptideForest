@@ -9,16 +9,16 @@ path_dict_medium = {
     / "_data"
     / "mascot_dat2csv_1_0_0.csv": {
         "engine": "mascot",
-        "score_col": "Mascot:Score",
+        "score_col": "mascot:score",
     },
     pytest._test_path
     / "_data"
-    / "omssa_2_1_9.csv": {"engine": "omssa", "score_col": "OMSSA:pvalue"},
+    / "omssa_2_1_9.csv": {"engine": "omssa", "score_col": "omssa:pvalue"},
 }
 
 df_stats = pd.DataFrame(
     {
-        "Search Engine": [
+        "search_engine": [
             "A",
             "A",
             "A",
@@ -30,13 +30,13 @@ df_stats = pd.DataFrame(
             "ASDFomssa_1_2_3",
             "ASDFomssa_1_2_3",
         ],
-        "Score": [1, 2, 3, 10, 11, 12, 100, 100, 0, 42],
+        "score": [1, 2, 3, 10, 11, 12, 100, 100, 0, 42],
     }
 )
 
 df_mass = pd.DataFrame(
     {
-        "Sequence": [
+        "sequence": [
             "AAA",
             "AAA",
             "AAA",
@@ -48,11 +48,11 @@ df_mass = pd.DataFrame(
             "AAB",
             "AAB",
         ],
-        "Spectrum ID": [1, 1, 1, 1, 2, 1, 1, 1, 1, 1],
-        "Charge": [1, 1, 1, 1, 1, 2, 1, 1, 1, 1],
-        "uCalc m/z": [1, 1, 1, 1, 1, 1, 2, 1, 1, 1],
-        "Exp m/z": [1, 1, 1, 1, 1, 1, 1, 2, 1, 1],
-        "Modifications": [
+        "spectrum_id": [1, 1, 1, 1, 2, 1, 1, 1, 1, 1],
+        "charge": [1, 1, 1, 1, 1, 2, 1, 1, 1, 1],
+        "ucalc_mz": [1, 1, 1, 1, 1, 1, 2, 1, 1, 1],
+        "exp_mz": [1, 1, 1, 1, 1, 1, 1, 2, 1, 1],
+        "modifications": [
             "AAA",
             "AAA",
             "AAA",
@@ -69,14 +69,14 @@ df_mass = pd.DataFrame(
 
 df_deltas = pd.DataFrame(
     {
-        "Search Engine": ["A", "A", "A", "A", "B", "B", "B", "B", "B"],
-        "Score_processed_A": [1, 5, 6, 15, 11, 16, 26, 21, 25],
-        "Score_processed_B": [1, 5, 6, 15, 11, 16, 26, 21, 25],
-        "Spectrum ID": [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        "Is decoy": [0, 0, 1, 1, 1, 1, 0, 1, 0],
+        "search_engine": ["A", "A", "A", "A", "B", "B", "B", "B", "B"],
+        "score_processed_A": [1, 5, 6, 15, 11, 16, 26, 21, 25],
+        "score_processed_B": [1, 5, 6, 15, 11, 16, 26, 21, 25],
+        "spectrum_id": [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        "is_decoy": [0, 0, 1, 1, 1, 1, 0, 1, 0],
     }
 )
-df_deltas["Is decoy"] = df_deltas["Is decoy"].convert_dtypes()
+df_deltas["is_decoy"] = df_deltas["is_decoy"].convert_dtypes()
 
 deltas = [
     [-24, -20, -24, -20],
@@ -97,8 +97,8 @@ def test_add_stats():
     df_test = prep.add_stats(stats, df_stats)
     min_vals = {"A": 1.0, "ASDFomssa_1_2_3": 1e-30, "B": 10.0, "C": 100.0}
     max_vals = {"A": 3, "ASDFomssa_1_2_3": 42, "B": 12, "C": 100}
-    assert df_test.groupby("Search Engine")["_score_min"].first().to_dict() == min_vals
-    assert df_test.groupby("Search Engine")["_score_max"].first().to_dict() == max_vals
+    assert df_test.groupby("search_engine")["_score_min"].first().to_dict() == min_vals
+    assert df_test.groupby("search_engine")["_score_max"].first().to_dict() == max_vals
 
 
 def test_check_mass_sanity():
@@ -147,32 +147,32 @@ def test_row_features():
         len(
             set(df_test.columns).difference(
                 {
-                    "Charge",
-                    "Raw data location",
-                    "Accuracy (ppm)",
-                    "Comments",
-                    "Search Engine",
-                    "Is decoy",
-                    "Modifications",
-                    "Protein ID",
-                    "Sequence",
-                    "Spectrum ID",
-                    "Spectrum Title",
-                    "Score_processed",
-                    "Mass",
-                    "dM",
-                    "enzN",
-                    "enzC",
-                    "enzInt",
-                    "PepLen",
-                    "CountProt",
+                    "charge",
+                    "raw_data_location",
+                    "accuracy_ppm",
+                    "comments",
+                    "search_engine",
+                    "is_decoy",
+                    "modifications",
+                    "protein_id",
+                    "sequence",
+                    "spectrum_id",
+                    "spectrum_title",
+                    "score_processed",
+                    "mass",
+                    "dm",
+                    "enz_n",
+                    "enz_c",
+                    "enz_int",
+                    "pep_len",
+                    "count_prot",
                 }
             )
         )
         == 0
     )
-    assert all(df_test["PepLen"] == [9, 5, 5, 5, 7])
-    assert all(df_test["CountProt"] == [1, 2, 2, 1, 1])
+    assert all(df_test["pep_len"] == [9, 5, 5, 5, 7])
+    assert all(df_test["count_prot"] == [1, 2, 2, 1, 1])
 
 
 def test_col_features():
@@ -187,33 +187,33 @@ def test_col_features():
         len(
             set(df_test.columns).difference(
                 {
-                    "Spectrum Title",
-                    "Spectrum ID",
-                    "Sequence",
-                    "Modifications",
-                    "Is decoy",
-                    "Protein ID",
-                    "Charge",
-                    "Comments",
-                    "Mass",
-                    "dM",
-                    "enzN",
-                    "enzC",
-                    "enzInt",
-                    "PepLen",
-                    "CountProt",
-                    "Score_processed_mascot_2_6_2",
-                    "Score_processed_omssa_2_1_9",
+                    "spectrum_title",
+                    "spectrum_id",
+                    "sequence",
+                    "modifications",
+                    "is_decoy",
+                    "protein_id",
+                    "charge",
+                    "comments",
+                    "mass",
+                    "dm",
+                    "enz_n",
+                    "enz_c",
+                    "enz_int",
+                    "pep_len",
+                    "count_prot",
+                    "score_processed_mascot_2_6_2",
+                    "score_processed_omssa_2_1_9",
                     "delta_score_2_omssa_2_1_9",
                     "reported_by_mascot_2_6_2",
                     "reported_by_omssa_2_1_9",
-                    "Raw data location",
-                    "Accuracy (ppm)",
+                    "raw_data_location",
+                    "accuracy_ppm",
                 }
             )
         )
         == 0
     )
-    assert all(df_test["Score_processed_mascot_2_6_2"] == [0.0, 0.0, 0.0, 0.0, 20.0])
-    assert all(df_test["Score_processed_omssa_2_1_9"] == [30.0, 29.0, 20.0, 10.0, 0.0])
+    assert all(df_test["score_processed_mascot_2_6_2"] == [0.0, 0.0, 0.0, 0.0, 20.0])
+    assert all(df_test["score_processed_omssa_2_1_9"] == [30.0, 29.0, 20.0, 10.0, 0.0])
     assert all(df_test["delta_score_2_omssa_2_1_9"] == [1.0, 0.0, 0.0, 0.0, 0.0])

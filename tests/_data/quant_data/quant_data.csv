@@ -1,4 +1,4 @@
-,Unnamed: 0,mScore,scan_id,molecule,charge
+,Unnamed: 0,m_score,scan_id,molecule,charge
 0,0,1,1,>AAAA#moda<,1
 1,1,2,2,>AAAA#modb<,1
 2,2,3,3,>AAAA#modc<,1
