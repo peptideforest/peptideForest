@@ -247,14 +247,16 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
 
         # Scale the data
-        features = set(train_data.columns).difference(
-            set(
-                [
-                    c
-                    for c in train_data.columns
-                    for r in knowledge_base.parameters["non_trainable_columns"]
-                    if c.startswith(r)
-                ]
+        features = list(
+            set(train_data.columns).difference(
+                set(
+                    [
+                        c
+                        for c in train_data.columns
+                        for r in knowledge_base.parameters["non_trainable_columns"]
+                        if c.startswith(r)
+                    ]
+                )
             )
         )
         scaler = StandardScaler().fit(train_data.loc[:, features])
