@@ -1,43 +1,37 @@
-#!/usr/bin/env python3
-from setuptools import setup
-import os
+import setuptools
 
-version_path = os.path.join(os.path.dirname(__file__), "peptide_forest", "version.txt")
 
-with open(version_path, "r") as version_file:
-    peptide_forest_version = version_file.read().strip()
+def branch_dependent_version():
+    import setuptools_scm
 
-with open("requirements.txt") as req_file:
-    reqs = req_file.readlines()
+    def void(version):
+        return ""
 
-setup(
-    name="peptide_forest",
-    version=peptide_forest_version,
-    packages=[
-        "peptide_forest",
-    ],
-    python_requires=">=3.8.0",
-    install_requires=reqs,
-    description="Integrate search engines",
-    long_description="Integrating multiple search engines for peptide identification",
-    author="T. Ranff, M. Dennison, J. Bédorf, S. Schulze, N. Zinn, M. Bantscheff, J.J.R.M. van Heugten, C. Fufezan",
-    url="http://github.com/fu",
-    license="The MIT license",
-    platforms="any that supports python 3.8",
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Environment :: Console",
-        "Intended Audience :: Education",
-        "Intended Audience :: Science/Research",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: MacOS :: MacOS X",
-        "Operating System :: Unix",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Topic :: Scientific/Engineering :: Bio-Informatics",
-        "Topic :: Scientific/Engineering :: Chemistry",
-        "Topic :: Scientific/Engineering :: Medical Science Apps.",
-    ],
+    def version_scheme(version):
+        if version.branch not in ["main", "master"]:
+            _v = setuptools_scm.get_version(local_scheme=void)
+        else:
+            _v = str(version.tag)
+        return _v
+
+    def local_scheme(version):
+        if version.branch not in ["main", "master"]:
+            _v = setuptools_scm.get_version(version_scheme=void)
+        else:
+            _v = ""
+        return _v
+
+    scm_version = {
+        "root": ".",
+        "relative_to": __file__,
+        "version_scheme": version_scheme,
+        "local_scheme": local_scheme
+    }
+    return scm_version
+
+
+setuptools.setup(
+    use_scm_version=branch_dependent_version,
+    setup_requires=["setuptools_scm"],
+    include_package_data=True,
 )

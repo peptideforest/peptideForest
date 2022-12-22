@@ -1,0 +1,33 @@
+[dev-dependencies]
+black = { version = "^18.3-alpha.0", python = "^3.7" }
+
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "peptide_forest/version.txt"
+
+[tool.black]
+line-length = 88
+target-version = ["py38"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # The following are specific to Black, you probably don't want those.
+  | blib2to3
+  | profiling
+)/
+'''
+
+[tool.tox]
+legacy_tox_ini = """
+
+[tox]
+envlist = py38,py39
+isolated_build = True
+
+[testenv]
+commands =
+    pytest tests {posargs}
+"""
