@@ -52,7 +52,7 @@ class PeptideForest:
                 df = pd.read_csv(file, usecols=shared_cols + [info["score_col"]])
 
                 # Add information
-                df["Score"] = df[info["score_col"]]
+                df["score"] = df[info["score_col"]]
 
                 # Drop irrelevant columns
                 df.drop(columns=info["score_col"], inplace=True)
@@ -70,33 +70,33 @@ class PeptideForest:
 
         combined_df = pd.concat(engine_lvl_dfs, sort=True).reset_index(drop=True)
         combined_df.fillna(
-            {"Sequence Post AA": "-", "Sequence Pre AA": "-", "Modifications": "None"},
+            {"sequence_post_aa": "-", "sequence_pre_aa": "-", "modifications": "None"},
             inplace=True,
         )
         combined_df = combined_df.convert_dtypes()
 
         # Assert there are no overlaps between sequences in target and decoys
         shared_seq_target_decoy = (
-            combined_df.groupby("Sequence").agg({"Is decoy": "nunique"})["Is decoy"]
+            combined_df.groupby("sequence").agg({"is_decoy": "nunique"})["is_decoy"]
             != 1
         )
         if any(shared_seq_target_decoy):
             logger.warning("Target and decoy sequences overlap.")
             combined_df = combined_df.loc[
-                ~combined_df["Sequence"].isin(
+                ~combined_df["sequence"].isin(
                     shared_seq_target_decoy[shared_seq_target_decoy].index
                 )
             ]
 
         combined_df.drop(
-            labels=combined_df[combined_df["Sequence"].str.contains("X") == True].index,
+            labels=combined_df[combined_df["sequence"].str.contains("X") == True].index,
             axis=0,
             inplace=True,
         )
 
-        if "mScore" in combined_df.columns:
-            min_mscore = combined_df[combined_df["mScore"] != 0]["mScore"].min()
-            combined_df.loc[combined_df["mScore"] == 0, "mScore"] = min_mscore
+        if "m_score" in combined_df.columns:
+            min_mscore = combined_df[combined_df["m_score"] != 0]["m_score"].min()
+            combined_df.loc[combined_df["m_score"] == 0, "m_score"] = min_mscore
 
         self.input_df = combined_df
 
@@ -111,10 +111,10 @@ class PeptideForest:
         """Perform cross-validated training and evaluation."""
         # Find initial engine with the highest number of target PSMs under 1% q-val
         psms_per_eng = {}
-        score_processed_cols = [c for c in self.input_df if "Score_processed_" in c]
+        score_processed_cols = [c for c in self.input_df if "score_processed_" in c]
         for eng_score in score_processed_cols:
             psms_per_eng[
-                eng_score.replace("Score_processed_", "")
+                eng_score.replace("score_processed_", "")
             ] = peptide_forest.training.calc_num_psms(
                 self.input_df,
                 score_col=eng_score,
@@ -153,7 +153,7 @@ class PeptideForest:
                 sensitivity=self.params.get("sensitivity", 0.9),
                 q_cut=self.params.get("q_cut", 0.01),
             )
-            self.output_df["Modifications"].replace(
+            self.output_df["modifications"].replace(
                 {"None": None}, inplace=True, regex=False
             )
 
