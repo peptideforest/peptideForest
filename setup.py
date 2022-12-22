@@ -25,7 +25,7 @@ def branch_dependent_version():
         "root": ".",
         "relative_to": __file__,
         "version_scheme": version_scheme,
-        "local_scheme": local_scheme
+        "local_scheme": local_scheme,
     }
     return scm_version
 
