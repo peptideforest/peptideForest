@@ -1,4 +1,0 @@
-include requirements.txt
-include peptide_forest/version.txt
-graft tests
-graft peptide_forest
