@@ -175,7 +175,7 @@ def calc_col_features(df, min_data=0.7):
     # Convert all scores so that a higher score is better
     udict = uparma.UParma()
     engines = df["search_engine"].unique()
-    bigger_score_translations = udict.get_default_params("pyprotista_style_1")[
+    bigger_score_translations = udict.get_default_params("pyiohat_style_1")[
         "bigger_scores_better"
     ]["translated_value"]
     bigger_score_better_engs = [bigger_score_translations[e] for e in engines]
