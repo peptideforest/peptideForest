@@ -28,7 +28,6 @@ df_rank = pd.DataFrame(
 
 
 def calc_all_final_q_vals():
-
     df_test = results.process_final(
         df=df_q_vals, sensitivity=0.9, init_eng="score_processed_initial", q_cut=0.01
     )
