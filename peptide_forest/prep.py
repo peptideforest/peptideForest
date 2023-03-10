@@ -82,9 +82,15 @@ def check_mass_sanity(df):
     """
     return (
         (
-            df.groupby(["raw_data_location", "spectrum_id", "sequence", "charge", "modifications"]).agg(
-                {"ucalc_mz": "nunique", "exp_mz": "nunique"}
-            )
+            df.groupby(
+                [
+                    "raw_data_location",
+                    "spectrum_id",
+                    "sequence",
+                    "charge",
+                    "modifications",
+                ]
+            ).agg({"ucalc_mz": "nunique", "exp_mz": "nunique"})
             != 1
         )
         .any(axis=0)

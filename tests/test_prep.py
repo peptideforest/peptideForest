@@ -36,6 +36,18 @@ df_stats = pd.DataFrame(
 
 df_mass = pd.DataFrame(
     {
+        "raw_data_location": [
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+        ],
         "sequence": [
             "AAA",
             "AAA",

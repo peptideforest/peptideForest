@@ -107,3 +107,7 @@ venv.bak/
 *.csv
 /coverage/
 /testing/
+
+
+# setuptools scm
+version.txt
