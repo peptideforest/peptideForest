@@ -162,9 +162,11 @@ def test_check_mass_sanity():
     assert prep.check_mass_sanity(df_mass) == True
     assert prep.check_mass_sanity(df_mass.drop(index=[6, 7, 8])) == False
 
+
 def test_check_mass_sanity_different_raw_data_location():
     assert prep.check_mass_sanity(df_mass2) == True
     assert prep.check_mass_sanity(df_mass2.drop(index=[6, 7, 8])) == False
+
 
 def test_calc_delta():
     delta_cols = [
