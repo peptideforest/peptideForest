@@ -194,6 +194,7 @@ def calc_col_features(df, min_data=0.7):
     # Collect columns used in indices
     core_idx_cols = [
         # "Spectrum Title",
+        "raw_data_location",
         "spectrum_id",
         "sequence",
         "modifications",
