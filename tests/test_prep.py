@@ -36,6 +36,18 @@ df_stats = pd.DataFrame(
 
 df_mass = pd.DataFrame(
     {
+        "raw_data_location": [
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+        ],
         "sequence": [
             "AAA",
             "AAA",
@@ -52,6 +64,51 @@ df_mass = pd.DataFrame(
         "charge": [1, 1, 1, 1, 1, 2, 1, 1, 1, 1],
         "ucalc_mz": [1, 1, 1, 1, 1, 1, 2, 1, 1, 1],
         "exp_mz": [1, 1, 1, 1, 1, 1, 1, 2, 1, 1],
+        "modifications": [
+            "AAA",
+            "AAA",
+            "AAA",
+            "AAA",
+            "AAA",
+            "AAA",
+            "AAA",
+            "AAA",
+            "AAA",
+            "AAB",
+        ],
+    }
+)
+
+df_mass2 = pd.DataFrame(
+    {
+        "raw_data_location": [
+            "test1.raw",
+            "test2.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+            "test1.raw",
+        ],
+        "sequence": [
+            "AAA",
+            "AAA",
+            "AAA",
+            "AAB",
+            "AAB",
+            "AAB",
+            "AAB",
+            "AAB",
+            "AAB",
+            "AAB",
+        ],
+        "spectrum_id": [1, 1, 1, 1, 2, 1, 1, 1, 1, 1],
+        "charge": [1, 1, 1, 1, 1, 2, 1, 1, 1, 1],
+        "ucalc_mz": [1, 2, 1, 1, 1, 1, 2, 1, 1, 1],
+        "exp_mz": [1, 2, 1, 1, 1, 1, 1, 2, 1, 1],
         "modifications": [
             "AAA",
             "AAA",
@@ -104,6 +161,11 @@ def test_add_stats():
 def test_check_mass_sanity():
     assert prep.check_mass_sanity(df_mass) == True
     assert prep.check_mass_sanity(df_mass.drop(index=[6, 7, 8])) == False
+
+
+def test_check_mass_sanity_different_raw_data_location():
+    assert prep.check_mass_sanity(df_mass2) == True
+    assert prep.check_mass_sanity(df_mass2.drop(index=[6, 7, 8])) == False
 
 
 def test_calc_delta():

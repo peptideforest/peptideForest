@@ -82,9 +82,15 @@ def check_mass_sanity(df):
     """
     return (
         (
-            df.groupby(["spectrum_id", "sequence", "charge", "modifications"]).agg(
-                {"ucalc_mz": "nunique", "exp_mz": "nunique"}
-            )
+            df.groupby(
+                [
+                    "raw_data_location",
+                    "spectrum_id",
+                    "sequence",
+                    "charge",
+                    "modifications",
+                ]
+            ).agg({"ucalc_mz": "nunique", "exp_mz": "nunique"})
             != 1
         )
         .any(axis=0)
@@ -188,6 +194,7 @@ def calc_col_features(df, min_data=0.7):
     # Collect columns used in indices
     core_idx_cols = [
         # "Spectrum Title",
+        "raw_data_location",
         "spectrum_id",
         "sequence",
         "modifications",
