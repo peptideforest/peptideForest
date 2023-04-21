@@ -117,9 +117,10 @@ def calc_delta(df, delta_col):
     # Find nth highest score per spectrum
     nth_score = (
         df.sort_values(score_col, ascending=False)
-        .groupby("spectrum_id")[score_col]
+        .groupby("spectrum_id")[["spectrum_id", score_col]]
         .nth(n=(n - 1))
-    )
+        .set_index("spectrum_id")
+    )[score_col]
     # Set to nan if 0
     nth_score.replace(0.0, pd.NA, inplace=True)
     # Calculate different to all other scores in group
