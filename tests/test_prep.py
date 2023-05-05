@@ -281,10 +281,7 @@ def test_col_features():
 
 
 @pytest.mark.parametrize(
-    "feature_cols",
-    "expected",
-    "warning",
-    "message",
+    "feature_cols, expected, warning, message",
     [
         (
             ["XYZ", "charge", "accuracy_ppm"],
@@ -300,7 +297,7 @@ def test_col_features():
             "Feature coluns not found in data. Fallback to default feature columns.",
         ),
         # TODO: define default feature columns
-    ],
+    ]
 )
 def test_fallback_for_wrong_feature_columns(
     caplog, feature_cols, expected, warning, message
@@ -365,13 +362,19 @@ def test_non_numeric_feature_columns(caplog):
     assert pf.feature_cols == ["charge", "accuracy_ppm"]
 
 
-def test_core_column_missing_in_file():
-    """
-    1. try local definition
-    2. try fallback
-    3. skip file, raise warning
-    """
-    pass
+def test_core_column_missing_in_file(caplog):
+    caplog.set_level(logging.WARNING)
+    pf = PeptideForest(
+        config_path=pytest._test_path / "_data" / "path_dict_corrupted_omssa.json",
+        output=None,
+    )
+    pf.prep_ursgal_csvs()
+
+    assert "Column sequence could not be found in file " in caplog.text
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelname == "WARNING"
+
+    assert len(pf.input_df) == 2
 
 
 def test_mass_sanity_cols_not_available():

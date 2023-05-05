@@ -1,0 +1,7 @@
+﻿spectrum_id,omssa:pvalue,protein_id,modifications,charge,spectrum_title,raw_data_location,rank,ucalc_mz,accuracy_ppm,is_decoy,sequence_pre_aa,sequence_post_aa,sequence_stop,sequence_start,comments,exp_mz,search_engine
+1,1.00e-303,Prot1,None,1,"asdf",X,,3001,0,0,R,L,,4,,3001,omssa_2_1_9
+1,1.00e-20,Prot1,,2,"asdf",X,,1501,0,0,K,K,,50,,1501,omssa_2_1_9
+2,1.00e-30,Prot1<|>Prot2,,3,"asdf",X,,1001,1,0,M,F,,2,CountProt equals 2,1001,omssa_2_1_9
+2,1.00e-29,Prot1<|>Prot2,,3,"asdf",X,,1001,0,0,-,N,,1,CountProt equals 2,1001,omssa_2_1_9
+3,1.00e-20,Prot1,,3,"asdf",X,,1001,0,0,K,M,,10,test_sequence_aa_c,1001,omssa_2_1_9
+5,1.00e-10,Prot3,,10,"asdf",X,,301,0,0,K,M,,40<|>40<|>40<|>18<|>18<|>18<|>2<|>239<|>271<|>360<|>2,MaxChargeOverload,301,omssa_2_1_9
