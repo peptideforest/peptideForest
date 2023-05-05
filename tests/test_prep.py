@@ -277,3 +277,44 @@ def test_col_features():
     assert all(df_test["score_processed_mascot_2_6_2"] == [0.0, 0.0, 0.0, 0.0, 20.0])
     assert all(df_test["score_processed_omssa_2_1_9"] == [30.0, 29.0, 20.0, 10.0, 0.0])
     assert all(df_test["delta_score_2_omssa_2_1_9"] == [1.0, 0.0, 0.0, 0.0, 0.0])
+
+
+def test_fallback_for_wrong_feature_columns():
+    # testing fallback to default columns if no feature column can be found in the df
+    pass
+
+
+def test_cutom_core_columns_fallback():
+    pass
+
+
+def test_custom_core_columns_global_config():
+    """
+    test local overwriting of global config
+    """
+    pass
+
+
+def test_non_numeric_feature_columns():
+    pass
+
+
+def test_core_column_missing_in_file():
+    """
+    1. try local definition
+    2. try fallback
+    3. skip file, raise warning
+    """
+    pass
+
+
+def test_mass_sanity_cols_not_available():
+    pass
+
+
+def test_custom_pep_len_configuration():
+    pass
+
+
+def test_custom_count_prot_configuration():
+    pass
