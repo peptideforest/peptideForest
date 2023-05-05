@@ -214,6 +214,12 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         train = df.loc[train_inds.tolist(), :].copy(deep=True)
         test = df.loc[test_inds.tolist(), :].copy(deep=True)
 
+        # Fill missing data
+        delta_cols = [c for c in train.columns if "delta_score" in c]
+        min_per_delta_col = train[delta_cols].min()
+        train.loc[:, delta_cols].fillna(min_per_delta_col, inplace=True)
+        test.loc[:, delta_cols].fillna(min_per_delta_col, inplace=True)
+
         # Use only top target and top decoy per spectrum
         train_data = (
             train.sort_values(score_col, ascending=False)
