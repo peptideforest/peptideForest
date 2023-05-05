@@ -280,9 +280,48 @@ def test_col_features():
     assert all(df_test["delta_score_2_omssa_2_1_9"] == [1.0, 0.0, 0.0, 0.0, 0.0])
 
 
-def test_fallback_for_wrong_feature_columns():
-    # testing fallback to default columns if no feature column can be found in the df
-    pass
+@pytest.mark.parametrize(
+    "feature_cols",
+    "expected",
+    "warning",
+    "message",
+    [
+        (
+            ["XYZ", "charge", "accuracy_ppm"],
+            ["charge", "accuracy_ppm"],
+            True,
+            "Could not find column XYZ in selected data. Dropped column",
+        ),
+        (["charge", "accuracy_ppm"], ["charge", "accuracy_ppm"], False, ""),
+        (
+            ["XYZ", "ABC", "QWE"],
+            ["charge", "accuracy_ppm"],
+            True,
+            "Feature coluns not found in data. Fallback to default feature columns.",
+        ),
+        # TODO: define default feature columns
+    ],
+)
+def test_fallback_for_wrong_feature_columns(
+    caplog, feature_cols, expected, warning, message
+):
+    pf = PeptideForest(
+        config_path=pytest._test_path / "_data" / "path_dict_medium.json",
+        output=None,
+    )
+    pf.params["feature_cols"] = feature_cols
+
+    if warning:
+        caplog.set_level(logging.WARNING)
+        pf.prep_ursgal_csvs()
+
+        assert message in caplog.text
+        assert len(caplog.records) == 1
+        assert caplog.records[0].levelname == "WARNING"
+    else:
+        pf.prep_ursgal_csvs()
+
+    assert pf.feature_cols == expected
 
 
 def test_cutom_core_columns_fallback(caplog):
@@ -296,8 +335,8 @@ def test_cutom_core_columns_fallback(caplog):
     assert "sequence_x not found in file column names" in caplog.text
     assert "sequence_y not found in file column names" in caplog.text
     assert len(caplog.records) == 2
-    assert caplog.records[0].levelname == 'WARNING'
-    assert caplog.records[1].levelname == 'WARNING'
+    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[1].levelname == "WARNING"
 
     assert pf.sequence_col == "sequence"
 
