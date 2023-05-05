@@ -69,10 +69,7 @@ class PeptideForest:
                 engine_lvl_dfs.append(df)
 
         combined_df = pd.concat(engine_lvl_dfs, sort=True).reset_index(drop=True)
-        combined_df.fillna(
-            {"sequence_post_aa": "-", "sequence_pre_aa": "-", "modifications": "None"},
-            inplace=True,
-        )
+        combined_df.fillna({"modifications": "None"}, inplace=True)
         combined_df = combined_df.convert_dtypes()
 
         # Assert there are no overlaps between sequences in target and decoys

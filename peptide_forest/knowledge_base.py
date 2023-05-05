@@ -5,13 +5,13 @@ parameters = {
         "calc_mz",
         "chemical_composition",
         "spectrum_title",
-    ],
-    "proton": 1.00727646677,
-    "remove_after_row_features": [
         "sequence_post_aa",
         "sequence_pre_aa",
         "sequence_start",
         "sequence_stop",
+    ],
+    "proton": 1.00727646677,
+    "remove_after_row_features": [
         "_score_min",
         "_score_max",
         "exp_mz",
