@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+import logging
 
 from peptide_forest import prep, PeptideForest
 
@@ -284,8 +285,21 @@ def test_fallback_for_wrong_feature_columns():
     pass
 
 
-def test_cutom_core_columns_fallback():
-    pass
+def test_cutom_core_columns_fallback(caplog):
+    pf = PeptideForest(
+        config_path=pytest._test_path / "_data" / "path_dict_wrong_core_cols.json",
+        output=None,
+    )
+    caplog.set_level(logging.WARNING)
+    pf.prep_ursgal_csvs()
+
+    assert "sequence_x not found in file column names" in caplog.text
+    assert "sequence_y not found in file column names" in caplog.text
+    assert len(caplog.records) == 2
+    assert caplog.records[0].levelname == 'WARNING'
+    assert caplog.records[1].levelname == 'WARNING'
+
+    assert pf.sequence_col == "sequence"
 
 
 def test_custom_core_columns_global_config():
