@@ -381,8 +381,20 @@ def test_core_column_missing_in_file(caplog):
     assert len(pf.input_df) == 2
 
 
-def test_mass_sanity_cols_not_available():
-    pass
+def test_mass_sanity_cols_not_available(caplog):
+    pf = PeptideForest(
+        config_path=pytest._test_path / "_data" / "path_dict_medium.json",
+        output=None,
+    )
+    pf.prep_ursgal_csvs()
+    pf.input_df.drop(columns=["modifications"], inplace=True)
+
+    caplog.set_level(logging.WARNING)
+    pf.calc_features()
+
+    assert "Column modifications cannot be found in data, skipped mass sanity check!" in caplog.text
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelname == "WARNING"
 
 
 def test_custom_pep_len_configuration():
