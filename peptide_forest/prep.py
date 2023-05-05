@@ -252,6 +252,7 @@ def calc_row_features(df):
     mp_add_stats = partial(add_stats, stats)
     df = _parallel_apply(df, mp_add_stats)
     df["score_processed"] = df["score"]
+    df.drop(columns=["score"], inplace=True)
 
     # Check for consistent masses
     if check_mass_sanity(df):
