@@ -14,7 +14,6 @@ parameters = {
         "sequence_stop",
         "_score_min",
         "_score_max",
-        "score",
         "exp_mz",
         "ucalc_mz",
     ],
