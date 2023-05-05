@@ -254,7 +254,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
                         c
                         for c in train_data.columns
                         for r in knowledge_base.parameters["non_trainable_columns"]
-                        if c.startswith(r)
+                        if c == r
                     ]
                 )
             )
@@ -407,7 +407,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
                 c
                 for c in df_training.columns
                 for r in knowledge_base.parameters["non_trainable_columns"]
-                if c.startswith(r)
+                if c == r
             ]
         )
     )

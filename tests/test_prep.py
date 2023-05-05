@@ -267,8 +267,6 @@ def test_col_features():
                     "score_processed_mascot_2_6_2",
                     "score_processed_omssa_2_1_9",
                     "delta_score_2_omssa_2_1_9",
-                    "reported_by_mascot_2_6_2",
-                    "reported_by_omssa_2_1_9",
                     "raw_data_location",
                     "accuracy_ppm",
                 }

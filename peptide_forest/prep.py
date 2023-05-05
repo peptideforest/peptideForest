@@ -220,12 +220,8 @@ def calc_col_features(df, min_data=0.7):
     df.columns = ["_".join(t) for t in df.columns.to_list()]
     df.reset_index(inplace=True)
 
-    # Note reported PSMs and fill scores
+    # Fill scores
     score_cols = [c for c in df.columns if "score_processed_" in c]
-    for col in score_cols:
-        df.loc[:, f"reported_by_{col.replace('score_processed_', '')}"] = ~df[
-            col
-        ].isna()
     df.fillna({col: 0.0 for col in score_cols}, inplace=True)
 
     # Calculate delta columns
