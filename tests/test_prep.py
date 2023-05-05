@@ -297,7 +297,7 @@ def test_col_features():
             "Feature coluns not found in data. Fallback to default feature columns.",
         ),
         # TODO: define default feature columns
-    ]
+    ],
 )
 def test_fallback_for_wrong_feature_columns(
     caplog, feature_cols, expected, warning, message
@@ -340,7 +340,9 @@ def test_cutom_core_columns_fallback(caplog):
 
 def test_custom_core_columns_global_config():
     pf = PeptideForest(
-        config_path=pytest._test_path / "_data" / "path_dict_core_cols_global_config.json",
+        config_path=pytest._test_path
+        / "_data"
+        / "path_dict_core_cols_global_config.json",
         output=None,
     )
     pf.prep_ursgal_csvs()
@@ -359,7 +361,10 @@ def test_non_numeric_feature_columns(caplog):
     caplog.set_level(logging.WARNING)
     pf.prep_ursgal_csvs()
 
-    assert "Column sequence is not numeric, dropped column from feature columns" in caplog.text
+    assert (
+        "Column sequence is not numeric, dropped column from feature columns"
+        in caplog.text
+    )
     assert len(caplog.records) == 1
     assert caplog.records[0].levelname == "WARNING"
 
@@ -392,14 +397,32 @@ def test_mass_sanity_cols_not_available(caplog):
     caplog.set_level(logging.WARNING)
     pf.calc_features()
 
-    assert "Column modifications cannot be found in data, skipped mass sanity check!" in caplog.text
+    assert (
+        "Column modifications cannot be found in data, skipped mass sanity check!"
+        in caplog.text
+    )
     assert len(caplog.records) == 1
     assert caplog.records[0].levelname == "WARNING"
 
 
-def test_custom_pep_len_configuration():
-    pass
-
-
-def test_custom_count_prot_configuration():
-    pass
+@pytest.mark.parametrize(
+    "feature, calc_feature, delete",
+    [
+        ("pep_len", True, False),
+        ("pep_len", False, True),
+        ("count_prot", True, False),
+        ("count_prot", False, True),
+    ],
+)
+def test_custom_calculated_feature_configuration(calc_feature, delete, feature):
+    pf = PeptideForest(
+        config_path=pytest._test_path / "_data" / "path_dict_medium.json",
+        output=None,
+    )
+    pf.params["calculated_features"] = {feature: calc_feature}
+    pf.prep_ursgal_csvs()
+    if delete:
+        del_dict = {"pep_len": "sequence", "count_prot": "protein_id"}
+        pf.input_df.drop(columns=[del_dict[feature]], inplace=True)
+    pf.input_df = prep.calc_row_features(pf.input_df)
+    assert "pep_len" not in pf.input_df.columns
