@@ -348,8 +348,21 @@ def test_custom_core_columns_global_config():
     pass
 
 
-def test_non_numeric_feature_columns():
-    pass
+def test_non_numeric_feature_columns(caplog):
+    pf = PeptideForest(
+        config_path=pytest._test_path / "_data" / "path_dict_medium.json",
+        output=None,
+    )
+    pf.params["feature_cols"] = ["sequence", "charge", "accuracy_ppm"]
+
+    caplog.set_level(logging.WARNING)
+    pf.prep_ursgal_csvs()
+
+    assert "Column sequence is not numeric, dropped column from feature columns" in caplog.text
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelname == "WARNING"
+
+    assert pf.feature_cols == ["charge", "accuracy_ppm"]
 
 
 def test_core_column_missing_in_file():
