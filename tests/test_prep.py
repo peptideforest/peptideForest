@@ -339,10 +339,14 @@ def test_cutom_core_columns_fallback(caplog):
 
 
 def test_custom_core_columns_global_config():
-    """
-    test local overwriting of global config
-    """
-    pass
+    pf = PeptideForest(
+        config_path=pytest._test_path / "_data" / "path_dict_core_cols_global_config.json",
+        output=None,
+    )
+    pf.prep_ursgal_csvs()
+    assert "sequence_x" in pf.input_df.columns
+    assert "sequence_y" not in pf.input_df.columns
+    assert "decoy_x" in pf.input_df.columns
 
 
 def test_non_numeric_feature_columns(caplog):
