@@ -4,6 +4,6 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir .
 
-CMD ["python", "-m", "peptide_forest_3", "-c", "config.json", "-o", "output.csv"]
+CMD ["python", "-m", "peptide_forest_3", "-c", "./docker_test_data/config.json", "-o", "./docker_test_data/output.csv"]
