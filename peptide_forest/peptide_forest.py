@@ -1,7 +1,6 @@
 """Main Peptide Forest class."""
 import json
 import random
-import psutil
 
 import pandas as pd
 from loguru import logger
@@ -43,12 +42,16 @@ class PeptideForest:
         skip_idx = random.sample(range(1, total_lines), total_lines - n_lines)
         return skip_idx
 
-    def _set_chunk_size(self, chunk_size):
-        pass
+    def _set_chunk_size(self, safety_margin=0.8):
+        """Set max number of lines to be read per file."""
+        self.prep_ursgal_csvs(n_lines=10)
+        self.calc_features()
+        df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
+        self.max_chunk_size = int(self.memory_limit * safety_margin / df_mem)
 
-    def get_data_chunk(self, chunk_size: int):
+    def get_data_chunk(self):
         """Get generator that yields data chunks for training."""
-        self.prep_ursgal_csvs(n_lines=chunk_size)
+        self.prep_ursgal_csvs(n_lines=self.max_chunk_size)
         self.calc_features()
         yield self.input_df
 
