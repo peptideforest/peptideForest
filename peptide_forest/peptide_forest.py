@@ -32,6 +32,7 @@ class PeptideForest:
         self.input_df = None
         self.timer = Timer(description="\nPeptide forest completed in")
         self.memory_limit = memory_limit
+        self.memory_limit_bytes = None
 
     def prep_ursgal_csvs(self):
         """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
