@@ -284,7 +284,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
     return df, feature_importances
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
+def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, memory_limit=None):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:

@@ -1,5 +1,7 @@
 """Main Peptide Forest class."""
 import json
+import random
+import psutil
 
 import pandas as pd
 from loguru import logger
@@ -34,7 +36,23 @@ class PeptideForest:
         self.memory_limit = memory_limit
         self.memory_limit_bytes = None
 
-    def prep_ursgal_csvs(self):
+    def _get_sample_lines(self, file, n_lines, sampled_lines=None):
+        if n_lines is None:
+            return None
+        total_lines = sum(1 for l in open(file))
+        skip_idx = random.sample(range(1, total_lines), total_lines - n_lines)
+        return skip_idx
+
+    def _set_chunk_size(self, chunk_size):
+        pass
+
+    def get_data_chunk(self, chunk_size: int):
+        """Get generator that yields data chunks for training."""
+        self.prep_ursgal_csvs(n_lines=chunk_size)
+        self.calc_features()
+        yield self.input_df
+
+    def prep_ursgal_csvs(self, n_lines: int = None):
         """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
         engine_lvl_dfs = []
 
@@ -51,7 +69,10 @@ class PeptideForest:
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
             with Timer(description=f"Slurped in unified csv for {info['engine']}"):
-                df = pd.read_csv(file, usecols=shared_cols + [info["score_col"]])
+                skip_idx = self._get_sample_lines(file, n_lines)
+                df = pd.read_csv(
+                    file, usecols=shared_cols + [info["score_col"]], skiprows=skip_idx
+                )
 
                 # Add information
                 df["score"] = df[info["score_col"]]
