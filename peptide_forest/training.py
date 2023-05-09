@@ -300,30 +300,30 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, memory
     feature_importances = []
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
 
-    # Remove all classifier columns and create safe copy
-    df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
-    df_training = df.copy(deep=True)
-
-    # Create cross-validation splits for training with equal number of spectra
-    group_kfold = GroupKFold(n_splits=3)
-    groups = df_training["spectrum_id"]
-    train_cv_splits = list(group_kfold.split(X=df_training, groups=groups))
-
-    # Record current number of PSMs with q-val < 1%
-    psms_per_iter.append(
-        calc_num_psms(
-            df=df_training,
-            score_col=f"score_processed_{init_eng}",
-            q_cut=q_cut,
-            sensitivity=sensitivity,
-        )
-    )
-
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
     pbar = tqdm(range(n_train + n_eval))
     for epoch in pbar:
         if epoch == 0:
+            # Remove all classifier columns and create safe copy
+            df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
+            df_training = df.copy(deep=True)
+
+            # Create cross-validation splits for training with equal number of spectra
+            group_kfold = GroupKFold(n_splits=3)
+            groups = df_training["spectrum_id"]
+            train_cv_splits = list(group_kfold.split(X=df_training, groups=groups))
+
+            # Record current number of PSMs with q-val < 1%
+            psms_per_iter.append(
+                calc_num_psms(
+                    df=df_training,
+                    score_col=f"score_processed_{init_eng}",
+                    q_cut=q_cut,
+                    sensitivity=sensitivity,
+                )
+            )
+
             # Rank by initial engine's score column during first iteration of training
             score_col = f"score_processed_{init_eng}"
             df_training["model_score_all"] = 0
