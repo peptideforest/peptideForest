@@ -35,7 +35,8 @@ class PeptideForest:
         self.memory_limit = convert_to_bytes(memory_limit)
         self.max_chunk_size = None
 
-    def _get_sample_lines(self, file, n_lines, sampled_lines=None):
+    @staticmethod
+    def _get_sample_lines(file, n_lines, sampled_lines=None):
         if n_lines is None:
             return None
         total_lines = sum(1 for l in open(file))
