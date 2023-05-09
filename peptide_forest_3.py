@@ -8,11 +8,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", help="config path json")
     parser.add_argument("-o", help="output file")
+    parser.add_argument("-m", help="memory limit")
     args = parser.parse_args()
 
     pf = peptide_forest.PeptideForest(
         config_path=args.c,
         output=args.o,
+        memory_limit=args.m
     )
     pf.prep_ursgal_csvs()
     pf.calc_features()

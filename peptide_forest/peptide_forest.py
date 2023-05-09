@@ -14,7 +14,7 @@ from peptide_forest.tools import Timer
 class PeptideForest:
     """Main class to handle peptide forest functionalities."""
 
-    def __init__(self, config_path, output):
+    def __init__(self, config_path, output, memory_limit=None):
         """Initialize new peptide forest class object.
         
         Args:
@@ -31,6 +31,7 @@ class PeptideForest:
 
         self.input_df = None
         self.timer = Timer(description="\nPeptide forest completed in")
+        self.memory_limit = memory_limit
 
     def prep_ursgal_csvs(self):
         """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
