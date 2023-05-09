@@ -4,6 +4,20 @@ import datetime
 from loguru import logger
 
 
+def convert_to_bytes(s):
+    units = {"b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
+    # Convert to lowercase
+    s = s.lower()
+    # Get the number part
+    number = float(s[:-1])
+    # Get the unit part
+    unit = s[-1]
+    # Check if the unit is valid
+    if unit not in units:
+        raise ValueError(f"Invalid unit {unit}")
+    return int(number * units[unit])
+
+
 class Timer:
     """Basic class to use for timing/benchmarking steps of the code."""
 
