@@ -10,7 +10,7 @@ import peptide_forest.knowledge_base
 import peptide_forest.prep
 import peptide_forest.results
 import peptide_forest.training
-from peptide_forest.tools import Timer
+from peptide_forest.tools import Timer, convert_to_bytes
 
 
 class PeptideForest:
@@ -33,8 +33,8 @@ class PeptideForest:
 
         self.input_df = None
         self.timer = Timer(description="\nPeptide forest completed in")
-        self.memory_limit = memory_limit
-        self.memory_limit_bytes = None
+        self.memory_limit = convert_to_bytes(memory_limit)
+        self.max_chunk_size = None
 
     def _get_sample_lines(self, file, n_lines, sampled_lines=None):
         if n_lines is None:
