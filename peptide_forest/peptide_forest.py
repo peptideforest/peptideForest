@@ -35,7 +35,14 @@ class PeptideForest:
         if max_mp_count is None:
             self.max_mp_count = mp.cpu_count() - 1
         else:
-            self.max_mp_count = max_mp_count
+            try:
+                self.max_mp_count = int(max_mp_count)
+            except ValueError:
+                logger.error(
+                    "Invalid input for max_mp_count. Using available cores - 1."
+                )
+                self.max_mp_count = mp.cpu_count() - 1
+
 
     def prep_ursgal_csvs(self):
         """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
