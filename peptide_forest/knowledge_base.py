@@ -33,12 +33,13 @@ parameters = {
         "prev_score_train",
         "reported_by_",
     },
-    "hyperparameters": {"n_estimators": 100, "max_depth": 22},
-    "ada_hyperparameters": {
+    "randomforest_scikit_hyperparameters": {"n_estimators": 100, "max_depth": 22},
+    "randomforest_xgb_hyperparameters": {"n_estimators": 100, "max_depth": 22},
+    "adaboost_hyperparameters": {
         "n_estimators": 100,
         "learning_rate": 0.1,
     },
-    "xgb_hyperparameters": {
+    "xgboost_hyperparameters": {
         "n_estimators": 100,
         "max_depth": 22,
         "learning_rate": 0.1,
