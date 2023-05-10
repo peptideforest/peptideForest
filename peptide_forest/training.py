@@ -9,6 +9,7 @@ from loguru import logger
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBRFRegressor
 from tqdm import tqdm
 
 from peptide_forest import knowledge_base
@@ -179,9 +180,9 @@ def get_rf_reg_classifier(hyperparameters):
         hyperparameters (dict): sklearn hyperparameters for classifier
 
     Returns:
-        clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
+        clf (xgboost.XGBRFRegressor): classifier with added method to score PSMs
     """
-    clf = RandomForestRegressor(**hyperparameters)
+    clf = XGBRFRegressor(**hyperparameters)
     # Add scoring function
     clf.score_psms = types.MethodType(_score_psms, clf)
 
