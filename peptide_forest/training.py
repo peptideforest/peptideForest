@@ -278,11 +278,11 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
     return df, feature_importances
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, memory_limit=None):
+def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, cross_validate=True):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
-        df (pd.DataFrame): input data
+        df (pd.DataFrame or generator yielding pd.DataFrames): input data
         init_eng (str): initial engine to rank results by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
@@ -305,14 +305,25 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, memory
     pbar = tqdm(range(n_train + n_eval))
     for epoch in pbar:
         if epoch == 0:
-            # Remove all classifier columns and create safe copy
-            df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
-            df_training = df.copy(deep=True)
+            if isinstance(df, pd.DataFrame):
+                # Remove all classifier columns and create safe copy
+                df.drop(columns=f"score_processed_rf-reg", errors="ignore",
+                        inplace=True)
+                df_training = df.copy(deep=True)
 
-            # Create cross-validation splits for training with equal number of spectra
-            group_kfold = GroupKFold(n_splits=3)
-            groups = df_training["spectrum_id"]
-            train_cv_splits = list(group_kfold.split(X=df_training, groups=groups))
+            elif isinstance(df, types.GeneratorType):
+                df = next(df)
+                df.drop(columns=f"score_processed_rf-reg", errors="ignore",
+                        inplace=True)
+                df_training = df.copy(deep=True)
+            else:
+                raise TypeError("df must be a pd.DataFrame or generator yielding pd.DataFrames")
+
+            if cross_validate:
+                # Create cross-validation splits for training with equal number of spectra
+                group_kfold = GroupKFold(n_splits=3)
+                groups = df_training["spectrum_id"]
+                train_cv_splits = list(group_kfold.split(X=df_training, groups=groups))
 
             # Record current number of PSMs with q-val < 1%
             psms_per_iter.append(

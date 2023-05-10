@@ -1,6 +1,7 @@
 """Main Peptide Forest class."""
 import json
 import random
+import psutil
 
 import pandas as pd
 from loguru import logger
@@ -43,12 +44,27 @@ class PeptideForest:
         skip_idx = random.sample(range(1, total_lines), total_lines - n_lines)
         return skip_idx
 
-    def _set_chunk_size(self, safety_margin=0.8):
+    def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
         self.prep_ursgal_csvs(n_lines=10)
         self.calc_features()
+        n_files = len(self.params["input_files"])
         df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
-        self.max_chunk_size = int(self.memory_limit * safety_margin / df_mem)
+        mem = psutil.virtual_memory()
+        if mem.used > self.memory_limit:
+            logger.warning(
+                f"Memory limit of {self.memory_limit / 1024**2} Mb exceeded. "
+                f"Used memory: {mem.used / 1024**2} Mb"
+            )
+            # todo: change to raise error ???
+            if mem.available > self.memory_limit:
+                free_mem = self.memory_limit
+            # free_mem = mem.available
+        else:
+            free_mem = self.memory_limit - mem.used
+        self.max_chunk_size = int(
+            (free_mem) * safety_margin / df_mem / n_files
+        )
 
     def get_data_chunk(self):
         """Get generator that yields data chunks for training."""
@@ -73,7 +89,14 @@ class PeptideForest:
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
             with Timer(description=f"Slurped in unified csv for {info['engine']}"):
-                skip_idx = self._get_sample_lines(file, n_lines)
+                file_size = sum(1 for l in open(file))
+                if file_size < n_lines:
+                    logger.warning(
+                        f"File {file} is too small to sample {n_lines} lines. Sampling {file_size} lines instead."
+                    )
+                    skip_idx = None
+                else:
+                    skip_idx = self._get_sample_lines(file, n_lines)
                 df = pd.read_csv(
                     file, usecols=shared_cols + [info["score_col"]], skiprows=skip_idx
                 )
@@ -155,6 +178,8 @@ class PeptideForest:
         logger.info(
             f"Training from {self.init_eng} with {psms_per_eng[self.init_eng]} top target PSMs"
         )
+
+        self.input_df = self.get_data_chunk()
 
         with Timer(description="Trained model in"):
             (

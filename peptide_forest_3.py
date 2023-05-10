@@ -12,12 +12,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pf = peptide_forest.PeptideForest(
-        config_path=args.c,
-        output=args.o,
-        memory_limit=args.m
+        # config_path=args.c,
+        config_path="./docker_test_data/config_local.json",
+        # output=args.o,
+        output="./docker_test_data/output.csv",
+        # memory_limit=args.m,
+        memory_limit="100m",
     )
-    pf.prep_ursgal_csvs()
-    pf.calc_features()
+    pf.set_chunk_size()
+    # pf.prep_ursgal_csvs()
+    # pf.calc_features()
     pf.fit()
     pf.get_results()
     pf.write_output()

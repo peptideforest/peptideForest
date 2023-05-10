@@ -1,0 +1,13 @@
+{
+    "input_files": {
+        "./docker_test_data/fca7b809386eccc467de51cd9aacdfa4_0.pyprotista.csv": {
+            "engine": "msfragger_3_0",
+            "score_col": "msfragger:hyperscore"
+        },
+        "./docker_test_data/9c58afb862f9da673eee7dcb1383427e_0.pyprotista.csv": {
+            "engine": "mascot_2_6_2",
+            "score_col": "mascot:score"
+        }
+    },
+    "initial_engine": "msfragger_3_0"
+}
