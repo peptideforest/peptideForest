@@ -176,16 +176,16 @@ def get_rf_reg_classifier(alg, hyperparameters):
     """Initialize random forest regressor.
 
     Args:
-        alg (str): algorithm to use for training  one of ["random_forest", "xgboost",
-                    "adaboost"]
+        alg (str): algorithm to use for training  one of ["random_forest_scikit",
+                    "random_forest_xgb", "xgboost", "adaboost"]
         hyperparameters (dict): hyperparameters for classifier
 
     Returns:
         clf (xgboost.XGBRFRegressor): classifier with added method to score PSMs
     """
-    if alg == "randomforest_scikit":
+    if alg == "random_forest_scikit":
         clf = RandomForestRegressor(**hyperparameters)
-    elif alg == "randomforest_xgb":
+    elif alg == "random_forest_xgb":
         clf = XGBRFRegressor(**hyperparameters)
     elif alg == "xgboost":
         clf = XGBRegressor(**hyperparameters)
@@ -194,8 +194,8 @@ def get_rf_reg_classifier(alg, hyperparameters):
     else:
         logger.error(
             f"Algorithm {alg} not supported. Choose one of [randomforest_xgb',"
-            f" 'randomforest_scikit, 'xgboost', 'adaboost']. Defaulting to "
-            f"'randomforest_scikit'."
+            f" 'random_forest_scikit, 'xgboost', 'adaboost']. Defaulting to "
+            f"'random_forest_scikit'."
         )
         clf = RandomForestRegressor(**hyperparameters)
 
@@ -211,7 +211,7 @@ def fit_cv(
     cv_split_data,
     sensitivity,
     q_cut,
-    algorithm="randomforest_scikit",
+    algorithm,
     max_mp_count=None,
 ):
     """Process single-epoch of cross validated training.
@@ -222,8 +222,8 @@ def fit_cv(
         cv_split_data (list): list with indices of data to split by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
-        algortihm (str): algorithm to use for training  one of ["randomforest_scikit",
-                            "randomforest_xgb", "xgboost", "adaboost"]
+        algorithm (str): algorithm to use for training  one of ["random_forest_scikit",
+                            "random_forest_xgb", "xgboost", "adaboost"]
         max_mp_count (int): maximum number of processes to use for training
 
     Returns:
@@ -314,7 +314,15 @@ def fit_cv(
 
 
 def train(
-    df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, max_mp_count=None
+    df,
+    init_eng,
+    sensitivity,
+    q_cut,
+    q_cut_train,
+    n_train,
+    n_eval,
+    algorithm,
+    max_mp_count=None,
 ):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
@@ -326,6 +334,8 @@ def train(
         q_cut_train (float): q-value cutoff for PSM selection to use during training
         n_train (int): number of training epochs
         n_eval (int): number of evaluation epochs
+        algorithm (str): algorithm to use for training  one of ["random_forest_scikit",
+                            "random_forest_xgb", "xgboost", "adaboost"]
         max_mp_count (int): maximum number of processes to use for training
 
     Returns:
@@ -376,6 +386,7 @@ def train(
             cv_split_data=train_cv_splits,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
+            algorithm=algorithm,
             max_mp_count=max_mp_count,
         )
 
