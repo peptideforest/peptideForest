@@ -1,5 +1,6 @@
 """Main Peptide Forest class."""
 import json
+import multiprocessing as mp
 
 import pandas as pd
 from loguru import logger
@@ -14,7 +15,7 @@ from peptide_forest.tools import Timer
 class PeptideForest:
     """Main class to handle peptide forest functionalities."""
 
-    def __init__(self, config_path, output):
+    def __init__(self, config_path, output, max_mp_count=None):
         """Initialize new peptide forest class object.
         
         Args:
@@ -31,6 +32,10 @@ class PeptideForest:
 
         self.input_df = None
         self.timer = Timer(description="\nPeptide forest completed in")
+        if max_mp_count is None:
+            self.max_mp_count = mp.cpu_count() - 1
+        else:
+            self.max_mp_count = max_mp_count
 
     def prep_ursgal_csvs(self):
         """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
@@ -104,8 +109,12 @@ class PeptideForest:
         """Calculate and adds features to dataframe."""
         logger.info("Calculating features...")
         with Timer("Computed features"):
-            self.input_df = peptide_forest.prep.calc_row_features(self.input_df)
-            self.input_df = peptide_forest.prep.calc_col_features(self.input_df)
+            self.input_df = peptide_forest.prep.calc_row_features(
+                self.input_df, max_mp_count=self.max_mp_count
+            )
+            self.input_df = peptide_forest.prep.calc_col_features(
+                self.input_df, max_mp_count=self.max_mp_count
+            )
 
     def fit(self):
         """Perform cross-validated training and evaluation."""
@@ -142,6 +151,7 @@ class PeptideForest:
                 q_cut_train=self.params.get("q_cut_train", 0.10),
                 n_train=self.params.get("n_train", 10),
                 n_eval=self.params.get("n_eval", 10),
+                max_mp_count=self.max_mp_count,
             )
 
     def get_results(self):

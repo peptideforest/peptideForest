@@ -188,7 +188,7 @@ def get_rf_reg_classifier(hyperparameters):
     return clf
 
 
-def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
+def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, max_mp_count=None):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -197,6 +197,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         cv_split_data (list): list with indices of data to split by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
+        max_mp_count (int): maximum number of processes to use for training
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -266,7 +267,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
 
         # Get RF-reg classifier and train
         hyperparameters = knowledge_base.parameters["hyperparameters"]
-        hyperparameters["n_jobs"] = mp.cpu_count() - 1
+        hyperparameters["n_jobs"] = max_mp_count
         rfreg = get_rf_reg_classifier(hyperparameters=hyperparameters)
         rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
 
@@ -284,7 +285,9 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
     return df, feature_importances
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
+def train(
+    df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, max_mp_count=None
+):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
@@ -295,6 +298,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         q_cut_train (float): q-value cutoff for PSM selection to use during training
         n_train (int): number of training epochs
         n_eval (int): number of evaluation epochs
+        max_mp_count (int): maximum number of processes to use for training
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -344,6 +348,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
             cv_split_data=train_cv_splits,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
+            max_mp_count=max_mp_count,
         )
 
         # Record how many PSMs are below q-cut in the target set
