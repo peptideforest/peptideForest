@@ -1,15 +1,14 @@
 """Train peptide forest."""
-import multiprocessing as mp
 import sys
 import types
 
 import numpy as np
 import pandas as pd
 from loguru import logger
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
-from xgboost import XGBRFRegressor
+from xgboost import XGBRFRegressor, XGBRegressor
 from tqdm import tqdm
 
 from peptide_forest import knowledge_base
@@ -173,23 +172,48 @@ def _score_psms(clf, data):
     return 2 * (0.5 - clf.predict(data))
 
 
-def get_rf_reg_classifier(hyperparameters):
+def get_rf_reg_classifier(alg, hyperparameters):
     """Initialize random forest regressor.
 
     Args:
-        hyperparameters (dict): sklearn hyperparameters for classifier
+        alg (str): algorithm to use for training  one of ["random_forest", "xgboost",
+                    "adaboost"]
+        hyperparameters (dict): hyperparameters for classifier
 
     Returns:
         clf (xgboost.XGBRFRegressor): classifier with added method to score PSMs
     """
-    clf = XGBRFRegressor(**hyperparameters)
+    if alg == "randomforest_scikit":
+        clf = RandomForestRegressor(**hyperparameters)
+    elif alg == "randomforest_xgb":
+        clf = XGBRFRegressor(**hyperparameters)
+    elif alg == "xgboost":
+        clf = XGBRegressor(**hyperparameters)
+    elif alg == "adaboost":
+        clf = AdaBoostRegressor(**hyperparameters)
+    else:
+        logger.error(
+            f"Algorithm {alg} not supported. Choose one of [randomforest_xgb',"
+            f" 'randomforest_scikit, 'xgboost', 'adaboost']. Defaulting to "
+            f"'randomforest_scikit'."
+        )
+        clf = RandomForestRegressor(**hyperparameters)
+
     # Add scoring function
     clf.score_psms = types.MethodType(_score_psms, clf)
 
     return clf
 
 
-def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, max_mp_count=None):
+def fit_cv(
+    df,
+    score_col,
+    cv_split_data,
+    sensitivity,
+    q_cut,
+    algorithm="randomforest_scikit",
+    max_mp_count=None,
+):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -198,6 +222,8 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, max_mp_count=None):
         cv_split_data (list): list with indices of data to split by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
+        algortihm (str): algorithm to use for training  one of ["randomforest_scikit",
+                            "randomforest_xgb", "xgboost", "adaboost"]
         max_mp_count (int): maximum number of processes to use for training
 
     Returns:
@@ -267,9 +293,10 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, max_mp_count=None):
         test.loc[:, features] = scaler.transform(test.loc[:, features])
 
         # Get RF-reg classifier and train
-        hyperparameters = knowledge_base.parameters["hyperparameters"]
-        hyperparameters["n_jobs"] = max_mp_count
-        rfreg = get_rf_reg_classifier(hyperparameters=hyperparameters)
+        hyperparameters = knowledge_base.parameters[f"{algorithm}_hyperparameters"]
+        if algorithm != "adaboost":
+            hyperparameters["n_jobs"] = max_mp_count
+        rfreg = get_rf_reg_classifier(alg=algorithm, hyperparameters=hyperparameters)
         rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
 
         # Record feature importances
