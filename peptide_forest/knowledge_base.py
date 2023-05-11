@@ -35,7 +35,7 @@ parameters = {
     },
     "random_forest_scikit_hyperparameters": {"n_estimators": 100, "max_depth": 22},
     "random_forest_xgb_hyperparameters": {"n_estimators": 100, "max_depth": 22},
-    "adaboost_hyperparameters": {"n_estimators": 10, "learning_rate": 0.04},
+    "adaboost_hyperparameters": {"n_estimators": 100, "learning_rate": 0.1},
     "xgboost_hyperparameters": {
         "subsample": 0.6,
         "reg_lambda": 0.0,
