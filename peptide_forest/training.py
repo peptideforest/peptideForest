@@ -290,6 +290,7 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
         df (pd.DataFrame): dataframe with training columns added
         feature_importances (list): list of arrays with the feature importance for all splits over all eval epochs
         psms (dict): number of top target PSMs found after each epoch
+        model (xgboost.XGBRegressor): trained model to be used for inference
 
     """
     feature_importances = []
@@ -348,7 +349,4 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
     ).sort_values("feature_importance", ascending=False)
     logger.debug(f"Feature importances:\n{df_feature_importance}")
 
-    # Add averaged scores to df as classifier score
-    df.loc[:, "score_processed_peptide_forest"] = df_training["model_score_all"]
-
-    return df, df_feature_importance, psms
+    return df, df_feature_importance, psms, model
