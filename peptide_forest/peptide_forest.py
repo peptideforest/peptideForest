@@ -159,25 +159,6 @@ class PeptideForest:
 
     def fit(self):
         """Perform cross-validated training and evaluation."""
-        # Find initial engine with the highest number of target PSMs under 1% q-val
-        psms_per_eng = {}
-        score_processed_cols = [c for c in self.input_df if "score_processed_" in c]
-        for eng_score in score_processed_cols:
-            psms_per_eng[
-                eng_score.replace("score_processed_", "")
-            ] = peptide_forest.training.calc_num_psms(
-                self.input_df,
-                score_col=eng_score,
-                q_cut=self.params.get("q_cut", 0.01),
-                sensitivity=self.params.get("sensitivity", 0.9),
-            )
-        logger.debug(f"PSMs per engine with q-val < 1%: {psms_per_eng}")
-
-        if self.init_eng is None:
-            self.init_eng = max(psms_per_eng, key=psms_per_eng.get)
-        logger.info(
-            f"Training from {self.init_eng} with {psms_per_eng[self.init_eng]} top target PSMs"
-        )
 
         self.input_df = self.get_data_chunk()
 
@@ -188,7 +169,6 @@ class PeptideForest:
                 self.n_psms,
             ) = peptide_forest.training.train(
                 df=self.input_df,
-                init_eng=self.init_eng,
                 sensitivity=self.params.get("sensitivity", 0.9),
                 q_cut=self.params.get("q_cut", 0.01),
                 q_cut_train=self.params.get("q_cut_train", 0.10),

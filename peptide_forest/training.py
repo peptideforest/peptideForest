@@ -210,6 +210,35 @@ def get_feature_columns(df):
     return features
 
 
+def get_highest_scoring_engine(df):
+    """Find engine with the highest number of target PSMs under 1% q-val
+
+    Args:
+        df (pd.DataFrame): dataframe containing search engine scores for all PSMs
+
+    Returns:
+        init_eng (str): name of engine with highest number of target PSMs under 1% q-val
+    """
+    psms_per_eng = {}
+    score_processed_cols = [c for c in df if "score_processed_" in c]
+    for eng_score in score_processed_cols:
+        psms_per_eng[
+            eng_score.replace("score_processed_", "")
+        ] = calc_num_psms(
+            df,
+            score_col=eng_score,
+            q_cut=0.01,
+            sensitivity=0.9,
+        )
+    logger.debug(f"PSMs per engine with q-val < 1%: {psms_per_eng}")
+
+    init_eng = max(psms_per_eng, key=psms_per_eng.get)
+    logger.info(
+        f"Training from {init_eng} with {psms_per_eng[init_eng]} top target PSMs"
+    )
+    return init_eng
+
+
 def fit_cv(df, score_col, sensitivity, q_cut, model):
     """Process single-epoch of cross validated training.
 
@@ -280,7 +309,6 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
 
     Args:
         df (pd.DataFrame or generator yielding pd.DataFrames): input data
-        init_eng (str): initial engine to rank results by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
         q_cut_train (float): q-value cutoff for PSM selection to use during training
