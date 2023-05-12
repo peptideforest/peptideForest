@@ -188,94 +188,80 @@ def get_rf_reg_classifier(hyperparameters):
     return clf
 
 
-def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
+def fit_cv(df, score_col, sensitivity, q_cut, model):
     """Process single-epoch of cross validated training.
 
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
         score_col (str): column to score PSMs by
-        cv_split_data (list): list with indices of data to split by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
+        model (xgboost.XGBRegressor): model to iteratively train
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
         feature_importances (list): list of arrays with the feature importance for all splits in epoch
+        model (xgboost.XGBRegressor): trained model
     """
-    # Reset scores
-    df.loc[:, "model_score"] = 0
-    df.loc[:, "model_score_train"] = 0
-
     feature_importances = []
+    # create train test split
 
-    for i, split in enumerate(cv_split_data):
-        train_inds, test_inds = split
-        # Create training data copy for current split
-        train = df.loc[train_inds.tolist(), :].copy(deep=True)
-        test = df.loc[test_inds.tolist(), :].copy(deep=True)
+    # Use only top target and top decoy per spectrum
+    train_data = (
+        df.sort_values(score_col, ascending=False)
+        .drop_duplicates(["spectrum_id", "is_decoy"])
+        .copy(deep=True)
+    )
 
-        # Use only top target and top decoy per spectrum
-        train_data = (
-            train.sort_values(score_col, ascending=False)
-            .drop_duplicates(["spectrum_id", "is_decoy"])
-            .copy(deep=True)
-        )
+    # Filter for target PSMs with q-value < q_cut
+    train_q_vals = calc_q_vals(
+        df=train_data,
+        score_col=score_col,
+        sensitivity=sensitivity,
+        top_psm_only=False,
+        get_fdr=False,
+        init_score_col=None,
+    )[["q-value", "is_decoy"]]
+    train_q_cut_met_targets = train_q_vals.loc[
+        (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
+    ].index
+    train_targets = train_data.loc[train_q_cut_met_targets, :]
+    # Get same number of decoys to match targets at random
+    train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
+    # test_decoys = train_data[train_data["is_decoy"]].drop(train_decoys.index)
+    # test_decoys.to_csv("test_decoys.csv", mode='a', header=False, index=False)
 
-        # Filter for target PSMs with q-value < q_cut
-        train_q_vals = calc_q_vals(
-            df=train_data,
-            score_col=score_col,
-            sensitivity=sensitivity,
-            top_psm_only=False,
-            get_fdr=False,
-            init_score_col=None,
-        )[["q-value", "is_decoy"]]
-        train_q_cut_met_targets = train_q_vals.loc[
-            (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
-        ].index
-        train_targets = train_data.loc[train_q_cut_met_targets, :]
-        # Get same number of decoys to match targets at random
-        train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
+    # Combine to form training dataset
+    train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
 
-        # Combine to form training dataset
-        train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
-
-        # Scale the data
-        features = list(
-            set(train_data.columns).difference(
-                set(
-                    [
-                        c
-                        for c in train_data.columns
-                        for r in knowledge_base.parameters["non_trainable_columns"]
-                        if c.startswith(r)
-                    ]
-                )
+    # Scale the data
+    features = list(
+        set(train_data.columns).difference(
+            set(
+                [
+                    c
+                    for c in train_data.columns
+                    for r in knowledge_base.parameters["non_trainable_columns"]
+                    if c.startswith(r)
+                ]
             )
         )
-        scaler = StandardScaler().fit(train_data.loc[:, features])
-        train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
-        train.loc[:, features] = scaler.transform(train.loc[:, features])
-        test.loc[:, features] = scaler.transform(test.loc[:, features])
+    )
+    scaler = StandardScaler().fit(train_data.loc[:, features])
+    train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
+    train.loc[:, features] = scaler.transform(train.loc[:, features])
 
-        # Get RF-reg classifier and train
-        hyperparameters = knowledge_base.parameters["hyperparameters"]
-        hyperparameters["n_jobs"] = mp.cpu_count() - 1
-        rfreg = get_rf_reg_classifier(hyperparameters=hyperparameters)
-        rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
+    # Train the model
+    model.fit(X=train_data[features], y=train_data["is_decoy"])
 
-        # Record feature importances
-        feature_importances.append(rfreg.feature_importances_)
+    # Record feature importances
+    feature_importances.append(model.feature_importances_)
 
-        # Score predictions
-        scores_train = rfreg.score_psms(train[features])
-        scores_test = rfreg.score_psms(test[features])
-        df.loc[train.index, "prev_score_train"] = scores_train
-        df.loc[train.index, "model_score_train"] += scores_train
-        df.loc[test.index, "model_score"] = scores_test
-    df.loc[:, "model_score_train"] /= len(cv_split_data) - 1
+    # Score predictions
+    scores_train = model.score_psms(train[features])
+    df.loc[train.index, "prev_score_train"] = scores_train
 
-    return df, feature_importances
+    return df, feature_importances, model
 
 
 def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, cross_validate=True):
@@ -319,12 +305,6 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, cross_
             else:
                 raise TypeError("df must be a pd.DataFrame or generator yielding pd.DataFrames")
 
-            if cross_validate:
-                # Create cross-validation splits for training with equal number of spectra
-                group_kfold = GroupKFold(n_splits=3)
-                groups = df_training["spectrum_id"]
-                train_cv_splits = list(group_kfold.split(X=df_training, groups=groups))
-
             # Record current number of PSMs with q-val < 1%
             psms_per_iter.append(
                 calc_num_psms(
@@ -346,7 +326,6 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, cross_
         df_training, feature_importance_sub = fit_cv(
             df=df_training,
             score_col=score_col,
-            cv_split_data=train_cv_splits,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
         )
