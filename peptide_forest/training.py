@@ -172,7 +172,7 @@ def _score_psms(clf, data):
     return 2 * (0.5 - clf.predict(data))
 
 
-def get_rf_reg_classifier(hyperparameters):
+def get_classifier(hyperparameters):
     """Initialize random forest regressor.
 
     Args:
@@ -295,6 +295,11 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
     psms_per_iter = []
     feature_importances = []
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
+
+    # Get classifier
+    hyperparameters = knowledge_base.parameters["hyperparameters"]
+    hyperparameters["n_jobs"] = mp.cpu_count() - 1
+    model = get_classifier(hyperparameters=hyperparameters)
 
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
