@@ -292,7 +292,6 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
         psms (dict): number of top target PSMs found after each epoch
 
     """
-    psms_per_iter = []
     feature_importances = []
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
 
@@ -329,47 +328,15 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
             )
         )
 
-        psms["test"].append(
-            calc_num_psms(
-                df=df_training,
-                score_col="model_score",
-                q_cut=q_cut,
-                sensitivity=sensitivity,
-            )
-        )
-
-        if epoch >= n_train:
-            df_training.loc[:, "model_score_train_all"] += df_training[
-                "model_score_train"
-            ]
-            df_training.loc[:, "model_score_all"] += df_training["model_score"]
-            feature_importances.extend(feature_importance_sub)
+        # Record feature importances
+        feature_importances.extend(feature_importance_sub)
 
         pbar.set_postfix(
-            {"Train PSMs": psms["train"][epoch], "Test PSMs": psms["test"][epoch]}
+            {"Train PSMs": psms["train"][epoch]}
         )
 
     logger.remove()
     logger.add(sys.stdout)
-    df_training.loc[:, "model_score_train_all"] /= n_eval
-    df_training.loc[:, "model_score_all"] /= n_eval
-    psms["train_avg"] = calc_num_psms(
-        df=df_training,
-        score_col="model_score_train_all",
-        q_cut=q_cut,
-        sensitivity=sensitivity,
-    )
-
-    psms["test_avg"] = calc_num_psms(
-        df=df_training,
-        score_col="model_score_all",
-        q_cut=q_cut,
-        sensitivity=sensitivity,
-    )
-
-    logger.info(
-        f"Average PSMs [Train/Test]:\t\t{psms['train_avg']}\t\t{psms['test_avg']}"
-    )
 
     # Show feature importances and deviations for eval epochs
     sigma = np.std(feature_importances, axis=0)
