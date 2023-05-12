@@ -323,7 +323,7 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
         psms["train"].append(
             calc_num_psms(
                 df=df_training,
-                score_col="model_score_train",
+                score_col="prev_score_train",
                 q_cut=q_cut,
                 sensitivity=sensitivity,
             )
