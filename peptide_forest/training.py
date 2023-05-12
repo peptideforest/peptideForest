@@ -275,7 +275,7 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     return df, feature_importances, model
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, cross_validate=True):
+def train(df, sensitivity, q_cut, q_cut_train, n_train):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
@@ -285,7 +285,6 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, cross_
         q_cut (float): q-value cutoff for PSM selection
         q_cut_train (float): q-value cutoff for PSM selection to use during training
         n_train (int): number of training epochs
-        n_eval (int): number of evaluation epochs
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -299,7 +298,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, cross_
 
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
-    pbar = tqdm(range(n_train + n_eval))
+    pbar = tqdm(range(n_train))
     for epoch in pbar:
         if epoch == 0:
             if isinstance(df, pd.DataFrame):
