@@ -305,44 +305,18 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
     logger.add(lambda msg: tqdm.write(msg, end=""))
     pbar = tqdm(range(n_train))
     for epoch in pbar:
-        if epoch == 0:
-            if isinstance(df, pd.DataFrame):
-                # Remove all classifier columns and create safe copy
-                df.drop(columns=f"score_processed_rf-reg", errors="ignore",
-                        inplace=True)
-                df_training = df.copy(deep=True)
+        df = next(df)
+        df.drop(columns=f"score_processed_rf-reg", errors="ignore",
+                inplace=True)
+        df_training = df.copy(deep=True)
+        score_col = get_highest_scoring_engine(df_training)
 
-            elif isinstance(df, types.GeneratorType):
-                df = next(df)
-                df.drop(columns=f"score_processed_rf-reg", errors="ignore",
-                        inplace=True)
-                df_training = df.copy(deep=True)
-            else:
-                raise TypeError("df must be a pd.DataFrame or generator yielding pd.DataFrames")
-
-            # Record current number of PSMs with q-val < 1%
-            psms_per_iter.append(
-                calc_num_psms(
-                    df=df_training,
-                    score_col=f"score_processed_{init_eng}",
-                    q_cut=q_cut,
-                    sensitivity=sensitivity,
-                )
-            )
-
-            # Rank by initial engine's score column during first iteration of training
-            score_col = f"score_processed_{init_eng}"
-            df_training["model_score_all"] = 0
-            df_training["model_score_train_all"] = 0
-
-        else:
-            score_col = "prev_score_train"
-
-        df_training, feature_importance_sub = fit_cv(
+        df_training, feature_importance_sub, model = fit_cv(
             df=df_training,
             score_col=score_col,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
+            model=model
         )
 
         # Record how many PSMs are below q-cut in the target set
