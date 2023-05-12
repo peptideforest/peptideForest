@@ -304,11 +304,11 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     return df, feature_importances, model
 
 
-def train(df, sensitivity, q_cut, q_cut_train, n_train):
+def train(gen, sensitivity, q_cut, q_cut_train, n_train):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
-        df (pd.DataFrame or generator yielding pd.DataFrames): input data
+        df (generator yielding pd.DataFrames): input data
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
         q_cut_train (float): q-value cutoff for PSM selection to use during training
@@ -333,7 +333,7 @@ def train(df, sensitivity, q_cut, q_cut_train, n_train):
     logger.add(lambda msg: tqdm.write(msg, end=""))
     pbar = tqdm(range(n_train))
     for epoch in pbar:
-        df = next(df)
+        df = next(gen)
         df.drop(columns=f"score_processed_rf-reg", errors="ignore",
                 inplace=True)
         df_training = df.copy(deep=True)
