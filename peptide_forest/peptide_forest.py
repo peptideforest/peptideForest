@@ -35,6 +35,7 @@ class PeptideForest:
         self.timer = Timer(description="\nPeptide forest completed in")
         self.memory_limit = convert_to_bytes(memory_limit)
         self.max_chunk_size = None
+        self.engine = None
 
     @staticmethod
     def _get_sample_lines(file, n_lines, sampled_lines=None):
@@ -167,6 +168,7 @@ class PeptideForest:
                 self.trained_df,
                 self.feature_importances,
                 self.n_psms,
+                self.engine,
             ) = peptide_forest.training.train(
                 df=self.input_df,
                 sensitivity=self.params.get("sensitivity", 0.9),
