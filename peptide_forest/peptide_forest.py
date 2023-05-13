@@ -184,7 +184,7 @@ class PeptideForest:
                 self.n_psms,
                 self.engine,
             ) = peptide_forest.training.train(
-                df=self.input_df,
+                gen=self.input_df,
                 sensitivity=self.params.get("sensitivity", 0.9),
                 q_cut=self.params.get("q_cut", 0.01),
                 q_cut_train=self.params.get("q_cut_train", 0.10),

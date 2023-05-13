@@ -223,7 +223,7 @@ def get_feature_columns(df):
             ]
         )
     )
-    return features
+    return list(features)
 
 
 def get_highest_scoring_engine(df):
@@ -250,7 +250,7 @@ def get_highest_scoring_engine(df):
     logger.info(
         f"Training from {init_eng} with {psms_per_eng[init_eng]} top target PSMs"
     )
-    return init_eng
+    return f"score_processed_{init_eng}"
 
 
 def fit_cv(df, score_col, sensitivity, q_cut, model):
@@ -302,7 +302,7 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     features = get_feature_columns(train_data)
     scaler = StandardScaler().fit(train_data.loc[:, features])
     train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
-    train.loc[:, features] = scaler.transform(train.loc[:, features])
+    df.loc[:, features] = scaler.transform(df.loc[:, features])
 
     # Train the model
     model.fit(X=train_data[features], y=train_data["is_decoy"])
@@ -311,8 +311,8 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     feature_importances.append(model.feature_importances_)
 
     # Score predictions
-    scores_train = model.score_psms(train[features])
-    df.loc[train.index, "prev_score_train"] = scores_train
+    scores_train = model.score_psms(df[features])
+    df.loc[:, "prev_score_train"] = scores_train
 
     return df, feature_importances, model
 
@@ -352,14 +352,16 @@ def train(
     hyperparameters = knowledge_base.parameters[f"{algorithm}_hyperparameters"]
     if algorithm != "adaboost":
         hyperparameters["n_jobs"] = max_mp_count
-    hyperparameters = knowledge_base.parameters["hyperparameters"]
     model = get_classifier(alg=algorithm, hyperparameters=hyperparameters)
 
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
     pbar = tqdm(range(n_train))
     for epoch in pbar:
-        df = next(gen)
+        try:
+            df = next(gen)
+        except StopIteration:
+            break
         df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
         df_training = df.copy(deep=True)
         score_col = get_highest_scoring_engine(df_training)
@@ -370,8 +372,6 @@ def train(
             sensitivity=sensitivity,
             q_cut=q_cut_train,
             model=model,
-            algorithm=algorithm,
-            max_mp_count=max_mp_count,
         )
 
         # Record how many PSMs are below q-cut in the target set
