@@ -5,6 +5,7 @@ import random
 
 import pandas as pd
 from loguru import logger
+from sklearn.preprocessing import StandardScaler
 
 import peptide_forest.knowledge_base
 import peptide_forest.prep
@@ -207,6 +208,8 @@ class PeptideForest:
                 # predict scores
                 feature_columns = peptide_forest.training.get_feature_columns(df)
                 # todo: store scaler after training and use it here
+                if self.scaler is None:
+                    self.scaler = StandardScaler().fit(df.loc[:, feature_columns])
                 df.loc[:, feature_columns] = self.scaler.transform(
                     df.loc[:, feature_columns]
                 )
