@@ -2,6 +2,7 @@
 import json
 import random
 import psutil
+import multiprocessing as mp
 
 import pandas as pd
 from loguru import logger
@@ -16,7 +17,7 @@ from peptide_forest.tools import Timer, convert_to_bytes
 class PeptideForest:
     """Main class to handle peptide forest functionalities."""
 
-    def __init__(self, config_path, output, memory_limit=None):
+    def __init__(self, config_path, output, memory_limit=None, max_mp_count=None):
         """Initialize new peptide forest class object.
         
         Args:
@@ -33,6 +34,17 @@ class PeptideForest:
 
         self.input_df = None
         self.timer = Timer(description="\nPeptide forest completed in")
+        if max_mp_count is None:
+            self.max_mp_count = mp.cpu_count() - 1
+        else:
+            try:
+                self.max_mp_count = int(max_mp_count)
+            except ValueError:
+                logger.error(
+                    "Invalid input for max_mp_count. Using available cores - 1."
+                )
+                self.max_mp_count = mp.cpu_count() - 1
+
         self.memory_limit = convert_to_bytes(memory_limit)
         self.max_chunk_size = None
         self.engine = None
@@ -155,8 +167,12 @@ class PeptideForest:
         """Calculate and adds features to dataframe."""
         logger.info("Calculating features...")
         with Timer("Computed features"):
-            self.input_df = peptide_forest.prep.calc_row_features(self.input_df)
-            self.input_df = peptide_forest.prep.calc_col_features(self.input_df)
+            self.input_df = peptide_forest.prep.calc_row_features(
+                self.input_df, max_mp_count=self.max_mp_count
+            )
+            self.input_df = peptide_forest.prep.calc_col_features(
+                self.input_df, max_mp_count=self.max_mp_count
+            )
 
     def fit(self):
         """Perform cross-validated training and evaluation."""
@@ -175,6 +191,8 @@ class PeptideForest:
                 q_cut=self.params.get("q_cut", 0.01),
                 q_cut_train=self.params.get("q_cut_train", 0.10),
                 n_train=self.params.get("n_train", 10),
+                algorithm=self.params.get("algorithm", "random_forest_scikit"),
+                max_mp_count=self.max_mp_count,
             )
 
     def get_results(self):

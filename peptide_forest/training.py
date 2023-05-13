@@ -1,14 +1,14 @@
 """Train peptide forest."""
-import multiprocessing as mp
 import sys
 import types
 
 import numpy as np
 import pandas as pd
 from loguru import logger
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBRFRegressor, XGBRegressor
 from tqdm import tqdm
 
 from peptide_forest import knowledge_base
@@ -172,16 +172,33 @@ def _score_psms(clf, data):
     return 2 * (0.5 - clf.predict(data))
 
 
-def get_classifier(hyperparameters):
+def get_classifier(alg, hyperparameters):
     """Initialize random forest regressor.
 
     Args:
-        hyperparameters (dict): sklearn hyperparameters for classifier
+        alg (str): algorithm to use for training  one of ["random_forest_scikit",
+                    "random_forest_xgb", "xgboost", "adaboost"]
+        hyperparameters (dict): hyperparameters for classifier
 
     Returns:
-        clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
+        clf (xgboost.XGBRFRegressor): classifier with added method to score PSMs
     """
-    clf = RandomForestRegressor(**hyperparameters)
+    if alg == "random_forest_scikit":
+        clf = RandomForestRegressor(**hyperparameters)
+    elif alg == "random_forest_xgb":
+        clf = XGBRFRegressor(**hyperparameters)
+    elif alg == "xgboost":
+        clf = XGBRegressor(**hyperparameters)
+    elif alg == "adaboost":
+        clf = AdaBoostRegressor(**hyperparameters)
+    else:
+        logger.error(
+            f"Algorithm {alg} not supported. Choose one of [randomforest_xgb',"
+            f" 'random_forest_scikit, 'xgboost', 'adaboost']. Defaulting to "
+            f"'random_forest_scikit'."
+        )
+        clf = RandomForestRegressor(**hyperparameters)
+
     # Add scoring function
     clf.score_psms = types.MethodType(_score_psms, clf)
 
@@ -239,7 +256,8 @@ def get_highest_scoring_engine(df):
     return init_eng
 
 
-def fit_cv(df, score_col, sensitivity, q_cut, model):
+def fit_cv(df, score_col, sensitivity, q_cut, model, algorithm,
+    max_mp_count=None):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -248,6 +266,9 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
         model (xgboost.XGBRegressor): model to iteratively train
+        algorithm (str): algorithm to use for training  one of ["random_forest_scikit",
+                            "random_forest_xgb", "xgboost", "adaboost"]
+        max_mp_count (int): maximum number of processes to use for training
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -304,7 +325,15 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     return df, feature_importances, model
 
 
-def train(gen, sensitivity, q_cut, q_cut_train, n_train):
+def train(
+    gen,
+    sensitivity,
+    q_cut,
+    q_cut_train,
+    n_train,
+    algorithm,
+    max_mp_count=None,
+):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
@@ -313,6 +342,9 @@ def train(gen, sensitivity, q_cut, q_cut_train, n_train):
         q_cut (float): q-value cutoff for PSM selection
         q_cut_train (float): q-value cutoff for PSM selection to use during training
         n_train (int): number of training epochs
+        algorithm (str): algorithm to use for training  one of ["random_forest_scikit",
+                            "random_forest_xgb", "xgboost", "adaboost"]
+        max_mp_count (int): maximum number of processes to use for training
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -325,9 +357,11 @@ def train(gen, sensitivity, q_cut, q_cut_train, n_train):
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
 
     # Get classifier
+    hyperparameters = knowledge_base.parameters[f"{algorithm}_hyperparameters"]
+    if algorithm != "adaboost":
+        hyperparameters["n_jobs"] = max_mp_count
     hyperparameters = knowledge_base.parameters["hyperparameters"]
-    hyperparameters["n_jobs"] = mp.cpu_count() - 1
-    model = get_classifier(hyperparameters=hyperparameters)
+    model = get_classifier(alg=algorithm, hyperparameters=hyperparameters)
 
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
@@ -344,7 +378,9 @@ def train(gen, sensitivity, q_cut, q_cut_train, n_train):
             score_col=score_col,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
-            model=model
+            model=model,
+            algorithm=algorithm,
+            max_mp_count=max_mp_count,
         )
 
         # Record how many PSMs are below q-cut in the target set

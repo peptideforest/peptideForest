@@ -33,5 +33,17 @@ parameters = {
         "prev_score_train",
         "reported_by_",
     },
-    "hyperparameters": {"n_estimators": 100, "max_depth": 22, "max_features": 7},
+    "random_forest_scikit_hyperparameters": {"n_estimators": 100, "max_depth": 22},
+    "random_forest_xgb_hyperparameters": {"n_estimators": 100, "max_depth": 22},
+    "adaboost_hyperparameters": {"n_estimators": 100, "learning_rate": 0.1},
+    "xgboost_hyperparameters": {
+        "subsample": 0.6,
+        "reg_lambda": 0.0,
+        "reg_alpha": 0.5,
+        "n_estimators": 200,
+        "max_depth": 5,
+        "learning_rate": 0.06999999999999999,
+        "gamma": 0.7000000000000001,
+        "colsample_bytree": 0.9,
+    },
 }
