@@ -23,8 +23,8 @@ class PeptideForest:
         Args:
             config_path (str): a path to a json file with configuration parameters
             output (str): output file path 
-            initial_engine (str, None): sets initial scoring engine if engine name is given. defaults to None where the
-                                        engine with most PSMs at q-cut is chosen.
+            memory_limit (int, str): memory limit for peptide forest in format 1g, 1m etc.
+            max_mp_count (int): maximum number of processes to be used
         """ ""
         # Attributes
         self.output_path = output
