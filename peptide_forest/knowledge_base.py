@@ -42,8 +42,8 @@ parameters = {
         "reg_alpha": 0.5,
         "n_estimators": 200,
         "max_depth": 5,
-        "learning_rate": 0.06999999999999999,
-        "gamma": 0.7000000000000001,
+        "learning_rate": 0.069,
+        "gamma": 0.7,
         "colsample_bytree": 0.9,
     },
 }
