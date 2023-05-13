@@ -1,10 +1,10 @@
 """Main Peptide Forest class."""
 import json
-import random
-import psutil
 import multiprocessing as mp
+import random
 
 import pandas as pd
+import psutil
 from loguru import logger
 
 import peptide_forest.knowledge_base

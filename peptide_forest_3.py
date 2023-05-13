@@ -1,6 +1,7 @@
-import peptide_forest
-import multiprocessing as mp
 import argparse
+import multiprocessing as mp
+
+import peptide_forest
 
 if __name__ == "__main__":
     mp.freeze_support()

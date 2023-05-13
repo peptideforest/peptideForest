@@ -6,10 +6,9 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor
-from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
-from xgboost import XGBRFRegressor, XGBRegressor
 from tqdm import tqdm
+from xgboost import XGBRFRegressor, XGBRegressor
 
 from peptide_forest import knowledge_base
 
