@@ -253,7 +253,7 @@ def get_highest_scoring_engine(df):
     return init_eng
 
 
-def fit_cv(df, score_col, sensitivity, q_cut, model, algorithm, max_mp_count=None):
+def fit_cv(df, score_col, sensitivity, q_cut, model):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -262,9 +262,6 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, algorithm, max_mp_count=Non
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
         model (xgboost.XGBRegressor): model to iteratively train
-        algorithm (str): algorithm to use for training  one of ["random_forest_scikit",
-                            "random_forest_xgb", "xgboost", "adaboost"]
-        max_mp_count (int): maximum number of processes to use for training
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -272,7 +269,6 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, algorithm, max_mp_count=Non
         model (xgboost.XGBRegressor): trained model
     """
     feature_importances = []
-    # create train test split
 
     # Use only top target and top decoy per spectrum
     train_data = (
@@ -333,7 +329,7 @@ def train(
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
-        df (generator yielding pd.DataFrames): input data
+        gen (generator yielding pd.DataFrames): input data
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
         q_cut_train (float): q-value cutoff for PSM selection to use during training
