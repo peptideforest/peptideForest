@@ -64,11 +64,22 @@ class PeptideForest:
         df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
         self.max_chunk_size = int(self.memory_limit * safety_margin / df_mem / n_files)
 
-    def get_data_chunk(self):
+    def get_data_chunk(self, mode="random", n_lines=None):
         """Get generator that yields data chunks for training."""
-        self.prep_ursgal_csvs(n_lines=self.max_chunk_size)
-        self.calc_features()
-        yield self.input_df
+        if n_lines is None:
+            n_lines = self.max_chunk_size
+
+        if mode == "spectrum":
+            # todo: implement
+            pass
+        elif mode == "drop":
+            # todo: implement
+            pass
+        elif mode == "random":
+            while True:
+                self.prep_ursgal_csvs(n_lines=n_lines)
+                self.calc_features()
+                yield self.input_df
 
     def prep_ursgal_csvs(self, n_lines: int = None):
         """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
