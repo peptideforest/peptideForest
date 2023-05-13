@@ -47,6 +47,7 @@ class PeptideForest:
         self.memory_limit = convert_to_bytes(memory_limit)
         self.max_chunk_size = None
         self.engine = None
+        self.scaler = None
 
     @staticmethod
     def _get_sample_lines(file, n_lines, sampled_lines=None):
@@ -194,16 +195,37 @@ class PeptideForest:
     def get_results(self):
         """Interpret classifier output and appends final data to dataframe."""
         with Timer(description="Processed results in"):
-            self.output_df = peptide_forest.results.process_final(
-                df=self.trained_df,
-                init_eng=self.init_eng,
-                sensitivity=self.params.get("sensitivity", 0.9),
-                q_cut=self.params.get("q_cut", 0.01),
-            )
-            self.output_df["modifications"].replace(
-                {"None": None}, inplace=True, regex=False
-            )
+            gen = self.get_data_chunk(mode="spectrum")
+            iterations = 0
+            while True:
+                # iterative loading of data
+                try:
+                    df = next(gen)
+                except StopIteration:
+                    break
 
-    def write_output(self):
-        """Write final csv to file."""
-        self.output_df.to_csv(self.output_path)
+                # predict scores
+                feature_columns = peptide_forest.training.get_feature_columns(df)
+                # todo: store scaler after training and use it here
+                df.loc[:, feature_columns] = self.scaler.transform(
+                    df.loc[:, feature_columns]
+                )
+                df[
+                    f"score_processed_{self.params.get('algorithm', 'random_forest_scikit')}"
+                ] = self.engine.predict(df[feature_columns])
+
+                # process results
+                output_df = peptide_forest.results.process_final(
+                    df=df,
+                    init_eng=self.init_eng,
+                    sensitivity=self.params.get("sensitivity", 0.9),
+                    q_cut=self.params.get("q_cut", 0.01),
+                )
+
+                # write results
+                if iterations == 0:
+                    output_df.to_csv(self.output_path, mode="w", header=True, index=False)
+                else:
+                    output_df.to_csv(self.output_path, mode="a", header=False, index=False)
+                del output_df
+                iterations += 1
