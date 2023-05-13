@@ -239,9 +239,7 @@ def get_highest_scoring_engine(df):
     psms_per_eng = {}
     score_processed_cols = [c for c in df if "score_processed_" in c]
     for eng_score in score_processed_cols:
-        psms_per_eng[
-            eng_score.replace("score_processed_", "")
-        ] = calc_num_psms(
+        psms_per_eng[eng_score.replace("score_processed_", "")] = calc_num_psms(
             df,
             score_col=eng_score,
             q_cut=0.01,
@@ -256,8 +254,7 @@ def get_highest_scoring_engine(df):
     return init_eng
 
 
-def fit_cv(df, score_col, sensitivity, q_cut, model, algorithm,
-    max_mp_count=None):
+def fit_cv(df, score_col, sensitivity, q_cut, model, algorithm, max_mp_count=None):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -368,8 +365,7 @@ def train(
     pbar = tqdm(range(n_train))
     for epoch in pbar:
         df = next(gen)
-        df.drop(columns=f"score_processed_rf-reg", errors="ignore",
-                inplace=True)
+        df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
         df_training = df.copy(deep=True)
         score_col = get_highest_scoring_engine(df_training)
 
@@ -396,9 +392,7 @@ def train(
         # Record feature importances
         feature_importances.extend(feature_importance_sub)
 
-        pbar.set_postfix(
-            {"Train PSMs": psms["train"][epoch]}
-        )
+        pbar.set_postfix({"Train PSMs": psms["train"][epoch]})
 
     logger.remove()
     logger.add(sys.stdout)

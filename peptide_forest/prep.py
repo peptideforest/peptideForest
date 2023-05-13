@@ -11,34 +11,35 @@ from loguru import logger
 import peptide_forest.knowledge_base
 
 
-def _parallel_apply(df, func):
+def _parallel_apply(df, func, max_mp_count):
     """Map a function across a dataframe using multiprocessing.
 
     Args:
         df (pd.DataFrame): input data
         func (method): function to be mapped across the data
+        max_mp_count (int, None): maximum number of processes to be used.
 
     Returns:
         df (pd.DataFrame): input data with function applied
     """
-    chunks = np.array_split(df, min(mp.cpu_count() - 1, len(df)))
+    chunks = np.array_split(df, min(max_mp_count, len(df)))
     with mp.Pool(mp.cpu_count() - 1) as pool:
         df = pd.concat(pool.map(func, chunks))
-
     return df
 
 
-def _parallel_calc_delta(df, iterable):
+def _parallel_calc_delta(df, iterable, max_mp_count):
     """Calculate data columns using multiprocessing.
 
     Args:
         df (pd.DataFrame): input data
         iterable (list): columns to be calculated
+        max_mp_count (int, None): maximum number of processes to be used.
 
     Returns:
         df (pd.DataFrame): input data with delta columns appended
     """
-    with mp.Pool(mp.cpu_count() - 1) as pool:
+    with mp.Pool(max_mp_count) as pool:
         single_delta_cols = list(pool.starmap(calc_delta, zip(repeat(df), iterable)))
         if len(single_delta_cols) == 0:
             logger.warning(
@@ -156,13 +157,14 @@ def get_stats(df):
     return stats
 
 
-def calc_col_features(df, min_data=0.7):
+def calc_col_features(df, min_data=0.7, max_mp_count=None):
     """Compute all column level features for input data.
 
     Args:
         df (pd.DataFrame): input data
         min_data (float): fraction of PSMs with higher number of i PSMs per spectrum id
                           and engine than total number of spectra per engine
+        max_mp_count (int, None): maximum number of processes to be used.
 
     Returns:
         df (pd.DataFrame): input data with added column level features
@@ -229,18 +231,19 @@ def calc_col_features(df, min_data=0.7):
     df.fillna({col: 0.0 for col in score_cols}, inplace=True)
 
     # Calculate delta columns
-    df = _parallel_calc_delta(df, delta_columns)
+    df = _parallel_calc_delta(df, delta_columns, max_mp_count=max_mp_count)
     # Fill missing values with minimum for each column
     df.fillna({col: df[col].min() for col in delta_columns}, inplace=True)
 
     return df
 
 
-def calc_row_features(df):
+def calc_row_features(df, max_mp_count=None):
     """Compute all row level features for input data.
 
     Args:
         df (pd.DataFrame): input data
+        max_mp_count (int): maximum number of processes to use for multiprocessing
 
     Returns:
         df (pd.DataFrame): input data with added row level features
@@ -250,7 +253,7 @@ def calc_row_features(df):
 
     # Add stats columns and process scores accordingly
     mp_add_stats = partial(add_stats, stats)
-    df = _parallel_apply(df, mp_add_stats)
+    df = _parallel_apply(df, mp_add_stats, max_mp_count=max_mp_count)
     df["score_processed"] = df["score"]
 
     # Check for consistent masses

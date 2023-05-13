@@ -75,9 +75,7 @@ class PeptideForest:
             # free_mem = mem.available
         else:
             free_mem = self.memory_limit - mem.used
-        self.max_chunk_size = int(
-            (free_mem) * safety_margin / df_mem / n_files
-        )
+        self.max_chunk_size = int((free_mem) * safety_margin / df_mem / n_files)
 
     def get_data_chunk(self):
         """Get generator that yields data chunks for training."""
