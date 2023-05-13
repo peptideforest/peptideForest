@@ -4,7 +4,6 @@ import multiprocessing as mp
 import random
 
 import pandas as pd
-import psutil
 from loguru import logger
 
 import peptide_forest.knowledge_base
@@ -63,19 +62,7 @@ class PeptideForest:
         self.calc_features()
         n_files = len(self.params["input_files"])
         df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
-        mem = psutil.virtual_memory()
-        if mem.used > self.memory_limit:
-            logger.warning(
-                f"Memory limit of {self.memory_limit / 1024**2} Mb exceeded. "
-                f"Used memory: {mem.used / 1024**2} Mb"
-            )
-            # todo: change to raise error ???
-            if mem.available > self.memory_limit:
-                free_mem = self.memory_limit
-            # free_mem = mem.available
-        else:
-            free_mem = self.memory_limit - mem.used
-        self.max_chunk_size = int((free_mem) * safety_margin / df_mem / n_files)
+        self.max_chunk_size = int(self.memory_limit * safety_margin / df_mem / n_files)
 
     def get_data_chunk(self):
         """Get generator that yields data chunks for training."""
