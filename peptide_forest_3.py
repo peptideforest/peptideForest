@@ -24,4 +24,4 @@ if __name__ == "__main__":
     # pf.calc_features()
     pf.fit()
     pf.get_results()
-    pf.write_output()
+    # pf.write_output()
