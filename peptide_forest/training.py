@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 from xgboost import XGBRFRegressor, XGBRegressor
@@ -267,6 +269,7 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
         df (pd.DataFrame): dataframe with training columns added
         feature_importances (list): list of arrays with the feature importance for all splits in epoch
         model (xgboost.XGBRegressor): trained model
+        cycle_results (dict): dictionary with performance indicators for each cycle
     """
     feature_importances = []
 
@@ -304,8 +307,11 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
     df.loc[:, features] = scaler.transform(df.loc[:, features])
 
+    # create train test split
+    X_train, X_test, y_train, y_test = train_test_split(train_data[features], train_data["is_decoy"], test_size=0.2, random_state=42)
+
     # Train the model
-    model.fit(X=train_data[features], y=train_data["is_decoy"])
+    model.fit(X=X_train, y=y_train)
 
     # Record feature importances
     feature_importances.append(model.feature_importances_)
@@ -314,7 +320,22 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     scores_train = model.score_psms(df[features])
     df.loc[:, "prev_score_train"] = scores_train
 
-    return df, feature_importances, model
+    # Score test predictions
+    y_pred = model.score_psms(X_test)
+
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_test, y_pred)
+    logger.info(f"MAE: {mae}, MSE: {mse}, RMSE: {rmse}, R2: {r2}")
+    cycle_results = {
+        "mae": mae,
+        "mse": mse,
+        "rmse": rmse,
+        "r2": r2,
+    }
+
+    return df, feature_importances, model, cycle_results
 
 
 def train(
@@ -347,6 +368,7 @@ def train(
     """
     feature_importances = []
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
+    classifier_test_performance = {}
 
     # Get classifier
     hyperparameters = knowledge_base.parameters[f"{algorithm}_hyperparameters"]
@@ -366,13 +388,15 @@ def train(
         df_training = df.copy(deep=True)
         score_col = get_highest_scoring_engine(df_training)
 
-        df_training, feature_importance_sub, model = fit_cv(
+        df_training, feature_importance_sub, new_model, kpis = fit_cv(
             df=df_training,
             score_col=score_col,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
             model=model,
         )
+        model = new_model
+        classifier_test_performance[epoch] = kpis
 
         # Record how many PSMs are below q-cut in the target set
         psms["train"].append(
@@ -402,4 +426,4 @@ def train(
     ).sort_values("feature_importance", ascending=False)
     logger.debug(f"Feature importances:\n{df_feature_importance}")
 
-    return df, df_feature_importance, psms, model
+    return df, df_feature_importance, psms, model, classifier_test_performance

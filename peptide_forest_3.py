@@ -14,10 +14,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pf = peptide_forest.PeptideForest(
-        config_path=args.c,
-        output=args.o,
-        memory_limit=args.m,
-        max_mp_count=args.mp_limit,
+        config_path="./docker_test_data/config_local_full.json",#args.c
+        output="./docker_test_data/test_output.csv",#args.o,
+        memory_limit="250m",#args.m,
+        max_mp_count=4,#args.mp_limit,
     )
     pf.set_chunk_size()
     # pf.prep_ursgal_csvs()

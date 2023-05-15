@@ -49,6 +49,7 @@ class PeptideForest:
         self.max_chunk_size = None
         self.engine = None
         self.scaler = None
+        self.training_performance = None
 
     @staticmethod
     def _get_sample_lines(file, n_lines, sampled_lines=None):
@@ -183,6 +184,7 @@ class PeptideForest:
                 self.feature_importances,
                 self.n_psms,
                 self.engine,
+                self.training_performance,
             ) = peptide_forest.training.train(
                 gen=self.input_df,
                 sensitivity=self.params.get("sensitivity", 0.9),
