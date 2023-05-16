@@ -7,7 +7,7 @@ import pandas as pd
 from loguru import logger
 from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 from xgboost import XGBRFRegressor, XGBRegressor
@@ -255,7 +255,7 @@ def get_highest_scoring_engine(df):
     return f"score_processed_{init_eng}"
 
 
-def fit_cv(df, score_col, sensitivity, q_cut, model):
+def fit_cv(df, score_col, sensitivity, q_cut, model, epoch, algorithm):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -317,7 +317,38 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     )
 
     # Train the model
-    model.fit(X=X_train, y=y_train)
+    if epoch == 0:
+        # Define the hyperparameter grid
+        param_grid = {
+            # "learning_rate": [0.01, 0.05, 0.1, 0.2],
+            "max_depth": [3, 7, 15, 30],
+            "n_estimators": [10, 50, 100, 200],
+        }
+
+        # Initialize the GridSearch object
+        grid_search = GridSearchCV(model, param_grid, cv=5, verbose=2, n_jobs=-1)
+
+        # Fit the GridSearch to the data
+        grid_search.fit(X_train, y_train)
+
+        # Get the best parameters
+        best_params = grid_search.best_params_
+        print(f"Best parameters: {best_params}")
+
+        # Train the model using the best parameters
+        model = get_classifier(alg=algorithm, hyperparameters=best_params)
+
+        # Train initial model
+        model.fit(X=X_train, y=y_train)
+    elif epoch > 10:
+        X_train, X_test, y_train, y_test = train_test_split(
+            train_data[features].astype(float),
+            train_data["is_decoy"].astype(float),
+            test_size=0.99,
+            random_state=42,
+        )
+    else:
+        model.fit(X=X_train, y=y_train, xgb_model=model)
 
     # Record feature importances
     feature_importances.append(model.feature_importances_)
@@ -402,6 +433,8 @@ def train(
             sensitivity=sensitivity,
             q_cut=q_cut_train,
             model=model,
+            epoch=epoch,
+            algorithm=algorithm,
         )
         model = new_model
         classifier_test_performance[epoch] = kpis
