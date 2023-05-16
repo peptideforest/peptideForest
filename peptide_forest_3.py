@@ -16,8 +16,8 @@ if __name__ == "__main__":
     pf = peptide_forest.PeptideForest(
         config_path="./docker_test_data/config_local_full.json",#args.c
         output="./docker_test_data/test_output.csv",#args.o,
-        memory_limit="250m",#args.m,
-        max_mp_count=4,#args.mp_limit,
+        memory_limit=None,#args.m,
+        max_mp_count=None,#args.mp_limit,
     )
     pf.fit()
     pf.plot_model_performance("Model Performance (random forest) with no training after 10 epochs")
