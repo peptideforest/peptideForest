@@ -54,6 +54,8 @@ class PeptideForest:
         self.training_performance = None
         self.spectrum_index = {}
 
+        self.set_chunk_size()
+
     @staticmethod
     def _get_sample_lines(file, n_lines, sampled_lines=None):
         if n_lines is None:

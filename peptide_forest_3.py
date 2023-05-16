@@ -19,9 +19,6 @@ if __name__ == "__main__":
         memory_limit="250m",#args.m,
         max_mp_count=4,#args.mp_limit,
     )
-    pf.set_chunk_size()
-    # pf.prep_ursgal_csvs()
-    # pf.calc_features()
     pf.fit()
     pf.plot_model_performance("Model Performance (random forest) with no training after 10 epochs")
     pf.get_results()
