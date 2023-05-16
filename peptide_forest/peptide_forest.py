@@ -290,8 +290,12 @@ class PeptideForest:
 
                 # write results
                 if iterations == 0:
-                    output_df.to_csv(self.output_path, mode="w", header=True, index=False)
+                    output_df.to_csv(
+                        self.output_path, mode="w", header=True, index=False
+                    )
                 else:
-                    output_df.to_csv(self.output_path, mode="a", header=False, index=False)
+                    output_df.to_csv(
+                        self.output_path, mode="a", header=False, index=False
+                    )
                 del output_df
                 iterations += 1
