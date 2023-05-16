@@ -89,11 +89,18 @@ class PeptideForest:
 
     def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
-        self.prep_ursgal_csvs(n_lines=10)
-        self.calc_features()
-        n_files = len(self.params["input_files"])
-        df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
-        self.max_chunk_size = int(self.memory_limit * safety_margin / df_mem / n_files)
+        if self.memory_limit is None:
+            logger.info("No memory limit set. Using default chunk size.")
+            # todo: determine default / optimal chunk size if no max is given.
+            self.max_chunk_size = None
+        else:
+            self.prep_ursgal_csvs(n_lines=10)
+            self.calc_features()
+            n_files = len(self.params["input_files"])
+            df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
+            self.max_chunk_size = int(
+                self.memory_limit * safety_margin / df_mem / n_files
+            )
 
     def get_data_chunk(self, mode="random", n_lines=None):
         """Get generator that yields data chunks for training."""
@@ -130,7 +137,9 @@ class PeptideForest:
         for file, info in self.params["input_files"].items():
             with Timer(description=f"Slurped in unified csv for {info['engine']}"):
                 file_size = sum(1 for l in open(file))
-                if file_size < n_lines:
+                if n_lines is None:
+                    skip_idx = None
+                elif file_size < n_lines:
                     logger.warning(
                         f"File {file} is too small to sample {n_lines} lines. Sampling {file_size} lines instead."
                     )
