@@ -1,5 +1,6 @@
 """Basic function to record execution time."""
 import datetime
+from collections import defaultdict
 
 from loguru import logger
 
@@ -16,6 +17,13 @@ def convert_to_bytes(s):
     if unit not in units:
         raise ValueError(f"Invalid unit {unit}")
     return int(number * units[unit])
+
+
+def defaultdict_to_dict(d):
+    """Recursively convert a defaultdict to a dict."""
+    if isinstance(d, defaultdict):
+        d = {k: defaultdict_to_dict(v) for k, v in d.items()}
+    return d
 
 
 class Timer:

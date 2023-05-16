@@ -1,8 +1,11 @@
+import os
+import tempfile
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from peptide_forest import prep, PeptideForest
+from peptide_forest import prep, PeptideForest, tools
 
 path_dict_medium = {
     pytest._test_path
@@ -279,3 +282,45 @@ def test_col_features():
     assert all(df_test["score_processed_mascot_2_6_2"] == [0.0, 0.0, 0.0, 0.0, 20.0])
     assert all(df_test["score_processed_omssa_2_1_9"] == [30.0, 29.0, 20.0, 10.0, 0.0])
     assert all(df_test["delta_score_2_omssa_2_1_9"] == [1.0, 0.0, 0.0, 0.0, 0.0])
+
+
+def test_generate_spectrum_id_index():
+    with tempfile.NamedTemporaryFile(
+        mode="w+", delete=False
+    ) as file1, tempfile.NamedTemporaryFile(mode="w+", delete=False) as file2:
+        file1.write("spectrum_id,raw_data_location,other_field\n")
+        file1.write("abc,x,1\n")
+        file1.write("def,x,2\n")
+        file1.write("abc,x,3\n")
+        file1.write("abc,y,3\n")
+
+        file2.write("spectrum_id,raw_data_location,other_field\n")
+        file2.write("ghi,x,1\n")
+        file2.write("def,x,2\n")
+        file2.write("abc,x,3\n")
+        file2.write("abc,y,4\n")
+
+        file1.flush()
+        file2.flush()
+
+        filenames = [file1.name, file2.name]
+
+        pf = PeptideForest(
+            config_path=pytest._test_path / "_data" / "path_dict_medium.json",
+            output=None,
+        )
+        input_files = {filename: None for filename in filenames}
+        pf.params = {"input_files": input_files}
+        pf.generate_spectrum_index()
+
+        assert tools.defaultdict_to_dict(pf.spectrum_index) == {
+            "x": {
+                "abc": {file1.name: [0, 2], file2.name: [2]},
+                "def": {file1.name: [1], file2.name: [1]},
+                "ghi": {file2.name: [0]},
+            },
+            "y": {"abc": {file1.name: [3], file2.name: [3]}},
+        }
+
+    os.remove(file1.name)
+    os.remove(file2.name)
