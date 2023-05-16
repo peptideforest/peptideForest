@@ -2,6 +2,7 @@
 import json
 import multiprocessing as mp
 import random
+from collections import defaultdict
 
 import pandas as pd
 from loguru import logger
@@ -50,6 +51,7 @@ class PeptideForest:
         self.engine = None
         self.scaler = None
         self.training_performance = None
+        self.spectrum_index = {}
 
     @staticmethod
     def _get_sample_lines(file, n_lines, sampled_lines=None):
@@ -58,6 +60,31 @@ class PeptideForest:
         total_lines = sum(1 for l in open(file))
         skip_idx = random.sample(range(1, total_lines), total_lines - n_lines)
         return skip_idx
+
+    def generate_spectrum_index(self):
+        """Generate spectrum index for all input files.
+
+        Format of the index is:
+            {raw_data_location: {spectrum_id: {filename: [line_idx]}}}
+        """
+        self.spectrum_index = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(list))
+        )
+
+        for filename in self.params["input_files"]:
+            with open(filename, "r", encoding="utf-8-sig") as file:
+                header = next(file).strip().split(",")
+                raw_data_location_idx = header.index("raw_data_location")
+                spectrum_id_idx = header.index("spectrum_id")
+
+                for i, line in enumerate(file):
+                    data = line.strip().split(",")
+                    raw_data_location = data[raw_data_location_idx]
+                    spectrum_id = data[spectrum_id_idx]
+
+                    self.spectrum_index[raw_data_location][spectrum_id][
+                        filename
+                    ].append(i)
 
     def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
