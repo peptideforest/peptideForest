@@ -204,7 +204,7 @@ class PeptideForest:
     def fit(self):
         """Perform cross-validated training and evaluation."""
 
-        self.input_df = self.get_data_chunk()
+        self.input_df = self.get_data_chunk(n_lines=500000)
 
         with Timer(description="Trained model in"):
             (
