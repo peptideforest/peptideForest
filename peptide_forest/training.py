@@ -323,6 +323,7 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     # Score test predictions
     y_pred = model.score_psms(X_test)
 
+    y_test = 2 * (0.5 - y_test)
     mae = mean_absolute_error(y_test, y_pred)
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
