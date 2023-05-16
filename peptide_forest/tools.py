@@ -6,6 +6,9 @@ from loguru import logger
 
 
 def convert_to_bytes(s):
+    if s is None:
+        return None
+
     units = {"b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
     # Convert to lowercase
     s = s.lower()
