@@ -403,6 +403,7 @@ def train(
         feature_importances (list): list of arrays with the feature importance for all splits over all eval epochs
         psms (dict): number of top target PSMs found after each epoch
         model (xgboost.XGBRegressor): trained model to be used for inference
+        classifier_test_performance (dict): dictionary with performance indicators for each epoch
 
     """
     feature_importances = []
