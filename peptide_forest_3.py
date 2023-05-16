@@ -23,5 +23,6 @@ if __name__ == "__main__":
     # pf.prep_ursgal_csvs()
     # pf.calc_features()
     pf.fit()
+    pf.plot_model_performance("Model Performance (random forest) with no training after 10 epochs")
     pf.get_results()
     # pf.write_output()
