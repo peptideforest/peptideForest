@@ -308,7 +308,13 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     df.loc[:, features] = scaler.transform(df.loc[:, features])
 
     # create train test split
-    X_train, X_test, y_train, y_test = train_test_split(train_data[features], train_data["is_decoy"], test_size=0.2, random_state=42)
+    # todo: remove astype... hack
+    X_train, X_test, y_train, y_test = train_test_split(
+        train_data[features].astype(float),
+        train_data["is_decoy"].astype(float),
+        test_size=0.2,
+        random_state=42,
+    )
 
     # Train the model
     model.fit(X=X_train, y=y_train)
@@ -317,7 +323,8 @@ def fit_cv(df, score_col, sensitivity, q_cut, model):
     feature_importances.append(model.feature_importances_)
 
     # Score predictions
-    scores_train = model.score_psms(df[features])
+    # todo: remove astype... hack
+    scores_train = model.score_psms(df[features].astype(float))
     df.loc[:, "prev_score_train"] = scores_train
 
     # Score test predictions
