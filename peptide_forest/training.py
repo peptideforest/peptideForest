@@ -320,13 +320,13 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, epoch, algorithm):
     if epoch == 0:
         # Define the hyperparameter grid
         param_grid = {
-            # "learning_rate": [0.01, 0.05, 0.1, 0.2],
+            # "learning_rate": [0.01],
             "max_depth": [3, 7, 15, 30],
             "n_estimators": [10, 50, 100, 200],
         }
 
         # Initialize the GridSearch object
-        grid_search = GridSearchCV(model, param_grid, cv=5, verbose=2, n_jobs=-1)
+        grid_search = GridSearchCV(model, param_grid, cv=3, verbose=2, n_jobs=-1)
 
         # Fit the GridSearch to the data
         grid_search.fit(X_train, y_train)
@@ -419,13 +419,19 @@ def train(
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
     pbar = tqdm(range(n_train))
+
+    # todo: remove hack
+    df = next(gen)
+    df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
+
     for epoch in pbar:
-        try:
-            df = next(gen)
-        except StopIteration:
-            break
-        df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
-        df_training = df.copy(deep=True)
+        # try:
+        #     df = next(gen)
+        # except StopIteration:
+        #     break
+        # df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
+        df_training = df.sample(frac=1, random_state=42).copy(deep=True)
+        # df_training = df.copy(deep=True)
         score_col = get_highest_scoring_engine(df_training)
 
         df_training, feature_importance_sub, new_model, kpis = fit_cv(
