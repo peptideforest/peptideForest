@@ -13,7 +13,7 @@ import peptide_forest.knowledge_base
 import peptide_forest.prep
 import peptide_forest.results
 import peptide_forest.training
-from peptide_forest.tools import Timer, convert_to_bytes
+from peptide_forest.tools import Timer, convert_to_bytes, defaultdict_to_dict
 
 
 class PeptideForest:
@@ -64,6 +64,13 @@ class PeptideForest:
         skip_idx = random.sample(range(1, total_lines), total_lines - n_lines)
         return skip_idx
 
+    @staticmethod
+    def _get_lines_per_spectrum(spectrum):
+        lines_per_spectrum = 0
+        for filename, line_idxs in spectrum.items():
+            lines_per_spectrum += len(line_idxs)
+        return lines_per_spectrum
+
     def generate_spectrum_index(self):
         """Generate spectrum index for all input files.
 
@@ -87,14 +94,16 @@ class PeptideForest:
 
                     self.spectrum_index[raw_data_location][spectrum_id][
                         filename
-                    ].append(i)
+                    ].append(i+1)
+
+        self.spectrum_index = defaultdict_to_dict(self.spectrum_index)
 
     def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
         if self.memory_limit is None:
             logger.info("No memory limit set. Using default chunk size.")
             # todo: determine default / optimal chunk size if no max is given.
-            self.max_chunk_size = None
+            self.max_chunk_size = 1e12
         else:
             self.prep_ursgal_csvs(n_lines=10)
             self.calc_features()
@@ -104,14 +113,43 @@ class PeptideForest:
                 self.memory_limit * safety_margin / df_mem / n_files
             )
 
-    def get_data_chunk(self, mode="random", n_lines=None):
+    def _generate_sample_dict(self, n_spectra=None):
+        """Generate a sample dict to get all data lines for a given number of spectra.
+        """
+        # todo: hack, fix
+        first_file = list(self.spectrum_index.keys())[0]
+        spectra_ids = list(self.spectrum_index[first_file].keys())
+        if n_spectra is None:
+            n_spectra = len(spectra_ids)
+        sample_dict = defaultdict(list)
+        sampled_lines = 0
+        sampled_spectra = list()
+        while (
+                sampled_lines <= self.max_chunk_size
+                and len(sampled_spectra) < n_spectra
+        ):
+            spectrum_id = random.choice(spectra_ids)
+            sampled_spectra.append(spectrum_id)
+            spectra_ids.remove(spectrum_id)
+            spectrum_info = self.spectrum_index[first_file][spectrum_id]
+            sampled_lines += self._get_lines_per_spectrum(spectrum_info)
+            for filename, line_idxs in spectrum_info.items():
+                sample_dict[filename].extend(line_idxs)
+        return dict(sample_dict)
+
+    def get_data_chunk(self, mode="random", n_lines=None, n_spectra=None):
         """Get generator that yields data chunks for training."""
         if n_lines is None:
             n_lines = self.max_chunk_size
 
         if mode == "spectrum":
-            # todo: implement
-            pass
+            self.generate_spectrum_index()
+            # todo: also hacky
+            while True:
+                sample_dict = self._generate_sample_dict(n_spectra=n_spectra)
+                self.prep_ursgal_csvs(sample_dict=sample_dict)
+                self.calc_features()
+                yield self.input_df
         elif mode == "drop":
             # todo: implement
             pass
@@ -121,7 +159,33 @@ class PeptideForest:
                 self.calc_features()
                 yield self.input_df
 
-    def prep_ursgal_csvs(self, n_lines: int = None):
+    def _load_csv(self, file, cols, n_lines=None, sample_dict=None):
+        if n_lines is not None and sample_dict is not None:
+            logger.warning("Both n_lines and sample_dict are set. Using sample_dict.")
+
+        file_size = sum(1 for l in open(file))
+        if n_lines is None:
+            skip_idx = None
+        elif file_size < n_lines:
+            logger.warning(
+                f"File {file} is too small to sample {n_lines} lines. Sampling {file_size} lines instead."
+            )
+            skip_idx = None
+        else:
+            skip_idx = self._get_sample_lines(file, n_lines)
+
+        if sample_dict is not None:
+            lines_to_keep = sample_dict.get(file, None)
+            if lines_to_keep is None:
+                return None
+            else:
+                skip_idx = list(set(range(1, file_size)) - set(lines_to_keep))
+
+        df = pd.read_csv(file, usecols=cols, skiprows=skip_idx)
+
+        return df
+
+    def prep_ursgal_csvs(self, n_lines: int = None, sample_dict=None):
         """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
         engine_lvl_dfs = []
 
@@ -138,19 +202,15 @@ class PeptideForest:
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
             with Timer(description=f"Slurped in unified csv for {info['engine']}"):
-                file_size = sum(1 for l in open(file))
-                if n_lines is None:
-                    skip_idx = None
-                elif file_size < n_lines:
-                    logger.warning(
-                        f"File {file} is too small to sample {n_lines} lines. Sampling {file_size} lines instead."
-                    )
-                    skip_idx = None
-                else:
-                    skip_idx = self._get_sample_lines(file, n_lines)
-                df = pd.read_csv(
-                    file, usecols=shared_cols + [info["score_col"]], skiprows=skip_idx
+                df = self._load_csv(
+                    file,
+                    shared_cols + [info["score_col"]],
+                    n_lines=n_lines,
+                    sample_dict=sample_dict,
                 )
+
+                if df is None:
+                    continue
 
                 # Add information
                 df["score"] = df[info["score_col"]]

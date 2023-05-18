@@ -324,3 +324,55 @@ def test_generate_spectrum_id_index():
 
     os.remove(file1.name)
     os.remove(file2.name)
+
+
+def test_load_csv_spectrum_sampling():
+    """todo: test currently expects only first raw data file to be read. Adjust behavior
+    in th future."""
+    with tempfile.NamedTemporaryFile(
+        mode="w+", delete=False
+    ) as file1, tempfile.NamedTemporaryFile(mode="w+", delete=False) as file2:
+        file1.write("spectrum_id,raw_data_location,other_field\n")
+        file1.write("abc,x,1\n")
+        file1.write("def,x,1.5\n")
+        file1.write("abc,x,1\n")
+        file1.write("abc,y,20\n")
+        file1.write("jkl,x,3\n")
+
+        file2.write("spectrum_id,raw_data_location,other_field\n")
+        file2.write("ghi,x,3\n")
+        file2.write("def,x,1.5\n")
+        file2.write("abc,x,1\n")
+        file2.write("abc,y,20\n")
+
+        file1.flush()
+        file2.flush()
+
+        filenames = [file1.name, file2.name]
+
+        pf = PeptideForest(
+            config_path=pytest._test_path / "_data" / "path_dict_medium.json",
+            output=None,
+        )
+        input_files = {filename: None for filename in filenames}
+        pf.params = {"input_files": input_files}
+
+        pf.generate_spectrum_index()
+
+        for i in range(5):
+            sample_dict = pf._generate_sample_dict(n_spectra=3)
+
+            sampled_dfs = []
+            for file, info in pf.params["input_files"].items():
+                df = pf._load_csv(
+                    file,
+                    cols=["spectrum_id", "raw_data_location", "other_field"],
+                    n_lines=None,
+                    sample_dict=sample_dict,
+                )
+                sampled_dfs.append(df)
+            combined_df = pd.concat(sampled_dfs)
+            combined_df["other_field"] = combined_df["other_field"].astype(float)
+
+            assert len(combined_df["spectrum_id"].unique()) == 3
+            assert combined_df["other_field"].sum() == 9
