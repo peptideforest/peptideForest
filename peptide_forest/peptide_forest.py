@@ -1,11 +1,7 @@
 """Main Peptide Forest class."""
 import json
 import multiprocessing as mp
-import random
-from collections import defaultdict
-
 import pandas as pd
-import plotly.express as px
 from loguru import logger
 from sklearn.preprocessing import StandardScaler
 
@@ -13,7 +9,19 @@ import peptide_forest.knowledge_base
 import peptide_forest.prep
 import peptide_forest.results
 import peptide_forest.training
-from peptide_forest.tools import Timer, convert_to_bytes, defaultdict_to_dict
+from peptide_forest.file_handling import (
+    load_csv_with_sampling_information,
+    shared_columns,
+    drop_duplicates_with_log,
+)
+from peptide_forest.sample import (
+    generate_sample_dict,
+    generate_spectrum_index,
+)
+from peptide_forest.tools import (
+    Timer,
+    convert_to_bytes,
+)
 
 
 class PeptideForest:
