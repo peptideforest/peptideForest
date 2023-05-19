@@ -9,19 +9,9 @@ import peptide_forest.knowledge_base
 import peptide_forest.prep
 import peptide_forest.results
 import peptide_forest.training
-from peptide_forest.file_handling import (
-    load_csv_with_sampling_information,
-    shared_columns,
-    drop_duplicates_with_log,
-)
-from peptide_forest.sample import (
-    generate_sample_dict,
-    generate_spectrum_index,
-)
-from peptide_forest.tools import (
-    Timer,
-    convert_to_bytes,
-)
+import peptide_forest.file_handling
+import peptide_forest.sample
+import peptide_forest.tools
 
 
 class PeptideForest:
@@ -40,7 +30,7 @@ class PeptideForest:
         with open(config_path, "r") as json_file:
             self.params = json.load(json_file)
         self.output_path = output
-        self.memory_limit = convert_to_bytes(memory_limit)
+        self.memory_limit = peptide_forest.tools.convert_to_bytes(memory_limit)
         self.init_eng = self.params.get("initial_engine", None)
 
         self.input_df = None
@@ -61,7 +51,7 @@ class PeptideForest:
                 )
                 self.max_mp_count = mp.cpu_count() - 1
 
-        self.timer = Timer(description="\nPeptide forest completed in")
+        self.timer = peptide_forest.tools.Timer(description="\nPeptide forest completed in")
         self.set_chunk_size()
 
     def set_chunk_size(self, safety_margin=0.8):
@@ -85,12 +75,12 @@ class PeptideForest:
             n_lines = self.max_chunk_size
 
         if mode == "spectrum":
-            self.spectrum_index = generate_spectrum_index(
+            self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
                 self.params["input_files"].keys()
             )
             # todo: also hacky
             while True:
-                sample_dict = generate_sample_dict(
+                sample_dict = peptide_forest.sample.generate_sample_dict(
                     self.spectrum_index, n_spectra=n_spectra
                 )
                 self.prep_ursgal_csvs(sample_dict=sample_dict)
@@ -112,12 +102,12 @@ class PeptideForest:
         engine_lvl_dfs = []
 
         # Get shared columns
-        shared_cols = shared_columns(self.params["input_files"].keys())
+        shared_cols = peptide_forest.file_handling.shared_columns(self.params["input_files"].keys())
 
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
-            with Timer(description=f"Slurped in unified csv for {info['engine']}"):
-                df = load_csv_with_sampling_information(
+            with peptide_forest.tools.Timer(description=f"Slurped in unified csv for {info['engine']}"):
+                df = peptide_forest.file_handling.load_csv_with_sampling_information(
                     file,
                     shared_cols + [info["score_col"]],
                     n_lines=n_lines,
@@ -130,7 +120,7 @@ class PeptideForest:
                 df["score"] = df[info["score_col"]]
                 df.drop(columns=info["score_col"], inplace=True)
 
-                df = drop_duplicates_with_log(df, file)
+                df = peptide_forest.file_handling.drop_duplicates_with_log(df, file)
 
                 engine_lvl_dfs.append(df)
 
@@ -158,7 +148,7 @@ class PeptideForest:
     def calc_features(self):
         """Calculate and adds features to dataframe."""
         logger.info("Calculating features...")
-        with Timer("Computed features"):
+        with peptide_forest.tools.Timer("Computed features"):
             self.input_df = peptide_forest.prep.calc_row_features(
                 self.input_df, max_mp_count=self.max_mp_count
             )
@@ -171,7 +161,7 @@ class PeptideForest:
 
         self.input_df = self.get_data_chunk()
 
-        with Timer(description="Trained model in"):
+        with peptide_forest.tools.Timer(description="Trained model in"):
             (
                 self.trained_df,
                 self.feature_importances,
@@ -190,7 +180,7 @@ class PeptideForest:
 
     def get_results(self):
         """Interpret classifier output and appends final data to dataframe."""
-        with Timer(description="Processed results in"):
+        with peptide_forest.tools.Timer(description="Processed results in"):
             gen = self.get_data_chunk(mode="spectrum")
             iterations = 0
             while True:
