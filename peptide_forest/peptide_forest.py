@@ -294,39 +294,6 @@ class PeptideForest:
                 max_mp_count=self.max_mp_count,
             )
 
-    def plot_model_performance(self, title=None):
-        """Plot model performance."""
-        kpi_df = (
-            pd.DataFrame(self.training_performance)
-            .T.reset_index()
-            .rename(
-                columns={
-                    "index": "epoch",
-                    "mae": "Mean absolute error",
-                    "mse": "Mean squared error",
-                    "rmse": "Root mean squared error",
-                    "r2": "R2 score",
-                }
-            )
-            .melt(id_vars=["epoch"], var_name="metric", value_name="value")
-        )
-
-        fig = (
-            px.scatter(kpi_df, x="epoch", y="value", color="metric", range_y=[0, 1])
-            .update_traces(mode="lines+markers")
-            .update_layout(
-                title="Model performance",
-                xaxis_title="Epoch",
-                yaxis_title="Metric value",
-                legend_title="Metrics",
-            )
-        )
-        if title is not None:
-            fig.update_layout(title=title)
-
-        fig.show()
-        print()
-
     def get_results(self):
         """Interpret classifier output and appends final data to dataframe."""
         with Timer(description="Processed results in"):

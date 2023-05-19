@@ -2,6 +2,7 @@ import argparse
 import multiprocessing as mp
 
 import peptide_forest
+import peptide_forest.visualization
 
 if __name__ == "__main__":
     mp.freeze_support()
@@ -20,6 +21,9 @@ if __name__ == "__main__":
         max_mp_count=None,#args.mp_limit,
     )
     pf.fit()
-    pf.plot_model_performance("Model Performance (random forest) with no training after 10 epochs")
+    peptide_forest.visualization.plot_model_performance(
+        pf.training_performance,
+        "Model Performance (random forest) with no training after 10 epochs",
+    )
     pf.get_results()
     # pf.write_output()
