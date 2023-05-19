@@ -200,6 +200,7 @@ class PeptideForest:
                 df.loc[:, feature_columns] = self.scaler.transform(
                     df.loc[:, feature_columns]
                 )
+
                 df[
                     f"score_processed_{self.params.get('algorithm', 'random_forest_scikit')}"
                 ] = self.engine.predict(df[feature_columns])
