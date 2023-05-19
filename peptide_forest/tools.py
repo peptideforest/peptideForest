@@ -1,6 +1,7 @@
 """Basic function to record execution time."""
 import datetime
 from collections import defaultdict
+from typing import Dict, List
 
 from loguru import logger
 
@@ -27,6 +28,14 @@ def defaultdict_to_dict(d):
     if isinstance(d, defaultdict):
         d = {k: defaultdict_to_dict(v) for k, v in d.items()}
     return d
+
+
+def count_elements_in_nested_dict(nested_dict: Dict[List]) -> int:
+    """Count the total number of list elements in a dictionary with lists as values."""
+    element_count = 0
+    for _, list_of_elements in nested_dict.items():
+        element_count += len(list_of_elements)
+    return element_count
 
 
 class Timer:

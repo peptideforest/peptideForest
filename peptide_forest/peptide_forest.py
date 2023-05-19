@@ -56,48 +56,6 @@ class PeptideForest:
         self.timer = Timer(description="\nPeptide forest completed in")
         self.set_chunk_size()
 
-    @staticmethod
-    def _get_sample_lines(file, n_lines, sampled_lines=None):
-        if n_lines is None:
-            return None
-        total_lines = sum(1 for l in open(file))
-        skip_idx = random.sample(range(1, total_lines), total_lines - n_lines)
-        return skip_idx
-
-    @staticmethod
-    def _get_lines_per_spectrum(spectrum):
-        lines_per_spectrum = 0
-        for filename, line_idxs in spectrum.items():
-            lines_per_spectrum += len(line_idxs)
-        return lines_per_spectrum
-
-    def generate_spectrum_index(self):
-        """Generate spectrum index for all input files.
-
-        Format of the index is:
-            {raw_data_location: {spectrum_id: {filename: [line_idx]}}}
-        """
-        self.spectrum_index = defaultdict(
-            lambda: defaultdict(lambda: defaultdict(list))
-        )
-
-        for filename in self.params["input_files"]:
-            with open(filename, "r", encoding="utf-8-sig") as file:
-                header = next(file).strip().split(",")
-                raw_data_location_idx = header.index("raw_data_location")
-                spectrum_id_idx = header.index("spectrum_id")
-
-                for i, line in enumerate(file):
-                    data = line.strip().split(",")
-                    raw_data_location = data[raw_data_location_idx]
-                    spectrum_id = data[spectrum_id_idx]
-
-                    self.spectrum_index[raw_data_location][spectrum_id][
-                        filename
-                    ].append(i+1)
-
-        self.spectrum_index = defaultdict_to_dict(self.spectrum_index)
-
     def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
         if self.memory_limit is None:
@@ -113,40 +71,20 @@ class PeptideForest:
                 self.memory_limit * safety_margin / df_mem / n_files
             )
 
-    def _generate_sample_dict(self, n_spectra=None):
-        """Generate a sample dict to get all data lines for a given number of spectra.
-        """
-        # todo: hack, fix
-        first_file = list(self.spectrum_index.keys())[0]
-        spectra_ids = list(self.spectrum_index[first_file].keys())
-        if n_spectra is None:
-            n_spectra = len(spectra_ids)
-        sample_dict = defaultdict(list)
-        sampled_lines = 0
-        sampled_spectra = list()
-        while (
-                sampled_lines <= self.max_chunk_size
-                and len(sampled_spectra) < n_spectra
-        ):
-            spectrum_id = random.choice(spectra_ids)
-            sampled_spectra.append(spectrum_id)
-            spectra_ids.remove(spectrum_id)
-            spectrum_info = self.spectrum_index[first_file][spectrum_id]
-            sampled_lines += self._get_lines_per_spectrum(spectrum_info)
-            for filename, line_idxs in spectrum_info.items():
-                sample_dict[filename].extend(line_idxs)
-        return dict(sample_dict)
-
     def get_data_chunk(self, mode="random", n_lines=None, n_spectra=None):
         """Get generator that yields data chunks for training."""
         if n_lines is None:
             n_lines = self.max_chunk_size
 
         if mode == "spectrum":
-            self.generate_spectrum_index()
+            self.spectrum_index = generate_spectrum_index(
+                self.params["input_files"].keys()
+            )
             # todo: also hacky
             while True:
-                sample_dict = self._generate_sample_dict(n_spectra=n_spectra)
+                sample_dict = generate_sample_dict(
+                    self.spectrum_index, n_spectra=n_spectra
+                )
                 self.prep_ursgal_csvs(sample_dict=sample_dict)
                 self.calc_features()
                 yield self.input_df

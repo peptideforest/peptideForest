@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from peptide_forest import prep, PeptideForest, tools
+from peptide_forest import prep, PeptideForest
+import peptide_forest.file_handling
+import peptide_forest.sample
 
 path_dict_medium = {
     pytest._test_path
@@ -311,9 +313,9 @@ def test_generate_spectrum_id_index():
         )
         input_files = {filename: None for filename in filenames}
         pf.params = {"input_files": input_files}
-        pf.generate_spectrum_index()
+        spectrum_index = peptide_forest.sample.generate_spectrum_index(input_files)
 
-        assert tools.defaultdict_to_dict(pf.spectrum_index) == {
+        assert spectrum_index == {
             "x": {
                 "abc": {file1.name: [0, 2], file2.name: [2]},
                 "def": {file1.name: [1], file2.name: [1]},
@@ -357,10 +359,12 @@ def test_load_csv_spectrum_sampling():
         input_files = {filename: None for filename in filenames}
         pf.params = {"input_files": input_files}
 
-        pf.generate_spectrum_index()
+        spectrum_index = peptide_forest.sample.generate_spectrum_index(input_files)
 
         for i in range(5):
-            sample_dict = pf._generate_sample_dict(n_spectra=3)
+            sample_dict = peptide_forest.sample.generate_sample_dict(
+                spectrum_index, n_spectra=3
+            )
 
             sampled_dfs = []
             for file, info in pf.params["input_files"].items():
