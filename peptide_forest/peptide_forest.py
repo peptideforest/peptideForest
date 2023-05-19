@@ -25,17 +25,23 @@ class PeptideForest:
         Args:
             config_path (str): a path to a json file with configuration parameters
             output (str): output file path 
-            memory_limit (int, str): memory limit for peptide forest in format 1g, 1m etc.
+            memory_limit (int, str): memory limit for peptide forest in format 1g, 1m ..
             max_mp_count (int): maximum number of processes to be used
         """ ""
         # Attributes
-        self.output_path = output
         with open(config_path, "r") as json_file:
             self.params = json.load(json_file)
+        self.output_path = output
+        self.memory_limit = convert_to_bytes(memory_limit)
         self.init_eng = self.params.get("initial_engine", None)
 
         self.input_df = None
-        self.timer = Timer(description="\nPeptide forest completed in")
+        self.max_chunk_size = None
+        self.engine = None
+        self.scaler = None
+        self.training_performance = None
+        self.spectrum_index = {}
+
         if max_mp_count is None:
             self.max_mp_count = mp.cpu_count() - 1
         else:
@@ -47,13 +53,7 @@ class PeptideForest:
                 )
                 self.max_mp_count = mp.cpu_count() - 1
 
-        self.memory_limit = convert_to_bytes(memory_limit)
-        self.max_chunk_size = None
-        self.engine = None
-        self.scaler = None
-        self.training_performance = None
-        self.spectrum_index = {}
-
+        self.timer = Timer(description="\nPeptide forest completed in")
         self.set_chunk_size()
 
     @staticmethod
