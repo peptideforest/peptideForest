@@ -368,7 +368,7 @@ def test_load_csv_spectrum_sampling():
 
             sampled_dfs = []
             for file, info in pf.params["input_files"].items():
-                df = pf._load_csv(
+                df = peptide_forest.file_handling.load_csv_with_sampling_information(
                     file,
                     cols=["spectrum_id", "raw_data_location", "other_field"],
                     n_lines=None,
