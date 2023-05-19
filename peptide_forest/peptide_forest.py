@@ -97,50 +97,19 @@ class PeptideForest:
                 self.calc_features()
                 yield self.input_df
 
-    def _load_csv(self, file, cols, n_lines=None, sample_dict=None):
-        if n_lines is not None and sample_dict is not None:
-            logger.warning("Both n_lines and sample_dict are set. Using sample_dict.")
-
-        file_size = sum(1 for l in open(file))
-        if n_lines is None:
-            skip_idx = None
-        elif file_size < n_lines:
-            logger.warning(
-                f"File {file} is too small to sample {n_lines} lines. Sampling {file_size} lines instead."
-            )
-            skip_idx = None
-        else:
-            skip_idx = self._get_sample_lines(file, n_lines)
-
-        if sample_dict is not None:
-            lines_to_keep = sample_dict.get(file, None)
-            if lines_to_keep is None:
-                return None
-            else:
-                skip_idx = list(set(range(1, file_size)) - set(lines_to_keep))
-
-        df = pd.read_csv(file, usecols=cols, skiprows=skip_idx)
-
-        return df
-
     def prep_ursgal_csvs(self, n_lines: int = None, sample_dict=None):
-        """Combine engine files named in ursgal dict and preprocesses dataframe for training."""
+        """Combine engine files named in ursgal dict and preprocesses dataframe for
+        training.
+        """
         engine_lvl_dfs = []
 
-        # Retrieve list of columns shared across all files
-        all_cols = []
-        for file in self.params["input_files"].keys():
-            with open(file, encoding="utf-8-sig") as f:
-                all_cols.append(set(f.readline().replace("\n", "").split(",")))
-        shared_cols = list(
-            set.intersection(*all_cols)
-            - set(peptide_forest.knowledge_base.parameters["remove_cols"])
-        )
+        # Get shared columns
+        shared_cols = shared_columns(self.params["input_files"].keys())
 
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
             with Timer(description=f"Slurped in unified csv for {info['engine']}"):
-                df = self._load_csv(
+                df = load_csv_with_sampling_information(
                     file,
                     shared_cols + [info["score_col"]],
                     n_lines=n_lines,
@@ -150,20 +119,10 @@ class PeptideForest:
                 if df is None:
                     continue
 
-                # Add information
                 df["score"] = df[info["score_col"]]
-
-                # Drop irrelevant columns
                 df.drop(columns=info["score_col"], inplace=True)
 
-                # Check for duplicated rows
-                init_len = len(df)
-                df.drop_duplicates(inplace=True)
-                rows_dropped = init_len - len(df)
-                if rows_dropped != 0:
-                    logger.warning(
-                        f"{rows_dropped} duplicated rows were dropped in {file}."
-                    )
+                df = drop_duplicates_with_log(df, file)
 
                 engine_lvl_dfs.append(df)
 
@@ -174,18 +133,7 @@ class PeptideForest:
         )
         combined_df = combined_df.convert_dtypes()
 
-        # Assert there are no overlaps between sequences in target and decoys
-        shared_seq_target_decoy = (
-            combined_df.groupby("sequence").agg({"is_decoy": "nunique"})["is_decoy"]
-            != 1
-        )
-        if any(shared_seq_target_decoy):
-            logger.warning("Target and decoy sequences overlap.")
-            combined_df = combined_df.loc[
-                ~combined_df["sequence"].isin(
-                    shared_seq_target_decoy[shared_seq_target_decoy].index
-                )
-            ]
+        peptide_forest.prep.check_target_decoy_sequence_overlap(combined_df)
 
         combined_df.drop(
             labels=combined_df[combined_df["sequence"].str.contains("X") == True].index,

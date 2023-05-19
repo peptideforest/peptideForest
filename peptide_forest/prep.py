@@ -99,6 +99,18 @@ def check_mass_sanity(df):
     )
 
 
+def check_target_decoy_sequence_overlap(df):
+    """Check for overlapping sequences between target and decoy."""
+    shared_seq_target_decoy = (
+        df.groupby("sequence").agg({"is_decoy": "nunique"})["is_decoy"] != 1
+    )
+    if any(shared_seq_target_decoy):
+        logger.warning("Target and decoy sequences overlap.")
+        combined_df = df.loc[
+            ~df["sequence"].isin(shared_seq_target_decoy[shared_seq_target_decoy].index)
+        ]
+
+
 def calc_delta(df, delta_col):
     """Compute score difference of highest and 2nd/3rd highest score in a spectrum for a given engine.
 
