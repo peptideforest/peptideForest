@@ -15,10 +15,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pf = peptide_forest.PeptideForest(
-        config_path="./docker_test_data/config_local_full.json",#args.c
-        output="./docker_test_data/test_output.csv",#args.o,
-        memory_limit=None,#args.m,
-        max_mp_count=None,#args.mp_limit,
+        config_path="./docker_test_data/config_local_full.json",  # args.c
+        output="./docker_test_data/test_output.csv",  # args.o,
+        memory_limit=None,  # args.m,
+        max_mp_count=None,  # args.mp_limit,
     )
     pf.fit()
     peptide_forest.visualization.plot_model_performance(
