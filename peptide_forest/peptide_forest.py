@@ -51,7 +51,9 @@ class PeptideForest:
                 )
                 self.max_mp_count = mp.cpu_count() - 1
 
-        self.timer = peptide_forest.tools.Timer(description="\nPeptide forest completed in")
+        self.timer = peptide_forest.tools.Timer(
+            description="\nPeptide forest completed in"
+        )
         self.set_chunk_size()
 
     def set_chunk_size(self, safety_margin=0.8):
@@ -102,11 +104,15 @@ class PeptideForest:
         engine_lvl_dfs = []
 
         # Get shared columns
-        shared_cols = peptide_forest.file_handling.shared_columns(self.params["input_files"].keys())
+        shared_cols = peptide_forest.file_handling.shared_columns(
+            self.params["input_files"].keys()
+        )
 
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
-            with peptide_forest.tools.Timer(description=f"Slurped in unified csv for {info['engine']}"):
+            with peptide_forest.tools.Timer(
+                description=f"Slurped in unified csv for {info['engine']}"
+            ):
                 df = peptide_forest.file_handling.load_csv_with_sampling_information(
                     file,
                     shared_cols + [info["score_col"]],
