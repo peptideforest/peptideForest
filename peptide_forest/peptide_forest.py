@@ -215,8 +215,8 @@ class PeptideForest:
                 )
 
                 df[
-                    f"score_processed_{self.params.get('algorithm', 'random_forest_scikit')}"
-                ] = self.engine.predict(df[feature_columns])
+                    f"score_processed_peptide_forest"
+                ] = self.engine.score_psms(df[feature_columns].astype(float))
 
                 # process results
                 output_df = peptide_forest.results.process_final(
