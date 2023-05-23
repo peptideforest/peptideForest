@@ -2,7 +2,7 @@ import argparse
 import multiprocessing as mp
 
 import peptide_forest
-import peptide_forest.visualization
+from peptide_forest.visualization import plot_model_performance, plot_q_value_curve, plot_psms_at_qval_threshold
 
 if __name__ == "__main__":
     mp.freeze_support()
@@ -21,9 +21,12 @@ if __name__ == "__main__":
         max_mp_count=None,  # args.mp_limit,
     )
     pf.fit()
-    peptide_forest.visualization.plot_model_performance(
+    plot_model_performance(
         pf.training_performance,
         "Model Performance (random forest) with no training after 10 epochs",
     )
     pf.get_results()
+    files = {"Test": "./docker_test_data/test_output.csv"}
+    plot_q_value_curve(files)
+    plot_psms_at_qval_threshold(files)
     # pf.write_output()
