@@ -198,7 +198,7 @@ class PeptideForest:
         with peptide_forest.tools.Timer(description="Processed results in"):
             gen = self.get_data_chunk(mode="spectrum")
             iterations = 0
-            while True:
+            while iterations < 1:
                 # iterative loading of data
                 try:
                     df = next(gen)
