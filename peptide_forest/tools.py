@@ -30,7 +30,7 @@ def defaultdict_to_dict(d):
     return d
 
 
-def count_elements_in_nested_dict(nested_dict: Dict[List]) -> int:
+def count_elements_in_nested_dict(nested_dict: Dict) -> int:
     """Count the total number of list elements in a dictionary with lists as values."""
     element_count = 0
     for _, list_of_elements in nested_dict.items():
