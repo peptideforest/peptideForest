@@ -301,6 +301,22 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
         (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
     ].index
     train_targets = train_data.loc[train_q_cut_met_targets, :]
+
+    # todo select good number here:
+    while len(train_targets) < 10:
+        q_cut += 0.01
+        logger.info(f"q_cut too low, increasing to {q_cut}")
+        train_q_cut_met_targets = train_q_vals.loc[
+            (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
+            ].index
+        train_targets = train_data.loc[train_q_cut_met_targets, :]
+
+    if len(train_targets) > len(train_data[train_data["is_decoy"]]):
+        logger.info(
+            f"Number of targets ({len(train_targets)}) exceeds number of decoys ({len(train_data[train_data['is_decoy']])}). Sampling targets to match number of decoys."
+        )
+        train_targets = train_targets.sample(n=len(train_data[train_data["is_decoy"]]))
+
     # Get same number of decoys to match targets at random
     train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
     # test_decoys = train_data[train_data["is_decoy"]].drop(train_decoys.index)
