@@ -273,6 +273,14 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
     """
     feature_importances = []
 
+    features = get_feature_columns(df)
+
+    # todo: check why this seems to be such a bad idea :(
+    if epoch > 100:
+        # score PSMs with pretrained model
+        df["model_score"] = model.score_psms(df[features].astype(float))
+        score_col = "model_score"
+
     # Use only top target and top decoy per spectrum
     train_data = (
         df.sort_values(score_col, ascending=False)
