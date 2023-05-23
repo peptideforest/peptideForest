@@ -446,18 +446,13 @@ def train(
     logger.add(lambda msg: tqdm.write(msg, end=""))
     pbar = tqdm(range(n_train))
 
-    # todo: remove hack
-    df = next(gen)
-    df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
-
     for epoch in pbar:
-        # try:
-        #     df = next(gen)
-        # except StopIteration:
-        #     break
-        # df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
-        df_training = df.sample(frac=1, random_state=42).copy(deep=True)
-        # df_training = df.copy(deep=True)
+        try:
+            df = next(gen)
+        except StopIteration:
+            break
+        df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
+        df_training = df.copy(deep=True)
         score_col = get_highest_scoring_engine(df_training)
 
         df_training, feature_importance_sub, new_model, scaler, kpis = fit_cv(
