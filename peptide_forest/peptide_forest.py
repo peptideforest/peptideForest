@@ -100,9 +100,6 @@ class PeptideForest:
                 self.prep_ursgal_csvs(sample_dict=sample_dict)
                 self.calc_features()
                 yield self.input_df
-        elif mode == "drop":
-            # todo: implement
-            pass
         elif mode == "random":
             while True:
                 self.prep_ursgal_csvs(n_lines=n_lines)
