@@ -255,7 +255,7 @@ def get_highest_scoring_engine(df):
     return f"score_processed_{init_eng}"
 
 
-def fit_cv(df, score_col, sensitivity, q_cut, model, epoch, algorithm):
+def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -303,7 +303,8 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, epoch, algorithm):
 
     # Scale the data
     features = get_feature_columns(train_data)
-    scaler = StandardScaler().fit(train_data.loc[:, features])
+    if epoch == 0:
+        scaler = StandardScaler().fit(train_data.loc[:, features])
     train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
     df.loc[:, features] = scaler.transform(df.loc[:, features])
 
@@ -374,7 +375,7 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, epoch, algorithm):
         "r2": r2,
     }
 
-    return df, feature_importances, model, cycle_results
+    return df, feature_importances, model, scaler, cycle_results
 
 
 def train(
@@ -409,6 +410,7 @@ def train(
     feature_importances = []
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
     classifier_test_performance = {}
+    scaler = None
 
     # Get classifier
     hyperparameters = knowledge_base.parameters[f"{algorithm}_hyperparameters"]
@@ -434,12 +436,13 @@ def train(
         # df_training = df.copy(deep=True)
         score_col = get_highest_scoring_engine(df_training)
 
-        df_training, feature_importance_sub, new_model, kpis = fit_cv(
+        df_training, feature_importance_sub, new_model, scaler, kpis = fit_cv(
             df=df_training,
             score_col=score_col,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
             model=model,
+            scaler=scaler,
             epoch=epoch,
             algorithm=algorithm,
         )
@@ -474,4 +477,4 @@ def train(
     ).sort_values("feature_importance", ascending=False)
     logger.debug(f"Feature importances:\n{df_feature_importance}")
 
-    return df, df_feature_importance, psms, model, classifier_test_performance
+    return df, df_feature_importance, psms, model, scaler, classifier_test_performance

@@ -182,6 +182,7 @@ class PeptideForest:
                 self.feature_importances,
                 self.n_psms,
                 self.engine,
+                self.scaler,
                 self.training_performance,
             ) = peptide_forest.training.train(
                 gen=self.input_df,
