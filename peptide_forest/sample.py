@@ -57,6 +57,7 @@ def generate_sample_dict(index_dict, n_spectra=None, max_chunk_size=None):
 
     Returns:
         sample_dict (dict): dictionary of lines to keep per input file
+        sampled_spectra (list): list of sampled spectrum ids
     """
     # todo: hack, fix
     first_file = list(index_dict.keys())[0]
@@ -76,4 +77,4 @@ def generate_sample_dict(index_dict, n_spectra=None, max_chunk_size=None):
         )
         for filename, line_idxs in spectrum_info.items():
             sample_dict[filename].extend(line_idxs)
-    return dict(sample_dict)
+    return dict(sample_dict), sampled_spectra

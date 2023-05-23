@@ -71,7 +71,7 @@ class PeptideForest:
                 self.memory_limit * safety_margin / df_mem / n_files
             )
 
-    def get_data_chunk(self, mode="random", n_lines=None, n_spectra=None):
+    def get_data_chunk(self, mode="random", n_lines=None, n_spectra=None, drop=True):
         """Get generator that yields data chunks for training."""
         if n_lines is None:
             n_lines = self.max_chunk_size
@@ -82,9 +82,21 @@ class PeptideForest:
             )
             # todo: also hacky
             while True:
-                sample_dict = peptide_forest.sample.generate_sample_dict(
-                    self.spectrum_index, n_spectra=n_spectra
+                sample_dict, sampled_spectra = peptide_forest.sample.generate_sample_dict(
+                    self.spectrum_index, n_spectra=n_spectra, max_chunk_size=n_lines
                 )
+
+                # todo: make this less hacky
+                if drop is True:
+                    first_file = list(self.spectrum_index.keys())[0]
+                    spectra = self.spectrum_index[first_file]
+                    spectra = {k: v for k, v in spectra.items() if k not in sampled_spectra}
+                    self.spectrum_index[first_file] = spectra
+                    if len(sampled_spectra) == 0:
+                        logger.info("No more spectra to sample. Exiting.")
+                        break
+
+                logger.info(f"Sampling {n_spectra} spectra.")
                 self.prep_ursgal_csvs(sample_dict=sample_dict)
                 self.calc_features()
                 yield self.input_df
