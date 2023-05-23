@@ -263,12 +263,12 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
         score_col (str): column to score PSMs by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
-        model (xgboost.XGBRegressor): model to iteratively train
+        model (xgboost.XGBRegressor or xbgoost.XGBRFRegressor): model to iteratively train
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
         feature_importances (list): list of arrays with the feature importance for all splits in epoch
-        model (xgboost.XGBRegressor): trained model
+        model (xgboost.XGBRegressor or xbgoost.XGBRFRegressor): trained model
         cycle_results (dict): dictionary with performance indicators for each cycle
     """
     feature_importances = []
