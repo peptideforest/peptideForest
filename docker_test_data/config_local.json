@@ -9,5 +9,6 @@
             "score_col": "mascot:score"
         }
     },
-    "initial_engine": "msfragger_3_0"
+    "initial_engine": "msfragger_3_0",
+    "algorithm": "xgboost"
 }
