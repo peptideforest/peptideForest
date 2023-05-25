@@ -265,6 +265,31 @@ def get_feature_columns(df):
     return list(features)
 
 
+def _generate_train_data(df, score_col, sensitivity, q_cut):
+    """Generate training data for classifier by getting best targets and matching decoys"""
+    # Use only top target and top decoy per spectrum
+    train_data = (
+        df.sort_values(score_col, ascending=False)
+        .drop_duplicates(["spectrum_id", "is_decoy"])
+        .copy(deep=True)
+    )
+
+    # Filter for target PSMs with q-value < q_cut
+    train_targets = _filter_targets(
+        df=train_data,
+        score_col=score_col,
+        sensitivity=sensitivity,
+        q_cut=q_cut,
+        dynamic_q_cut=True,
+    )
+
+    # Get same number of decoys to match targets at random
+    train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
+
+    # Combine to form training dataset
+    return pd.concat([train_targets, train_decoys]).sample(frac=1)
+
+
 def get_highest_scoring_engine(df):
     """Find engine with the highest number of target PSMs under 1% q-val
 
@@ -292,121 +317,31 @@ def get_highest_scoring_engine(df):
     return f"score_processed_{init_eng}"
 
 
-def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, max_mp_count):
-    """Process single-epoch of cross validated training.
+def fit_model(X, y, model=None, hyperparameters=None):
+    if hyperparameters is None:
+        try:
+            hyperparameters = model.get_params()
+        except AttributeError:
+            hyperparameters = knowledge_base.parameters["hyperparameters"]
+            logger.warning(
+                "No hyperparameters provided, using values in knowledge" "base."
+            )
+        logger.info("No hyperparameters provided, using values from prev model.")
+    if model is not None and model.get_params() == hyperparameters:
+        logger.warning(
+            "Hyperparameters provided match those of model. Model will not"
+            "be updated in training"
+        )
+    clf = get_classifier(hyperparameters=hyperparameters)
+    clf.fit(X=X, y=y, xgb_model=model)
+    return clf
 
-    Args:
-        df (pd.DataFrame): dataframe containing search engine scores for all PSMs
-        score_col (str): column to score PSMs by
-        sensitivity (float): proportion of positive results to true positives in the data
-        q_cut (float): q-value cutoff for PSM selection
-        model (xgboost.XGBRegressor or xbgoost.XGBRFRegressor): model to iteratively train
 
-    Returns:
-        df (pd.DataFrame): dataframe with training columns added
-        feature_importances (list): list of arrays with the feature importance for all splits in epoch
-        model (xgboost.XGBRegressor or xbgoost.XGBRFRegressor): trained model
-        cycle_results (dict): dictionary with performance indicators for each cycle
-    """
-    feature_importances = []
-
-    features = get_feature_columns(df)
-
-    # todo: check why this seems to be such a bad idea :(
-    if epoch > 100:
-        # score PSMs with pretrained model
-        df["model_score"] = model.score_psms(df[features].astype(float))
-        score_col = "model_score"
-
-    # Use only top target and top decoy per spectrum
-    train_data = (
-        df.sort_values(score_col, ascending=False)
-        .drop_duplicates(["spectrum_id", "is_decoy"])
-        .copy(deep=True)
-    )
-
-    # Filter for target PSMs with q-value < q_cut
-    train_targets = _filter_targets(
-        df=train_data,
-        score_col=score_col,
-        sensitivity=sensitivity,
-        q_cut=q_cut,
-        dynamic_q_cut=True,
-    )
-
-    # Get same number of decoys to match targets at random
-    train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
-
-    # Combine to form training dataset
-    train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
-
-    # Scale the data
-    if epoch == 0:
-        scaler = StandardScaler().fit(train_data.loc[:, features])
-    train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
-    df.loc[:, features] = scaler.transform(df.loc[:, features])
-
-    # create train test split
-    # todo: remove astype... hack
-    X_train, X_test, y_train, y_test = train_test_split(
-        train_data[features].astype(float),
-        train_data["is_decoy"].astype(float),
-        test_size=0.2,
-        random_state=42,
-    )
-
-    # Train the model
-    if epoch == 0:
-        # todo: remove hack
-        best_params = {"max_depth": 3, "n_estimators": 10}
-        best_params["n_jobs"] = max_mp_count
-
-        # Train the model using the best parameters
-        model = get_classifier(hyperparameters=best_params)
-
-        # Train initial model
-        model.fit(X=X_train, y=y_train)
-    else:
-        # todo: this is also just a test really
-        prev_model = model
-        hyperparameters = model.get_params()
-        hyperparameters["n_estimators"] = hyperparameters.get("n_estimators", 20) + 1
-        model = get_classifier(hyperparameters=hyperparameters)
-
-        model.fit(X=X_train, y=y_train, xgb_model=prev_model)
-
-    # Record feature importances
-    feature_importances.append(model.feature_importances_)
-
-    # Score predictions
-    # todo: remove astype... hack
-    scores_train = model.score_psms(df[features].astype(float))
-    df.loc[:, "prev_score_train"] = scores_train
-
-    # Score test predictions
-    y_pred = model.score_psms(X_test)
-    df.loc[X_test.index, "engine_score"] = y_pred
-
-    y_test = 2 * (0.5 - y_test)
-    mae = mean_absolute_error(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = r2_score(y_test, y_pred)
-    logger.info(f"MAE: {mae}, MSE: {mse}, RMSE: {rmse}, R2: {r2}")
-    cycle_results = {
-        "mae": mae,
-        "mse": mse,
-        "rmse": rmse,
-        "r2": r2,
-    }
-
-    # score train dataset
-    y_pred = model.score_psms(X_train)
-    y_train = 2 * (0.5 - y_train)
-    mae = mean_absolute_error(y_train, y_pred)
-    logger.info(f"Training: MAE: {mae}")
-
-    return df, feature_importances, model, scaler, cycle_results
+def update_hyperparameters(model):
+    params = model.get_params()
+    params["n_estimators"] += 10
+    params["max_depth"] += 1
+    params["learning_rate"] *= 0.9
 
 
 def train(
@@ -432,13 +367,9 @@ def train(
         feature_importances (list): list of arrays with the feature importance for all splits over all eval epochs
         psms (dict): number of top target PSMs found after each epoch
         model (xgboost.XGBRegressor): trained model to be used for inference
-        classifier_test_performance (dict): dictionary with performance indicators for each epoch
-
     """
     feature_importances = []
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
-    classifier_test_performance = {}
-    scaler = None
 
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
@@ -447,44 +378,55 @@ def train(
     for epoch in pbar:
         try:
             df = next(gen)
+            df_training = df.copy(deep=True)
         except StopIteration:
             break
+
         df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
-        df["engine_score"] = 0
-        df_training = df.copy(deep=True)
+
+        # scoring
         score_col = get_highest_scoring_engine(df_training)
 
-        if epoch > 100:
-            score_col = "engine_score"
+        # get train data
+        features = get_feature_columns(df)
+        train_data = _generate_train_data(df, score_col, sensitivity, q_cut_train)
 
-        df_training, feature_importance_sub, new_model, scaler, kpis = fit_cv(
-            df=df_training,
-            score_col=score_col,
-            sensitivity=sensitivity,
-            q_cut=q_cut_train,
-            model=model,
-            scaler=scaler,
-            epoch=epoch,
-            max_mp_count=max_mp_count,
-        )
+        # Scale and transform data
+        scaling_mode = "first"  # todo: could also be "global", "batch", None
+        if scaling_mode == "first" and epoch == 0:
+            scaler = StandardScaler().fit(train_data.loc[:, features])
+        elif scaling_mode == "batch":
+            scaler = StandardScaler().fit(train_data.loc[:, features])
 
-        model = new_model
-        classifier_test_performance[epoch] = kpis
+        train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
+        df.loc[:, features] = scaler.transform(df.loc[:, features])
 
-        # Record how many PSMs are below q-cut in the target set
-        psms["train"].append(
-            calc_num_psms(
-                df=df_training,
-                score_col="prev_score_train",
-                q_cut=q_cut,
-                sensitivity=sensitivity,
+        # training
+        if epoch == 0:
+            # initial fit
+            # find the best hyperparameters & return eval of best model
+            hyperparameters = knowledge_base.parameters["hyperparameters"]  # todo
+            hyperparameters["n_jobs"] = max_mp_count
+            model = fit_model(
+                X=train_data[features].astype(float),
+                y=train_data["is_decoy"].astype(float),
+                model=None,
+                hyperparameters=hyperparameters,
             )
-        )
+        else:
+            # iterative fit
+            # find the best hyperparameters & return eval of best model
+            model = fit_model(
+                X=train_data[features].astype(float),
+                y=train_data["is_decoy"].astype(float),
+                model=model,
+                hyperparameters=hyperparameters,
+            )
 
         # Record feature importances
-        feature_importances.extend(feature_importance_sub)
+        feature_importances.extend(model.feature_importances_)
 
-        pbar.set_postfix({"Train PSMs": psms["train"][epoch]})
+        pbar.set_postfix()  # todo: add info
 
     logger.remove()
     logger.add(sys.stdout)
@@ -499,4 +441,4 @@ def train(
     ).sort_values("feature_importance", ascending=False)
     logger.debug(f"Feature importances:\n{df_feature_importance}")
 
-    return df, df_feature_importance, psms, model, scaler, classifier_test_performance
+    return df, df_feature_importance, psms, model, scaler

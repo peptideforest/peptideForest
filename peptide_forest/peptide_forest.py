@@ -37,7 +37,7 @@ class PeptideForest:
         self.max_chunk_size = None
         self.engine = None
         self.scaler = None
-        self.training_performance = None
+        self.unique_spectrum_ids = None
         self.spectrum_index = {}
 
         if max_mp_count is None:
@@ -180,7 +180,6 @@ class PeptideForest:
                 self.n_psms,
                 self.engine,
                 self.scaler,
-                self.training_performance,
             ) = peptide_forest.training.train(
                 gen=self.input_df,
                 sensitivity=self.params.get("sensitivity", 0.9),
@@ -189,6 +188,8 @@ class PeptideForest:
                 n_train=self.params.get("n_train", 10),
                 max_mp_count=self.max_mp_count,
             )
+
+            # todo: dump prepared data for scoring results
 
     def get_results(self):
         """Interpret classifier output and appends final data to dataframe."""
@@ -202,8 +203,6 @@ class PeptideForest:
                 except StopIteration:
                     break
 
-                # todo: remove hack (line below)
-                df["engine_score"] = 0
 
                 # predict scores
                 feature_columns = peptide_forest.training.get_feature_columns(df)
