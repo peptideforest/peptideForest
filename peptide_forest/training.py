@@ -402,6 +402,12 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
         "r2": r2,
     }
 
+    # score train dataset
+    y_pred = model.score_psms(X_train)
+    y_train = 2 * (0.5 - y_train)
+    mae = mean_absolute_error(y_train, y_pred)
+    logger.info(f"Training: MAE: {mae}")
+
     return df, feature_importances, model, scaler, cycle_results
 
 
