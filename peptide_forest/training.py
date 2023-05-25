@@ -201,6 +201,28 @@ def _adjust_q_cut(df, targets, q_vals, q_cut, min_targets=10, catch_decoys=True)
     return targets
 
 
+def _filter_targets(df, score_col, sensitivity, q_cut, dynamic_q_cut=True):
+    train_q_vals = calc_q_vals(
+        df=df,
+        score_col=score_col,
+        sensitivity=sensitivity,
+        top_psm_only=False,
+        get_fdr=False,
+        init_score_col=None,
+    )[["q-value", "is_decoy"]]
+    train_q_cut_met_targets = train_q_vals.loc[
+        (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
+    ].index
+    train_targets = df.loc[train_q_cut_met_targets, :]
+
+    if dynamic_q_cut:
+        return _adjust_q_cut(
+            df=df, targets=train_targets, q_vals=train_q_vals, q_cut=q_cut
+        )
+    else:
+        return train_targets
+
+
 def get_classifier(alg, hyperparameters):
     """Initialize random forest regressor.
 
@@ -317,21 +339,12 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
     )
 
     # Filter for target PSMs with q-value < q_cut
-    train_q_vals = calc_q_vals(
+    train_targets = _filter_targets(
         df=train_data,
         score_col=score_col,
         sensitivity=sensitivity,
-        top_psm_only=False,
-        get_fdr=False,
-        init_score_col=None,
-    )[["q-value", "is_decoy"]]
-    train_q_cut_met_targets = train_q_vals.loc[
-        (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
-    ].index
-    train_targets = train_data.loc[train_q_cut_met_targets, :]
-
-    train_targets = _adjust_q_cut(
-        df=train_data, targets=train_targets, q_vals=train_q_vals, q_cut=q_cut
+        q_cut=q_cut,
+        dynamic_q_cut=True,
     )
 
     # Get same number of decoys to match targets at random
