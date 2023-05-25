@@ -23,7 +23,7 @@ if __name__ == "__main__":
     pf.fit()
     plot_model_performance(
         pf.training_performance,
-        "Model Performance (random forest) with no training after 10 epochs",
+        "Model Performance (xgboost) with adding 25 estimators each iteration, training on 5000 spectra with an 80% train test split",
     )
     pf.get_results()
     files = {"Test": "./docker_test_data/test_output.csv"}
