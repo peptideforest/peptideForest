@@ -119,25 +119,22 @@ class PeptideForest:
 
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
-            with peptide_forest.tools.Timer(
-                description=f"Slurped in unified csv for {info['engine']}"
-            ):
-                df = peptide_forest.file_handling.load_csv_with_sampling_information(
-                    file,
-                    shared_cols + [info["score_col"]],
-                    n_lines=n_lines,
-                    sample_dict=sample_dict,
-                )
+            df = peptide_forest.file_handling.load_csv_with_sampling_information(
+                file,
+                shared_cols + [info["score_col"]],
+                n_lines=n_lines,
+                sample_dict=sample_dict,
+            )
 
-                if df is None:
-                    continue
+            if df is None:
+                continue
 
-                df["score"] = df[info["score_col"]]
-                df.drop(columns=info["score_col"], inplace=True)
+            df["score"] = df[info["score_col"]]
+            df.drop(columns=info["score_col"], inplace=True)
 
-                df = peptide_forest.file_handling.drop_duplicates_with_log(df, file)
+            df = peptide_forest.file_handling.drop_duplicates_with_log(df, file)
 
-                engine_lvl_dfs.append(df)
+            engine_lvl_dfs.append(df)
 
         combined_df = pd.concat(engine_lvl_dfs, sort=True).reset_index(drop=True)
         combined_df.fillna(
