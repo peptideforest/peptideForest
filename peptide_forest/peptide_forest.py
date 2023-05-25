@@ -3,6 +3,7 @@ import json
 import multiprocessing as mp
 import pandas as pd
 from loguru import logger
+from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 
 import peptide_forest.knowledge_base
@@ -171,7 +172,7 @@ class PeptideForest:
     def fit(self):
         """Perform cross-validated training and evaluation."""
 
-        self.input_df = self.get_data_chunk()
+        self.input_df = self.get_data_chunk(mode="spectrum", n_spectra=1000)
 
         with peptide_forest.tools.Timer(description="Trained model in"):
             (
@@ -236,3 +237,20 @@ class PeptideForest:
                     )
                 del output_df
                 iterations += 1
+
+    def boost(self):
+        """Perform cross-validated training and evaluation.
+
+        1. Obtaining all unique spectrum ids that are available
+        2.
+        """
+        # create index
+        self.unique_spectrum_ids = None # todo: implement
+
+
+        # create folds
+        num_folds = 3
+        cv = KFold(n_splits=num_folds, shuffle=True, random_state=42)
+        splits = cv.split(self.unique_spectrum_ids)
+        for train_ids, test_ids in splits:
+            pass
