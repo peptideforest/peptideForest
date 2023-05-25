@@ -370,7 +370,13 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
         # Train initial model
         model.fit(X=X_train, y=y_train)
     else:
-        model.fit(X=X_train, y=y_train, xgb_model=model)
+        # todo: this is also just a test really
+        prev_model = model
+        hyperparameters = model.get_params()
+        hyperparameters["n_estimators"] = hyperparameters.get("n_estimators", 20) + 1
+        model = get_classifier(alg=algorithm, hyperparameters=hyperparameters)
+
+        model.fit(X=X_train, y=y_train, xgb_model=prev_model)
 
     # Record feature importances
     feature_importances.append(model.feature_importances_)
