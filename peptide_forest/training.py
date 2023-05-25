@@ -388,6 +388,7 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
 
     # Score test predictions
     y_pred = model.score_psms(X_test)
+    df.loc[X_test.index, "engine_score"] = y_pred
 
     y_test = 2 * (0.5 - y_test)
     mae = mean_absolute_error(y_test, y_pred)
