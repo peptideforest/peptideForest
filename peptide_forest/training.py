@@ -342,22 +342,27 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
 
     # Train the model
     if epoch == 0:
-        # Define the hyperparameter grid
-        param_grid = {
-            # "learning_rate": [0.01],
-            "max_depth": [3, 7, 15, 30],
-            "n_estimators": [10, 50, 100, 200],
-        }
 
-        # Initialize the GridSearch object
-        grid_search = GridSearchCV(model, param_grid, cv=3, verbose=2, n_jobs=-1)
+        # # todo: test without grid search
+        # # Define the hyperparameter grid
+        # param_grid = {
+        #     # "learning_rate": [0.01],
+        #     "max_depth": [3, 7, 15, 30],
+        #     "n_estimators": [10, 50, 100, 200],
+        # }
+        #
+        # # Initialize the GridSearch object
+        # grid_search = GridSearchCV(model, param_grid, cv=3, verbose=2, n_jobs=-1)
+        #
+        # # Fit the GridSearch to the data
+        # grid_search.fit(X, y)
+        #
+        # # Get the best parameters
+        # best_params = grid_search.best_params_
+        # print(f"Best parameters: {best_params}")
 
-        # Fit the GridSearch to the data
-        grid_search.fit(X_train, y_train)
-
-        # Get the best parameters
-        best_params = grid_search.best_params_
-        print(f"Best parameters: {best_params}")
+        # todo: remove hack
+        best_params = {'max_depth': 3, 'n_estimators': 10}
 
         # Train the model using the best parameters
         model = get_classifier(alg=algorithm, hyperparameters=best_params)
