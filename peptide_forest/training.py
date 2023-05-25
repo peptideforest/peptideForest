@@ -326,7 +326,6 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
     train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
 
     # Scale the data
-    features = get_feature_columns(train_data)
     if epoch == 0:
         scaler = StandardScaler().fit(train_data.loc[:, features])
     train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
