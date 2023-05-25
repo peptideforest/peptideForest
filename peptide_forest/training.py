@@ -173,6 +173,34 @@ def _score_psms(clf, data):
     return 2 * (0.5 - clf.predict(data))
 
 
+def _adjust_q_cut(df, targets, q_vals, q_cut, min_targets=10, catch_decoys=True):
+    """Adjust q-value cutoff to ensure minimum number of targets."""
+
+    while len(targets) < min_targets:
+        q_cut += 0.01
+        logger.info(f"q_cut too low, increasing to {q_cut}")
+        q_cut_met_targets = q_vals.loc[
+            (q_vals["q-value"] <= q_cut) & (~q_vals["is_decoy"])
+        ].index
+        targets = df.loc[q_cut_met_targets, :]
+
+    if len(targets) > len(df[df["is_decoy"]]):
+        if catch_decoys:
+            logger.warning(
+                f"Number of targets ({len(targets)}) exceeds number of decoys ("
+                f"{len(df[df['is_decoy']])}). Sampling targets to match number of "
+                f"decoys."
+            )
+            return targets.sample(n=len(df[df["is_decoy"]]))
+        else:
+            raise ValueError(
+                f"Number of targets ({len(df)}) exceeds number of decoys "
+                f"({len(df[df['is_decoy']])})."
+            )
+
+    return targets
+
+
 def get_classifier(alg, hyperparameters):
     """Initialize random forest regressor.
 
@@ -302,20 +330,9 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
     ].index
     train_targets = train_data.loc[train_q_cut_met_targets, :]
 
-    # todo select good number here:
-    while len(train_targets) < 10:
-        q_cut += 0.01
-        logger.info(f"q_cut too low, increasing to {q_cut}")
-        train_q_cut_met_targets = train_q_vals.loc[
-            (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
-            ].index
-        train_targets = train_data.loc[train_q_cut_met_targets, :]
-
-    if len(train_targets) > len(train_data[train_data["is_decoy"]]):
-        logger.info(
-            f"Number of targets ({len(train_targets)}) exceeds number of decoys ({len(train_data[train_data['is_decoy']])}). Sampling targets to match number of decoys."
-        )
-        train_targets = train_targets.sample(n=len(train_data[train_data["is_decoy"]]))
+    train_targets = _adjust_q_cut(
+        df=train_data, targets=train_targets, q_vals=train_q_vals, q_cut=q_cut
+    )
 
     # Get same number of decoys to match targets at random
     train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
@@ -342,7 +359,6 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
 
     # Train the model
     if epoch == 0:
-
         # # todo: test without grid search
         # # Define the hyperparameter grid
         # param_grid = {
@@ -362,7 +378,7 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
         # print(f"Best parameters: {best_params}")
 
         # todo: remove hack
-        best_params = {'max_depth': 3, 'n_estimators': 10}
+        best_params = {"max_depth": 3, "n_estimators": 10}
 
         # Train the model using the best parameters
         model = get_classifier(alg=algorithm, hyperparameters=best_params)
