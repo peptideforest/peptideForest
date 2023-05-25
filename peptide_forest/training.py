@@ -462,8 +462,12 @@ def train(
         except StopIteration:
             break
         df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
+        df["engine_score"] = 0
         df_training = df.copy(deep=True)
         score_col = get_highest_scoring_engine(df_training)
+
+        if epoch > 100:
+            score_col = "engine_score"
 
         df_training, feature_importance_sub, new_model, scaler, kpis = fit_cv(
             df=df_training,
