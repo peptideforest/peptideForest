@@ -336,8 +336,6 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
 
     # Get same number of decoys to match targets at random
     train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
-    # test_decoys = train_data[train_data["is_decoy"]].drop(train_decoys.index)
-    # test_decoys.to_csv("test_decoys.csv", mode='a', header=False, index=False)
 
     # Combine to form training dataset
     train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
