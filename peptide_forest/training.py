@@ -235,7 +235,7 @@ def get_highest_scoring_engine(df):
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
 
     Returns:
-        init_eng (str): name of engine with highest number of target PSMs under 1% q-val
+        init_eng (str): name of engine with the highest number of target PSMs under 1% q-val
     """
     psms_per_eng = {}
     score_processed_cols = [c for c in df if "score_processed_" in c]
