@@ -203,6 +203,9 @@ class PeptideForest:
                 except StopIteration:
                     break
 
+                # todo: remove hack (line below)
+                df["engine_score"] = 0
+
                 # predict scores
                 feature_columns = peptide_forest.training.get_feature_columns(df)
                 # todo: store scaler after training and use it here
