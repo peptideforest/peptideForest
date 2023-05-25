@@ -369,13 +369,6 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
 
         # Train initial model
         model.fit(X=X_train, y=y_train)
-    elif epoch > 10:
-        X_train, X_test, y_train, y_test = train_test_split(
-            train_data[features].astype(float),
-            train_data["is_decoy"].astype(float),
-            test_size=0.99,
-            random_state=42,
-        )
     else:
         model.fit(X=X_train, y=y_train, xgb_model=model)
 
