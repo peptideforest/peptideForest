@@ -187,7 +187,6 @@ class PeptideForest:
                 q_cut=self.params.get("q_cut", 0.01),
                 q_cut_train=self.params.get("q_cut_train", 0.10),
                 n_train=self.params.get("n_train", 10),
-                algorithm=self.params.get("algorithm", "random_forest_scikit"),
                 max_mp_count=self.max_mp_count,
             )
 

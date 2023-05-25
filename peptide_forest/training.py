@@ -4,6 +4,7 @@ import types
 
 import numpy as np
 import pandas as pd
+import xgboost
 from loguru import logger
 from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -223,7 +224,7 @@ def _filter_targets(df, score_col, sensitivity, q_cut, dynamic_q_cut=True):
         return train_targets
 
 
-def get_classifier(alg, hyperparameters):
+def get_classifier(hyperparameters):
     """Initialize random forest regressor.
 
     Args:
@@ -232,23 +233,9 @@ def get_classifier(alg, hyperparameters):
         hyperparameters (dict): hyperparameters for classifier
 
     Returns:
-        clf (xgboost.XGBRFRegressor): classifier with added method to score PSMs
+        clf (xgboost.XGBRegressor): classifier with added method to score PSMs
     """
-    if alg == "random_forest_scikit":
-        clf = RandomForestRegressor(**hyperparameters)
-    elif alg == "random_forest_xgb":
-        clf = XGBRFRegressor(**hyperparameters)
-    elif alg == "xgboost":
-        clf = XGBRegressor(**hyperparameters)
-    elif alg == "adaboost":
-        clf = AdaBoostRegressor(**hyperparameters)
-    else:
-        logger.error(
-            f"Algorithm {alg} not supported. Choose one of [randomforest_xgb',"
-            f" 'random_forest_scikit, 'xgboost', 'adaboost']. Defaulting to "
-            f"'random_forest_scikit'."
-        )
-        clf = RandomForestRegressor(**hyperparameters)
+    clf = xgboost.XGBRegressor(**hyperparameters)
 
     # Add scoring function
     clf.score_psms = types.MethodType(_score_psms, clf)
@@ -305,7 +292,7 @@ def get_highest_scoring_engine(df):
     return f"score_processed_{init_eng}"
 
 
-def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
+def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, max_mp_count):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -390,9 +377,10 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
 
         # todo: remove hack
         best_params = {"max_depth": 3, "n_estimators": 10}
+        best_params["n_jobs"] = max_mp_count
 
         # Train the model using the best parameters
-        model = get_classifier(alg=algorithm, hyperparameters=best_params)
+        model = get_classifier(hyperparameters=best_params)
 
         # Train initial model
         model.fit(X=X_train, y=y_train)
@@ -401,7 +389,7 @@ def fit_cv(df, score_col, sensitivity, q_cut, model, scaler, epoch, algorithm):
         prev_model = model
         hyperparameters = model.get_params()
         hyperparameters["n_estimators"] = hyperparameters.get("n_estimators", 20) + 1
-        model = get_classifier(alg=algorithm, hyperparameters=hyperparameters)
+        model = get_classifier(hyperparameters=hyperparameters)
 
         model.fit(X=X_train, y=y_train, xgb_model=prev_model)
 
@@ -445,7 +433,6 @@ def train(
     q_cut,
     q_cut_train,
     n_train,
-    algorithm,
     max_mp_count=None,
 ):
     """Train classifier on input data for a set number of training and evaluation epochs.
@@ -456,8 +443,6 @@ def train(
         q_cut (float): q-value cutoff for PSM selection
         q_cut_train (float): q-value cutoff for PSM selection to use during training
         n_train (int): number of training epochs
-        algorithm (str): algorithm to use for training  one of ["random_forest_scikit",
-                            "random_forest_xgb", "xgboost", "adaboost"]
         max_mp_count (int): maximum number of processes to use for training
 
     Returns:
@@ -472,12 +457,6 @@ def train(
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
     classifier_test_performance = {}
     scaler = None
-
-    # Get classifier
-    hyperparameters = knowledge_base.parameters[f"{algorithm}_hyperparameters"]
-    if algorithm != "adaboost":
-        hyperparameters["n_jobs"] = max_mp_count
-    model = get_classifier(alg=algorithm, hyperparameters=hyperparameters)
 
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
@@ -504,8 +483,9 @@ def train(
             model=model,
             scaler=scaler,
             epoch=epoch,
-            algorithm=algorithm,
+            max_mp_count=max_mp_count,
         )
+
         model = new_model
         classifier_test_performance[epoch] = kpis
 
