@@ -62,7 +62,10 @@ def plot_model_performance(training_performance, title=None):
 
 
 def plot_q_value_curve(
-    files: dict, palette: list = PALETTE, engine_repl_dict: dict = ENGINE_REPL_DICT
+    files: dict,
+    palette: list = PALETTE,
+    engine_repl_dict: dict = ENGINE_REPL_DICT,
+    title=None,
 ):
     dfs = []
     for dataset, df in files.items():
@@ -89,10 +92,11 @@ def plot_q_value_curve(
     sns.lineplot(
         data=plt_df, x="q-value threshold", y="n PSMs", hue="Engine", palette=palette
     )
+    plt.title(title)
     plt.xscale("log")
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
     plt.savefig(
-        "./q_value_lines.png",
+        f"./plots/{title}_q_value_lines.png",
         dpi=400,
         bbox_inches="tight",
     )
@@ -100,7 +104,10 @@ def plot_q_value_curve(
 
 
 def plot_psms_at_qval_threshold(
-    files: dict, palette: list = PALETTE, engine_repl_dict: dict = ENGINE_REPL_DICT
+    files: dict,
+    palette: list = PALETTE,
+    engine_repl_dict: dict = ENGINE_REPL_DICT,
+    title=None,
 ):
     dfs = []
     for dataset, df in files.items():
@@ -126,6 +133,7 @@ def plot_psms_at_qval_threshold(
         hue="Engine",
         palette=palette,
     )
+    plt.title(title)
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
-    plt.savefig("./npsms.png", dpi=400, bbox_inches="tight")
+    plt.savefig(f"./plots/{title}_npsms.png", dpi=400, bbox_inches="tight")
     plt.show()

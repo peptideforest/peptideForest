@@ -23,6 +23,8 @@ if __name__ == "__main__":
     pf.fit()
     pf.get_results()
     files = {"Test": "./docker_test_data/test_output.csv"}
-    plot_q_value_curve(files)
-    plot_psms_at_qval_threshold(files)
+    title = "Test"
+
+    plot_q_value_curve(files, title=title)
+    plot_psms_at_qval_threshold(files, title=title)
     # pf.write_output()
