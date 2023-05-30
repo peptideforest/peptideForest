@@ -341,7 +341,8 @@ def update_hyperparameters(model):
     params = model.get_params()
     params["n_estimators"] += 10
     params["max_depth"] += 1
-    params["learning_rate"] *= 0.9
+    params["learning_rate"] *= 0.5
+    return params
 
 
 def train(
@@ -401,21 +402,71 @@ def train(
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         df.loc[:, features] = scaler.transform(df.loc[:, features])
 
+        X = train_data.loc[:, features].astype(float)
+        y = train_data["is_decoy"].astype(float)
+
+        param_grid = {
+            "max_depth": [3, 6, 9],
+            "n_estimators": [20, 50, 100],
+            "learning_rate": [0.01, 0.05],
+            "min_child_weight": [1, 3],
+            "reg_lambda": [10000],
+        }
+
         # training
         if epoch == 0:
             # initial fit
             # find the best hyperparameters & return eval of best model
+            # grid search for best params
+
             hyperparameters = knowledge_base.parameters["hyperparameters"]  # todo
+            grid_search = GridSearchCV(
+                estimator=get_classifier(hyperparameters=hyperparameters),
+                param_grid=param_grid,
+                cv=3,
+                n_jobs=-1,
+                verbose=2,
+                scoring="neg_mean_squared_error",
+            )
+
+            # Fit the grid search to the data
+            grid_search.fit(X, y)
+            hyperparameters = grid_search.best_params_
+
             hyperparameters["n_jobs"] = max_mp_count
+            logger.info(f"Epoch {epoch}, using hyperparameters: {hyperparameters}")
             model = fit_model(
-                X=train_data[features].astype(float),
-                y=train_data["is_decoy"].astype(float),
+                X=X,
+                y=y,
                 model=None,
                 hyperparameters=hyperparameters,
             )
         else:
             # iterative fit
             # find the best hyperparameters & return eval of best model
+            param_grid = {
+                "n_estimators": list(
+                    range(model.n_estimators, model.n_estimators + 50, 5)
+                ),
+                "reg_lambda": [model.reg_lambda / 2],
+            }
+            grid_search = GridSearchCV(
+                estimator=get_classifier(hyperparameters=hyperparameters),
+                param_grid=param_grid,
+                cv=3,
+                # todo: for n_jobs -1 i do get errors, n_jobs=1 is awfully slow. Fix...
+                n_jobs=1,
+                verbose=2,
+                scoring="neg_mean_squared_error",
+            )
+            grid_search.fit(X, y, xgb_model=model)
+            hyperparameters = grid_search.best_params_
+            logger.info(f"Epoch {epoch}, using hyperparameters: {hyperparameters}")
+
+            # hyperparameters = knowledge_base.parameters["hyperparameters"]  # todo
+            # hyperparameters["n_jobs"] = max_mp_count
+
+            # hyperparameters = update_hyperparameters(model)
             model = fit_model(
                 X=train_data[features].astype(float),
                 y=train_data["is_decoy"].astype(float),
