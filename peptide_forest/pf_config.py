@@ -35,18 +35,27 @@ class PFConfig:
     # todo: load from dict
     # todo: add to pandas or to dict method
     """
+
     def __init__(self):
         self.q_cut = PFParam()
         self.n_iterations = PFParam()
         self.n_spectra = PFParam()
         self.n_folds = PFParam()
-        self.n_trees = PFParam()
+        self.n_estimators = PFParam()
         self.max_depth = PFParam()
         self.learning_rate = PFParam()
-        self.alpha = PFParam()
-        self.lambda_ = PFParam()
-        self.gamma = PFParam()
+        self.reg_alpha = PFParam()
+        self.reg_lambda = PFParam()
+        self.min_split_loss = PFParam()
         self.engine_rescore = PFParam()
+        self.xgb_params = [
+            "n_estimators",
+            "max_depth",
+            "learning_rate",
+            "reg_alpha",
+            "reg_lambda",
+            "min_split_loss",
+        ]
 
     def __next__(self):
         for name, param in vars(self).items():
@@ -101,3 +110,10 @@ class PFConfig:
         except ValueError:
             raise ValueError(f"Invalid strategy: {strategy}")
         return eval(str(value) + operator + change)
+
+    def grid(self):
+        return {
+            name: param.grid
+            for name, param in vars(self).items()
+            if name in self.xgb_params
+        }
