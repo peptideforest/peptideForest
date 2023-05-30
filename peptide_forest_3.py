@@ -20,8 +20,9 @@ if __name__ == "__main__":
         memory_limit=None,  # args.m,
         max_mp_count=None,  # args.mp_limit,
     )
-    pf.fit()
-    pf.get_results()
+    pf.boost()
+    # pf.fit()
+    # pf.get_results()
     files = {"Test": "./docker_test_data/test_output.csv"}
     title = "Test"
 

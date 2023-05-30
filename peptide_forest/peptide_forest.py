@@ -1,6 +1,9 @@
 """Main Peptide Forest class."""
 import json
 import multiprocessing as mp
+from pathlib import Path
+from uuid import uuid4
+
 import pandas as pd
 from loguru import logger
 from sklearn.model_selection import KFold
@@ -40,6 +43,7 @@ class PeptideForest:
         self.scaler = None
         self.unique_spectrum_ids = None
         self.spectrum_index = {}
+        self.buffered_scores = []
 
         if max_mp_count is None:
             self.max_mp_count = mp.cpu_count() - 1
@@ -78,20 +82,29 @@ class PeptideForest:
             n_lines = self.max_chunk_size
 
         if mode == "spectrum":
+            # todo: maybe redundant to generate sample_dict here (generated in boost)
             self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
                 self.params["input_files"].keys()
             )
             # todo: also hacky
             while True:
-                sample_dict, sampled_spectra = peptide_forest.sample.generate_sample_dict(
-                    self.spectrum_index, n_spectra=n_spectra, max_chunk_size=n_lines
+                (
+                    sample_dict,
+                    sampled_spectra,
+                ) = peptide_forest.sample.generate_sample_dict(
+                    self.spectrum_index,
+                    reference_spectra_ids=reference_spectra,
+                    n_spectra=n_spectra,
+                    max_chunk_size=n_lines,
                 )
 
                 # todo: make this less hacky
                 if drop is True:
                     first_file = list(self.spectrum_index.keys())[0]
                     spectra = self.spectrum_index[first_file]
-                    spectra = {k: v for k, v in spectra.items() if k not in sampled_spectra}
+                    spectra = {
+                        k: v for k, v in spectra.items() if k not in sampled_spectra
+                    }
                     self.spectrum_index[first_file] = spectra
                     if len(sampled_spectra) == 0:
                         logger.info("No more spectra to sample. Exiting.")
@@ -172,7 +185,7 @@ class PeptideForest:
     def fit(self):
         """Perform cross-validated training and evaluation."""
 
-        self.input_df = self.get_data_chunk(mode="spectrum", n_spectra=1000)
+        # self.input_df = self.get_data_chunk(mode="spectrum", n_spectra=1000)
 
         with peptide_forest.tools.Timer(description="Trained model in"):
             (
@@ -192,51 +205,55 @@ class PeptideForest:
 
             # todo: dump prepared data for scoring results
 
-    def get_results(self):
+    def score_with_model(self, gen=None, use_disk=False):
+        if gen is None:
+            gen = self.get_data_chunk(mode="spectrum")
+        while True:
+            # iterative loading of data
+            try:
+                df = next(gen)
+            except StopIteration:
+                break
+
+            # predict scores
+            feature_columns = peptide_forest.training.get_feature_columns(df)
+            if self.scaler is None:
+                self.scaler = StandardScaler().fit(df.loc[:, feature_columns])
+            df.loc[:, feature_columns] = self.scaler.transform(
+                df.loc[:, feature_columns]
+            )
+
+            df[f"score_processed_peptide_forest"] = self.engine.score_psms(
+                df[feature_columns].astype(float)
+            )
+
+            if use_disk:
+                p = Path(f"./temp/{uuid4()}.pkl")
+                df.to_pickle(p)
+                self.buffered_scores.append(p)
+            else:
+                # todo: assumes whole df can be returned
+                return df
+        return None
+
+    def get_results(self, gen=None, use_disk=False):
         """Interpret classifier output and appends final data to dataframe."""
         with peptide_forest.tools.Timer(description="Processed results in"):
-            gen = self.get_data_chunk(mode="spectrum")
-            iterations = 0
-            while iterations < 1:
-                # iterative loading of data
-                try:
-                    df = next(gen)
-                except StopIteration:
-                    break
+            df = self.score_with_model(gen=gen, use_disk=use_disk)
+            if use_disk:
+                # todo: only works in memory this way
+                df = pd.concat([pd.read_pickle(p) for p in self.buffered_scores])
+                self.buffered_scores = []
 
+            # process results
+            output_df = peptide_forest.results.process_final(
+                df=df,
+                init_eng=self.init_eng,
+                sensitivity=self.params.get("sensitivity", 0.9),
+                q_cut=self.params.get("q_cut", 0.01),
+            )
 
-                # predict scores
-                feature_columns = peptide_forest.training.get_feature_columns(df)
-                # todo: store scaler after training and use it here
-                if self.scaler is None:
-                    self.scaler = StandardScaler().fit(df.loc[:, feature_columns])
-                df.loc[:, feature_columns] = self.scaler.transform(
-                    df.loc[:, feature_columns]
-                )
-
-                df[
-                    f"score_processed_peptide_forest"
-                ] = self.engine.score_psms(df[feature_columns].astype(float))
-
-                # process results
-                output_df = peptide_forest.results.process_final(
-                    df=df,
-                    init_eng=self.init_eng,
-                    sensitivity=self.params.get("sensitivity", 0.9),
-                    q_cut=self.params.get("q_cut", 0.01),
-                )
-
-                # write results
-                if iterations == 0:
-                    output_df.to_csv(
-                        self.output_path, mode="w", header=True, index=False
-                    )
-                else:
-                    output_df.to_csv(
-                        self.output_path, mode="a", header=False, index=False
-                    )
-                del output_df
-                iterations += 1
+            output_df.to_csv(self.output_path, mode="w", header=True, index=False)
 
     def boost(self):
         """Perform cross-validated training and evaluation.
@@ -245,12 +262,40 @@ class PeptideForest:
         2.
         """
         # create index
-        self.unique_spectrum_ids = None # todo: implement
-
+        # todo: note [0] is a hack to get the first file, but several files should be supported
+        self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
+            self.params["input_files"].keys()
+        )
+        first_file = list(self.spectrum_index.keys())[0]
+        self.unique_spectrum_ids = list(
+            {spec_id for spec_id in self.spectrum_index[first_file].keys()}
+        )
 
         # create folds
         num_folds = 3
         cv = KFold(n_splits=num_folds, shuffle=True, random_state=42)
         splits = cv.split(self.unique_spectrum_ids)
+        fold = 1
         for train_ids, test_ids in splits:
-            pass
+            train_spectra = [self.unique_spectrum_ids[i] for i in train_ids]
+            test_spectra = [self.unique_spectrum_ids[i] for i in test_ids]
+            logger.info(
+                f"Starting Fold {fold} of {num_folds}: train on {len(train_spectra)} spectra, score {len(test_spectra)} spectra"
+            )
+
+            # set number of spectra based on number of iterations and available spectra
+            n_iterations = 5
+            self.params["n_train"] = n_iterations
+            n_spectra = int(len(train_spectra) / n_iterations)
+
+            self.input_df = self.get_data_chunk(
+                mode="spectrum", reference_spectra=train_spectra, n_spectra=n_spectra
+            )
+            self.fit()
+
+            # todo: this also just works in memory as only one df is returned
+            eval_gen = self.get_data_chunk(
+                mode="spectrum", reference_spectra=test_spectra
+            )
+            self.get_results(gen=eval_gen, use_disk=False)
+            fold += 1
