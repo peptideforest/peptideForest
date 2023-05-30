@@ -16,6 +16,7 @@ import peptide_forest.training
 import peptide_forest.file_handling
 import peptide_forest.sample
 import peptide_forest.tools
+from peptide_forest.pf_config import PFConfig
 
 
 class PeptideForest:
@@ -60,6 +61,7 @@ class PeptideForest:
             description="\nPeptide forest completed in"
         )
         self.set_chunk_size()
+        self.config = PFConfig()
 
     def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
@@ -76,7 +78,14 @@ class PeptideForest:
                 self.memory_limit * safety_margin / df_mem / n_files
             )
 
-    def get_data_chunk(self, mode="random", n_lines=None, n_spectra=None, drop=True):
+    def get_data_chunk(
+        self,
+        mode="random",
+        reference_spectra=None,
+        n_lines=None,
+        n_spectra=None,
+        drop=True,
+    ):
         """Get generator that yields data chunks for training."""
         if n_lines is None:
             n_lines = self.max_chunk_size
