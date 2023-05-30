@@ -468,8 +468,8 @@ def train(
 
             # hyperparameters = update_hyperparameters(model)
             model = fit_model(
-                X=train_data[features].astype(float),
-                y=train_data["is_decoy"].astype(float),
+                X=X,
+                y=y,
                 model=model,
                 hyperparameters=hyperparameters,
             )
