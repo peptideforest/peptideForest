@@ -22,6 +22,7 @@ class PFConfig:
     """
     # todo: load from json
     # todo: load from dict
+    # todo: add to pandas or to dict method
     """
     def __init__(self):
         self.q_cut = PFParam()
