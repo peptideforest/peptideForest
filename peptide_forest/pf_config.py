@@ -4,6 +4,8 @@ class PFParam:
         self._value = value
         self.strategy = strategy
         self.history = []
+        self._grid = []
+        self.grid_history = []
 
     def __repr__(self):
         return f"PFParam(value={self.value}, strategy={self.strategy})"
@@ -16,6 +18,15 @@ class PFParam:
     def value(self, value):
         self.history.append(self._value)
         self._value = value
+
+    @property
+    def grid(self):
+        return self._grid
+
+    @grid.setter
+    def grid(self, grid):
+        self.grid_history.append(self._grid)
+        self._grid = grid
 
 
 class PFConfig:
@@ -40,7 +51,12 @@ class PFConfig:
     def __next__(self):
         for name, param in vars(self).items():
             if isinstance(param, PFParam):
-                param.value = self.parse_strategy(param.strategy, param.value)
+                parsed_strategy = self.parse_strategy(param.strategy, param.value)
+                if type(parsed_strategy) is list:
+                    param.grid = parsed_strategy
+                else:
+                    param.value = parsed_strategy
+                    param.grid = [parsed_strategy]
         return self
 
     def parse_strategy(self, strategy: str, value):
