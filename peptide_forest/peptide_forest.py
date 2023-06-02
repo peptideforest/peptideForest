@@ -1,6 +1,7 @@
 """Main Peptide Forest class."""
 import json
 import multiprocessing as mp
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -262,7 +263,14 @@ class PeptideForest:
                 q_cut=self.params.get("q_cut", 0.01),
             )
 
-            output_df.to_csv(self.output_path, mode="w", header=True, index=False)
+            # check if output path exists
+            # todo: note, this does not overwrite the output file if no new path is
+            #   given, could be unexpected
+            if os.path.exists(self.output_path):
+                mode, header = "a", False
+            else:
+                mode, header = "w", True
+            output_df.to_csv(self.output_path, mode=mode, header=header, index=False)
 
     def boost(self):
         """Perform cross-validated training and evaluation.
