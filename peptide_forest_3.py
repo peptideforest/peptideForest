@@ -1,5 +1,6 @@
 import argparse
 import multiprocessing as mp
+from uuid import uuid4
 
 import peptide_forest
 from peptide_forest.visualization import plot_model_performance, plot_q_value_curve, plot_psms_at_qval_threshold
@@ -13,19 +14,15 @@ if __name__ == "__main__":
     parser.add_argument("-m", help="memory limit")
     parser.add_argument("-mp_limit", help="max number of processes to use")
     args = parser.parse_args()
-
+    output = f"./docker_test_data/{uuid4()}_output.csv"
     pf = peptide_forest.PeptideForest(
         config_path="./docker_test_data/config_local.json",  # args.c
-        output="./docker_test_data/test_output.csv",  # args.o,
+        output=output,  # args.o,
         memory_limit=None,  # args.m,
-        max_mp_count=None,  # args.mp_limit,
+        max_mp_count=1,  # args.mp_limit,
     )
     pf.boost()
-    # pf.fit()
-    # pf.get_results()
-    files = {"Test": "./docker_test_data/test_output.csv"}
+    files = {"Test": output}    # output
     title = "Test"
-
     plot_q_value_curve(files, title=title)
     plot_psms_at_qval_threshold(files, title=title)
-    # pf.write_output()
