@@ -62,7 +62,11 @@ class PeptideForest:
             description="\nPeptide forest completed in"
         )
         self.set_chunk_size()
-        self.config = PFConfig()
+        self.config = PFConfig(self.params.get("config", {}))
+        # todo: add default config to knowledge base
+        self.config.n_jobs.value = self.max_mp_count
+        self.initial_config = self.config.copy()
+        self.fold_configs = {}
 
     def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
@@ -195,8 +199,6 @@ class PeptideForest:
     def fit(self):
         """Perform cross-validated training and evaluation."""
 
-        # self.input_df = self.get_data_chunk(mode="spectrum", n_spectra=1000)
-
         with peptide_forest.tools.Timer(description="Trained model in"):
             (
                 self.trained_df,
@@ -204,13 +206,11 @@ class PeptideForest:
                 self.n_psms,
                 self.engine,
                 self.scaler,
+                self.config,
             ) = peptide_forest.training.train(
                 gen=self.input_df,
                 sensitivity=self.params.get("sensitivity", 0.9),
-                q_cut=self.params.get("q_cut", 0.01),
-                q_cut_train=self.params.get("q_cut_train", 0.10),
-                n_train=self.params.get("n_train", 10),
-                max_mp_count=self.max_mp_count,
+                config=self.config,
             )
 
             # todo: dump prepared data for scoring results
@@ -289,24 +289,30 @@ class PeptideForest:
         )
 
         # create folds
-        num_folds = 3
+        num_folds = self.config.n_folds.value
         cv = KFold(n_splits=num_folds, shuffle=True, random_state=42)
         splits = cv.split(self.unique_spectrum_ids)
         fold = 1
         for train_ids, test_ids in splits:
+            self.config = self.initial_config.copy()
             train_spectra = [self.unique_spectrum_ids[i] for i in train_ids]
             test_spectra = [self.unique_spectrum_ids[i] for i in test_ids]
             logger.info(
-                f"Starting Fold {fold} of {num_folds}: train on {len(train_spectra)} spectra, score {len(test_spectra)} spectra"
+                f"Starting Fold {fold} of {num_folds}: train on {len(train_spectra)} "
+                f"spectra, score {len(test_spectra)} spectra"
             )
 
             # set number of spectra based on number of iterations and available spectra
-            n_iterations = 5
-            self.params["n_train"] = n_iterations
-            n_spectra = int(len(train_spectra) / n_iterations)
+            # todo: n_spectra does not need to be dependent on n_train
+            # self.config.n_train.value = 5
+            # self.config.n_spectra.value = int(
+            #     len(train_spectra) / self.config.n_train.value
+            # )
 
             self.input_df = self.get_data_chunk(
-                mode="spectrum", reference_spectra=train_spectra, n_spectra=n_spectra
+                mode="spectrum",
+                reference_spectra=train_spectra,
+                n_spectra=self.config.n_spectra.value,
             )
             self.fit()
 
@@ -315,4 +321,7 @@ class PeptideForest:
                 mode="spectrum", reference_spectra=test_spectra
             )
             self.get_results(gen=eval_gen, use_disk=False)
+
+            logger.info(self.config)
+            self.fold_configs[fold] = self.config
             fold += 1

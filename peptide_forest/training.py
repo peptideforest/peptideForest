@@ -14,6 +14,7 @@ from tqdm import tqdm
 from xgboost import XGBRFRegressor, XGBRegressor
 
 from peptide_forest import knowledge_base
+from peptide_forest.pf_config import PFConfig
 
 
 def find_psms_to_keep(df_scores, score_col):
@@ -224,7 +225,7 @@ def _filter_targets(df, score_col, sensitivity, q_cut, dynamic_q_cut=True):
         return train_targets
 
 
-def get_classifier(hyperparameters):
+def get_classifier(hyperparameters=None):
     """Initialize random forest regressor.
 
     Args:
@@ -235,6 +236,8 @@ def get_classifier(hyperparameters):
     Returns:
         clf (xgboost.XGBRegressor): classifier with added method to score PSMs
     """
+    if hyperparameters is None:
+        hyperparameters = knowledge_base.parameters["hyperparameters"]
     clf = xgboost.XGBRegressor(**hyperparameters)
 
     # Add scoring function
@@ -345,36 +348,58 @@ def update_hyperparameters(model):
     return params
 
 
+def grid_search_fit_model(X, y, config: PFConfig, model=None):
+    param_grid = config.grid()
+    if len(param_grid) > 1:
+        grid_search = GridSearchCV(
+            estimator=get_classifier(),
+            param_grid=param_grid,
+            # todo: change back to 3?
+            cv=2,
+            n_jobs=-1,
+            verbose=2,
+            scoring="neg_mean_squared_error",
+        )
+        grid_search.fit(X, y)
+        hyperparameters = grid_search.best_params_
+    else:
+        hyperparameters = config.param_dict()
+    logger.info(f"Using hyperparameters: {hyperparameters}")
+    model = fit_model(
+        X=X,
+        y=y,
+        model=model,
+        hyperparameters=hyperparameters,
+    )
+    config.update_values(model.get_params())
+    return model, config
+
+
 def train(
     gen,
     sensitivity,
-    q_cut,
-    q_cut_train,
-    n_train,
-    max_mp_count=None,
+    config: PFConfig,
 ):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
         gen (generator yielding pd.DataFrames): input data
         sensitivity (float): proportion of positive results to true positives in the data
-        q_cut (float): q-value cutoff for PSM selection
-        q_cut_train (float): q-value cutoff for PSM selection to use during training
-        n_train (int): number of training epochs
-        max_mp_count (int): maximum number of processes to use for training
+        config (PFConfig): config object containing training parameters
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
         feature_importances (list): list of arrays with the feature importance for all splits over all eval epochs
         psms (dict): number of top target PSMs found after each epoch
         model (xgboost.XGBRegressor): trained model to be used for inference
+        config (PFConfig): config object containing training parameters
     """
     feature_importances = []
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
 
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""))
-    pbar = tqdm(range(n_train))
+    pbar = tqdm(range(config.n_train.value))
 
     for epoch in pbar:
         try:
@@ -384,13 +409,17 @@ def train(
             break
 
         df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
+        features = get_feature_columns(df)
 
         # scoring
+        if epoch != 0 and config.engine_rescore.value is True:
+            logger.info("Rescoring with trained model")
+            X = scaler.transform(df[features].astype(float))
+            df["engine_score"] = model.score_psms(X)
         score_col = get_highest_scoring_engine(df_training)
 
         # get train data
-        features = get_feature_columns(df)
-        train_data = _generate_train_data(df, score_col, sensitivity, q_cut_train)
+        train_data = _generate_train_data(df, score_col, sensitivity, config.q_cut.value)
 
         # Scale and transform data
         scaling_mode = "first"  # todo: could also be "global", "batch", None
@@ -405,77 +434,20 @@ def train(
         X = train_data.loc[:, features].astype(float)
         y = train_data["is_decoy"].astype(float)
 
-        param_grid = {
-            "max_depth": [3, 6, 9],
-            "n_estimators": [20, 50, 100],
-            "learning_rate": [0.01, 0.05],
-            "min_child_weight": [1, 3],
-            "reg_lambda": [10000],
-        }
-
         # training
         if epoch == 0:
             # initial fit
             # find the best hyperparameters & return eval of best model
             # grid search for best params
 
-            hyperparameters = knowledge_base.parameters["hyperparameters"]  # todo
-            grid_search = GridSearchCV(
-                estimator=get_classifier(hyperparameters=hyperparameters),
-                param_grid=param_grid,
-                cv=3,
-                n_jobs=-1,
-                verbose=2,
-                scoring="neg_mean_squared_error",
-            )
-
-            # Fit the grid search to the data
-            grid_search.fit(X, y)
-            hyperparameters = grid_search.best_params_
-
-            hyperparameters["n_jobs"] = max_mp_count
-            logger.info(f"Epoch {epoch}, using hyperparameters: {hyperparameters}")
-            model = fit_model(
-                X=X,
-                y=y,
-                model=None,
-                hyperparameters=hyperparameters,
-            )
+            model, config = grid_search_fit_model(X, y, config=config)
         else:
             # iterative fit
-            # find the best hyperparameters & return eval of best model
-            param_grid = {
-                "n_estimators": list(
-                    range(model.n_estimators, model.n_estimators + 50, 5)
-                ),
-                "reg_lambda": [model.reg_lambda / 2],
-            }
-            grid_search = GridSearchCV(
-                estimator=get_classifier(hyperparameters=hyperparameters),
-                param_grid=param_grid,
-                cv=3,
-                # todo: for n_jobs -1 i do get errors, n_jobs=1 is awfully slow. Fix...
-                n_jobs=1,
-                verbose=2,
-                scoring="neg_mean_squared_error",
-            )
-            grid_search.fit(X, y, xgb_model=model)
-            hyperparameters = grid_search.best_params_
-            logger.info(f"Epoch {epoch}, using hyperparameters: {hyperparameters}")
-
-            # hyperparameters = knowledge_base.parameters["hyperparameters"]  # todo
-            # hyperparameters["n_jobs"] = max_mp_count
-
-            # hyperparameters = update_hyperparameters(model)
-            model = fit_model(
-                X=X,
-                y=y,
-                model=model,
-                hyperparameters=hyperparameters,
-            )
+            model, config = grid_search_fit_model(X, y, config=config, model=model)
 
         # Record feature importances
         feature_importances.extend(model.feature_importances_)
+        config = next(config)
 
         pbar.set_postfix()  # todo: add info
 
@@ -485,11 +457,10 @@ def train(
     # Show feature importances and deviations for eval epochs
     sigma = np.std(feature_importances, axis=0)
     feature_importances = np.mean(feature_importances, axis=0)
-    features = get_feature_columns(df=df_training)
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
         index=list(features),
     ).sort_values("feature_importance", ascending=False)
     logger.debug(f"Feature importances:\n{df_feature_importance}")
 
-    return df, df_feature_importance, psms, model, scaler
+    return df, df_feature_importance, psms, model, scaler, config
