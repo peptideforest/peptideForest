@@ -146,6 +146,7 @@ class PFConfig:
             for name, param in vars(self).items()
             if name in self.xgb_params
             and param.grid is not None
+            and len(param.grid) > 1
         }
 
     def param_dict(self):
