@@ -1,4 +1,5 @@
 """Tools for loading and saving data."""
+from pathlib import Path
 from typing import List
 
 import pandas as pd
@@ -84,7 +85,27 @@ def drop_duplicates_with_log(df: pd.DataFrame, file: str) -> pd.DataFrame:
     df.drop_duplicates(inplace=True)
     rows_dropped = init_len - len(df)
     if rows_dropped != 0:
-        logger.warning(
-            f"{rows_dropped} duplicated rows were dropped in {file}."
-        )
+        logger.warning(f"{rows_dropped} duplicated rows were dropped in {file}.")
     return df
+
+
+def create_dir_if_not_exists(filepath: str, dir_name: str) -> None:
+    """Create directory if it does not exist.
+
+    Args:
+        filepath (str): path to file
+        dir_name (str): name of directory to be created
+    """
+
+    parent_dir = Path(filepath).parent
+
+    dir_path = parent_dir / dir_name
+
+    if not dir_path.exists():
+        dir_path.mkdir()
+        logger.info(f"Created directory {dir_path} in output folder.")
+    else:
+        logger.warning(
+            f"Directory {dir_path} already exists. Writing into this "
+            f"directory. Note this can lead to the overwriting of files."
+        )

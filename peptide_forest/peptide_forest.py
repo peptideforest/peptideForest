@@ -204,6 +204,10 @@ class PeptideForest:
 
     def fit(self, model=None, fold=None):
         """Perform cross-validated training and evaluation."""
+        if self.params.get("save_models", False):
+            peptide_forest.file_handling.create_dir_if_not_exists(
+                self.output_path.parent, "models"
+            )
 
         with peptide_forest.tools.Timer(description="Trained model in"):
             (
@@ -297,6 +301,11 @@ class PeptideForest:
         self.unique_spectrum_ids = list(
             {spec_id for spec_id in self.spectrum_index[first_file].keys()}
         )
+
+        if dump_train_test_data:
+            peptide_forest.file_handling.create_dir_if_not_exists(
+                self.output_path.parent, "tt_data"
+            )
 
         # create folds
         num_folds = self.config.n_folds.value
