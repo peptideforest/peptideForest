@@ -371,6 +371,10 @@ def train(
     gen,
     sensitivity,
     config: PFConfig,
+    model=None,
+    save_models=False,
+    fold=None,
+    save_models_path=None,
 ):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
@@ -378,6 +382,10 @@ def train(
         gen (generator yielding pd.DataFrames): input data
         sensitivity (float): proportion of positive results to true positives in the data
         config (PFConfig): config object containing training parameters
+        model (xgboost.XGBRegressor): model to be used for training
+        save_models (bool): whether to save models after each epoch
+        fold (int): fold number for cross-validation
+        save_models_path (str): path to save models to
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -427,7 +435,7 @@ def train(
         y = train_data["is_decoy"].astype(float)
 
         # training
-        if epoch == 0:
+        if epoch == 0 and model is None:
             # initial fit
             # find the best hyperparameters & return eval of best model
             # grid search for best params
@@ -440,6 +448,11 @@ def train(
         # Record feature importances
         feature_importances.extend(model.feature_importances_)
         config = next(config)
+
+        if save_models:
+            if save_models_path is None:
+                save_models_path = "./models"
+            model.save_model(f"{save_models_path}/model_e{epoch}_f{fold}.json")
 
         pbar.set_postfix()  # todo: add info
 
