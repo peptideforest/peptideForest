@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pandas as pd
+import xgboost
 from loguru import logger
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
@@ -35,7 +36,7 @@ class PeptideForest:
         # Attributes
         with open(config_path, "r") as json_file:
             self.params = json.load(json_file)
-        self.output_path = output
+        self.output_path = Path(output)
         self.memory_limit = peptide_forest.tools.convert_to_bytes(memory_limit)
         self.init_eng = self.params.get("initial_engine", None)
 
@@ -46,6 +47,11 @@ class PeptideForest:
         self.unique_spectrum_ids = None
         self.spectrum_index = {}
         self.buffered_scores = []
+
+        engine_path = self.params.get("engine_path", None)
+        if engine_path is not None:
+            self.engine = xgboost.XGBRegressor()
+            self.engine.load_model(engine_path)
 
         if max_mp_count is None:
             self.max_mp_count = mp.cpu_count() - 1
@@ -196,7 +202,7 @@ class PeptideForest:
                 self.input_df, max_mp_count=self.max_mp_count
             )
 
-    def fit(self):
+    def fit(self, model=None, fold=None):
         """Perform cross-validated training and evaluation."""
 
         with peptide_forest.tools.Timer(description="Trained model in"):
@@ -211,6 +217,10 @@ class PeptideForest:
                 gen=self.input_df,
                 sensitivity=self.params.get("sensitivity", 0.9),
                 config=self.config,
+                model=self.engine,
+                fold=fold,
+                save_models=self.params.get("save_models", False),
+                save_models_path=self.output_path.parent / "models",
             )
 
             # todo: dump prepared data for scoring results
@@ -272,7 +282,7 @@ class PeptideForest:
                 mode, header = "w", True
             output_df.to_csv(self.output_path, mode=mode, header=header, index=False)
 
-    def boost(self):
+    def boost(self, write_results=True, dump_train_test_data=False):
         """Perform cross-validated training and evaluation.
 
         1. Obtaining all unique spectrum ids that are available
@@ -302,6 +312,17 @@ class PeptideForest:
                 f"spectra, score {len(test_spectra)} spectra"
             )
 
+            if dump_train_test_data:
+                with open(
+                    self.output_path.parent / "tt_data" / f"data_f{fold}.json", "w"
+                ) as f:
+                    tt_data = {
+                        "train_spectra": train_spectra,
+                        "test_spectra": test_spectra,
+                        "fold": fold,
+                    }
+                    json.dump(tt_data, f)
+
             # set number of spectra based on number of iterations and available spectra
             # todo: n_spectra does not need to be dependent on n_train
             # self.config.n_train.value = 5
@@ -316,11 +337,12 @@ class PeptideForest:
             )
             self.fit()
 
-            # todo: this also just works in memory as only one df is returned
-            eval_gen = self.get_data_chunk(
-                mode="spectrum", reference_spectra=test_spectra
-            )
-            self.get_results(gen=eval_gen, use_disk=False)
+            if write_results:
+                # todo: this also just works in memory as only one df is returned
+                eval_gen = self.get_data_chunk(
+                    mode="spectrum", reference_spectra=test_spectra
+                )
+                self.get_results(gen=eval_gen, use_disk=False)
 
             logger.info(self.config)
             self.fold_configs[fold] = self.config

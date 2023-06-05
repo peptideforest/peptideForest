@@ -340,14 +340,6 @@ def fit_model(X, y, model=None, hyperparameters=None):
     return clf
 
 
-def update_hyperparameters(model):
-    params = model.get_params()
-    params["n_estimators"] += 10
-    params["max_depth"] += 1
-    params["learning_rate"] *= 0.5
-    return params
-
-
 def grid_search_fit_model(X, y, config: PFConfig, model=None):
     param_grid = config.grid()
     if len(param_grid) > 1:
