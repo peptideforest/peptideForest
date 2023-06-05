@@ -202,7 +202,7 @@ class PeptideForest:
                 self.input_df, max_mp_count=self.max_mp_count
             )
 
-    def fit(self, model=None, fold=None):
+    def fit(self, fold=None):
         """Perform cross-validated training and evaluation."""
         if self.params.get("save_models", False):
             peptide_forest.file_handling.create_dir_if_not_exists(
@@ -344,7 +344,7 @@ class PeptideForest:
                 reference_spectra=train_spectra,
                 n_spectra=self.config.n_spectra.value,
             )
-            self.fit()
+            self.fit(fold=fold)
 
             if write_results:
                 # todo: this also just works in memory as only one df is returned
