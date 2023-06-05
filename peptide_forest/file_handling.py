@@ -97,7 +97,7 @@ def create_dir_if_not_exists(filepath: str, dir_name: str) -> None:
         dir_name (str): name of directory to be created
     """
 
-    parent_dir = Path(filepath).parent
+    parent_dir = Path(filepath)
 
     dir_path = parent_dir / dir_name
 
