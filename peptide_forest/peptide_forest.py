@@ -260,7 +260,7 @@ class PeptideForest:
                 return df
         return None
 
-    def get_results(self, gen=None, use_disk=False):
+    def get_results(self, gen=None, use_disk=False, write_output=True):
         """Interpret classifier output and appends final data to dataframe."""
         with peptide_forest.tools.Timer(description="Processed results in"):
             df = self.score_with_model(gen=gen, use_disk=use_disk)
@@ -284,7 +284,11 @@ class PeptideForest:
                 mode, header = "a", False
             else:
                 mode, header = "w", True
-            output_df.to_csv(self.output_path, mode=mode, header=header, index=False)
+            if write_output:
+                output_df.to_csv(
+                    self.output_path, mode=mode, header=header, index=False
+                )
+            return output_df
 
     def boost(self, write_results=True, dump_train_test_data=False):
         """Perform cross-validated training and evaluation.
@@ -346,12 +350,19 @@ class PeptideForest:
             )
             self.fit(fold=fold)
 
+            # todo: this also just works in memory as only one df is returned
+            eval_gen = self.get_data_chunk(
+                mode="spectrum", reference_spectra=test_spectra
+            )
+
             if write_results:
-                # todo: this also just works in memory as only one df is returned
-                eval_gen = self.get_data_chunk(
-                    mode="spectrum", reference_spectra=test_spectra
-                )
-                self.get_results(gen=eval_gen, use_disk=False)
+                write_output = True
+            else:
+                write_output = False
+
+            _ = self.get_results(
+                gen=eval_gen, use_disk=False, write_output=write_output
+            )
 
             logger.info(self.config)
             self.fold_configs[fold] = self.config
