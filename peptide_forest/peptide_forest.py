@@ -50,7 +50,7 @@ class PeptideForest:
 
         engine_path = self.params.get("engine_path", None)
         if engine_path is not None:
-            self.engine = xgboost.XGBRegressor()
+            self.engine = peptide_forest.training.get_classifier()
             self.engine.load_model(engine_path)
 
         if max_mp_count is None:
