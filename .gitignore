@@ -111,3 +111,11 @@ venv.bak/
 
 # setuptools scm
 version.txt
+
+# macos & pycharm stuff
+../.DS_Store
+../.idea
+.DS_Store
+
+# development
+config_local_full.json
