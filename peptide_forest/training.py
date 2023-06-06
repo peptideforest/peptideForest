@@ -235,6 +235,7 @@ def get_classifier(hyperparameters=None):
     """
     if hyperparameters is None:
         hyperparameters = knowledge_base.parameters["hyperparameters"]
+    hyperparameters["random_state"] = 42
     clf = xgboost.XGBRegressor(**hyperparameters)
 
     # Add scoring function
@@ -333,7 +334,7 @@ def fit_model(X, y, model=None, hyperparameters=None):
             "be updated in training"
         )
     clf = get_classifier(hyperparameters=hyperparameters)
-    clf.fit(X=X, y=y, xgb_model=model)
+    clf.fit(X=X, y=y, xgb_model=model, seed=42)
     return clf
 
 
