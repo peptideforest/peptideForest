@@ -334,7 +334,7 @@ def fit_model(X, y, model=None, hyperparameters=None):
             "be updated in training"
         )
     clf = get_classifier(hyperparameters=hyperparameters)
-    clf.fit(X=X, y=y, xgb_model=model, seed=42)
+    clf.fit(X=X, y=y, xgb_model=model)
     return clf
 
 
