@@ -75,8 +75,6 @@ class PeptideForest:
         self.initial_config = self.config.copy()
         self.fold_configs = {}
 
-        random.seed(42)
-
     def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
         if self.memory_limit is None:
@@ -101,6 +99,9 @@ class PeptideForest:
         drop=True,
     ):
         """Get generator that yields data chunks for training."""
+        # ensure reproducibility
+        random.seed(42)
+
         if n_lines is None:
             n_lines = self.max_chunk_size
 
