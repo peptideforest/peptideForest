@@ -285,10 +285,12 @@ def _generate_train_data(df, score_col, sensitivity, q_cut):
     )
 
     # Get same number of decoys to match targets at random
-    train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
+    train_decoys = train_data[train_data["is_decoy"]].sample(
+        n=len(train_targets), random_state=42
+    )
 
     # Combine to form training dataset
-    return pd.concat([train_targets, train_decoys]).sample(frac=1)
+    return pd.concat([train_targets, train_decoys]).sample(frac=1, random_state=42)
 
 
 def get_highest_scoring_engine(df):
@@ -417,7 +419,9 @@ def train(
         score_col = get_highest_scoring_engine(df_training)
 
         # get train data
-        train_data = _generate_train_data(df, score_col, sensitivity, config.q_cut.value)
+        train_data = _generate_train_data(
+            df, score_col, sensitivity, config.q_cut.value
+        )
 
         # Scale and transform data
         scaling_mode = "first"  # todo: could also be "global", "batch", None
