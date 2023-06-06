@@ -307,7 +307,7 @@ class PeptideForest:
         )
         first_file = list(self.spectrum_index.keys())[0]
         self.unique_spectrum_ids = list(
-            {spec_id for spec_id in self.spectrum_index[first_file].keys()}
+            dict.fromkeys(self.spectrum_index[first_file].keys())
         )
 
         if dump_train_test_data:
