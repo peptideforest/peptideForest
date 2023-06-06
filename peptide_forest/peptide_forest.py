@@ -245,7 +245,8 @@ class PeptideForest:
 
             # predict scores
             feature_columns = peptide_forest.training.get_feature_columns(df)
-            self.scaler = StandardScaler().fit(df.loc[:, feature_columns])
+            if self.scaler is None:
+                self.scaler = StandardScaler().fit(df.loc[:, feature_columns])
             df.loc[:, feature_columns] = self.scaler.transform(
                 df.loc[:, feature_columns]
             )
