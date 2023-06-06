@@ -2,6 +2,7 @@
 import json
 import multiprocessing as mp
 import os
+import random
 from pathlib import Path
 from uuid import uuid4
 
@@ -73,6 +74,8 @@ class PeptideForest:
         self.config.n_jobs.value = self.max_mp_count
         self.initial_config = self.config.copy()
         self.fold_configs = {}
+
+        random.seed(42)
 
     def set_chunk_size(self, safety_margin=0.8):
         """Set max number of lines to be read per file."""
