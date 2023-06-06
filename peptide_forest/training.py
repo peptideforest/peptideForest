@@ -268,6 +268,8 @@ def get_feature_columns(df):
 
 def _generate_train_data(df, score_col, sensitivity, q_cut):
     """Generate training data for classifier by getting best targets and matching decoys"""
+
+    #todo: check if random seed is used correctly here
     # Use only top target and top decoy per spectrum
     train_data = (
         df.sort_values(score_col, ascending=False)
