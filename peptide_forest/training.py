@@ -420,7 +420,7 @@ def train(
         train_data = _generate_train_data(df, score_col, sensitivity, config.q_cut.value)
 
         # Scale and transform data
-        scaling_mode = "first"  # todo: could also be "global", "batch", None
+        scaling_mode = "batch"  # todo: could also be "global", "batch", None
         if scaling_mode == "first" and epoch == 0:
             scaler = StandardScaler().fit(train_data.loc[:, features])
         elif scaling_mode == "batch":
