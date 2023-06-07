@@ -321,9 +321,10 @@ class PeptideForest:
         splits = cv.split(self.unique_spectrum_ids)
         fold = 1
         for train_ids, test_ids in splits:
+            unique_spectrum_ids = self.unique_spectrum_ids.copy()
             self.config = self.initial_config.copy()
-            train_spectra = [self.unique_spectrum_ids[i] for i in train_ids]
-            test_spectra = [self.unique_spectrum_ids[i] for i in test_ids]
+            train_spectra = [unique_spectrum_ids[i] for i in train_ids]
+            test_spectra = [unique_spectrum_ids[i] for i in test_ids]
             logger.info(
                 f"Starting Fold {fold} of {num_folds}: train on {len(train_spectra)} "
                 f"spectra, score {len(test_spectra)} spectra"
