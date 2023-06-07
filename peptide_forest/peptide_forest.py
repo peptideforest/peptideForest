@@ -353,6 +353,7 @@ class PeptideForest:
                 reference_spectra=train_spectra,
                 n_spectra=self.config.n_spectra.value,
             )
+            self.engine = None
             self.fit(fold=fold)
 
             if eval_test_set:
