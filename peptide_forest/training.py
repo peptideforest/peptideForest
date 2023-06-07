@@ -236,6 +236,7 @@ def get_classifier(hyperparameters=None):
     if hyperparameters is None:
         hyperparameters = knowledge_base.parameters["hyperparameters"]
     hyperparameters["random_state"] = 42
+    hyperparameters["nthread"] = 1
     clf = xgboost.XGBRegressor(**hyperparameters)
 
     # Add scoring function

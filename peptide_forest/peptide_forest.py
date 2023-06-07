@@ -318,7 +318,7 @@ class PeptideForest:
         # create folds
         num_folds = self.config.n_folds.value
         cv = KFold(n_splits=num_folds, shuffle=True, random_state=42)
-        splits = cv.split(self.unique_spectrum_ids)
+        splits = cv.split(self.unique_spectrum_ids.copy())
         fold = 1
         for train_ids, test_ids in splits:
             unique_spectrum_ids = self.unique_spectrum_ids.copy()
@@ -353,7 +353,11 @@ class PeptideForest:
                 reference_spectra=train_spectra,
                 n_spectra=self.config.n_spectra.value,
             )
+
+            # todo: this needs to be adabtable to ensure continuing to train a
+            #  pretrained model is possible
             self.engine = None
+
             self.fit(fold=fold)
 
             if eval_test_set:
