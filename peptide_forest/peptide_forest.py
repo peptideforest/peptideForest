@@ -70,7 +70,6 @@ class PeptideForest:
         self.timer = peptide_forest.tools.Timer(
             description="\nPeptide forest completed in"
         )
-        self.set_chunk_size()
         self.config = PFConfig(self.params.get("config", {}))
         # todo: add default config to knowledge base
         self.config.n_jobs.value = self.max_mp_count
@@ -84,7 +83,12 @@ class PeptideForest:
             # todo: determine default / optimal chunk size if no max is given.
             self.max_chunk_size = 1e12
         else:
-            self.prep_ursgal_csvs()
+            sample_dict, sampled_spectra = peptide_forest.sample.generate_sample_dict(
+                index_dict=self.spectrum_index,
+                file=self.file,
+                n_spectra=100,
+            )
+            self.prep_ursgal_csvs(sample_dict=sample_dict)
             self.calc_features()
             n_files = len(self.params["input_files"])
             df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
@@ -96,7 +100,6 @@ class PeptideForest:
             self,
             file,
             reference_spectra=None,
-            n_lines=None,
             n_spectra=None,
             drop=True,
     ):
@@ -112,7 +115,7 @@ class PeptideForest:
                 self.spectrum_index,
                 reference_spectra_ids=reference_spectra,
                 n_spectra=n_spectra,
-                max_chunk_size=n_lines,
+                max_chunk_size=self.max_chunk_size,
             )
 
             if drop is True:
@@ -291,6 +294,10 @@ class PeptideForest:
 
         for file in files:
             self.file = file
+            logger.info(f"Analyzing file {file}...")
+            logger.info("Determining max. chunk size...")
+            self.set_chunk_size()
+
             # reset output path with filename as folder
             peptide_forest.file_handling.create_dir_if_not_exists(
                 self.output_path.parent, Path(self.file).stem

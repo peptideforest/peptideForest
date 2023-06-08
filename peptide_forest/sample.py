@@ -46,6 +46,9 @@ def generate_sample_dict(
         sample_dict (dict): dictionary of lines to keep per input file
         sampled_spectra (list): list of sampled spectrum ids
     """
+    if max_chunk_size is None:
+        # todo: hacky
+        max_chunk_size = 1e12
     if reference_spectra_ids is not None:
         spectra_ids = reference_spectra_ids
     else:
