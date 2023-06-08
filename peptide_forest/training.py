@@ -254,23 +254,21 @@ def get_feature_columns(df):
     Returns:
         features (list): list of column names to be used as features
     """
-    features = set(df.columns).difference(
-        set(
-            [
-                c
-                for c in df.columns
-                for r in knowledge_base.parameters["non_trainable_columns"]
-                if c.startswith(r)
-            ]
+    features = [
+        c
+        for c in df.columns
+        if not any(
+            c.startswith(r) for r in knowledge_base.parameters["non_trainable_columns"]
         )
-    )
-    return list(features)
+    ]
+
+    return features
 
 
 def _generate_train_data(df, score_col, sensitivity, q_cut):
     """Generate training data for classifier by getting best targets and matching decoys"""
 
-    #todo: check if random seed is used correctly here
+    # todo: check if random seed is used correctly here
     # Use only top target and top decoy per spectrum
     train_data = (
         df.sort_values(score_col, ascending=False)
