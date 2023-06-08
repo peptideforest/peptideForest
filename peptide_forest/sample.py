@@ -5,24 +5,6 @@ from collections import defaultdict
 import peptide_forest.tools
 
 
-def sample_random_lines(file, n_lines):
-    """Randomly generate a list of lines to skip when loading a file that only n_lines
-    remain.
-
-    Args:
-        file (str): path to file
-        n_lines (int): number of lines to keep
-
-    Returns:
-        skip_lines (list): list of lines to skip
-    """
-    if n_lines is None:
-        return None
-    total_lines = sum(1 for l in open(file))
-    skip_lines = random.sample(range(1, total_lines), total_lines - n_lines)
-    return skip_lines
-
-
 def generate_spectrum_index(input_files):
     """Generate spectrum index for all input files.
 
@@ -47,8 +29,9 @@ def generate_spectrum_index(input_files):
     return peptide_forest.tools.defaultdict_to_dict(spectrum_index)
 
 
-def generate_sample_dict(index_dict, reference_spectra_ids=None, n_spectra=None,
-                         max_chunk_size=None):
+def generate_sample_dict(
+        index_dict, reference_spectra_ids=None, n_spectra=None, max_chunk_size=None
+):
     """Generate a sample dict to get all data lines for a given number of spectra.
 
     Args:

@@ -10,7 +10,7 @@ import peptide_forest.sample
 
 
 def load_csv_with_sampling_information(
-    file, cols: List[str], n_lines: int = None, sample_dict: dict = None
+        file, cols: List[str], sample_dict: dict
 ) -> pd.DataFrame:
     """Load a csv file with sampling information given as either the number of lines to
     sample or a dictionary of lines to keep.
@@ -18,33 +18,18 @@ def load_csv_with_sampling_information(
     Args:
         file (str): path to csv file
         cols (list): columns to be loaded
-        n_lines (int, None): number of lines to sample
-        sample_dict (dict, None): dictionary of lines to keep
+        sample_dict (dict): dictionary of lines to keep
 
     Returns:
         df (pd.DataFrame): input data
     """
-    if n_lines is not None and sample_dict is not None:
-        logger.warning("Both n_lines and sample_dict are set. Using sample_dict.")
-
     file_size = sum(1 for l in open(file))
-    if n_lines is None:
-        skip_idx = None
-    elif file_size < n_lines:
-        logger.warning(
-            f"File {file} is too small to sample {n_lines} lines. Sampling {file_size} "
-            f"lines instead."
-        )
-        skip_idx = None
-    else:
-        skip_idx = peptide_forest.sample.sample_random_lines(file, n_lines)
 
-    if sample_dict is not None:
-        lines_to_keep = sample_dict.get(file, None)
-        if lines_to_keep is None:
-            return None
-        else:
-            skip_idx = list(set(range(1, file_size)) - set(lines_to_keep))
+    lines_to_keep = sample_dict.get(file, None)
+    if lines_to_keep is None:
+        return None
+    else:
+        skip_idx = list(set(range(1, file_size)) - set(lines_to_keep))
 
     df = pd.read_csv(file, usecols=cols, skiprows=skip_idx)
 

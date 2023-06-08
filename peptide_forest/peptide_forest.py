@@ -7,18 +7,17 @@ from pathlib import Path
 from uuid import uuid4
 
 import pandas as pd
-import xgboost
 from loguru import logger
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 
+import peptide_forest.file_handling
 import peptide_forest.knowledge_base
 import peptide_forest.prep
 import peptide_forest.results
-import peptide_forest.training
-import peptide_forest.file_handling
 import peptide_forest.sample
 import peptide_forest.tools
+import peptide_forest.training
 from peptide_forest.pf_config import PFConfig
 
 
@@ -92,7 +91,6 @@ class PeptideForest:
 
     def get_data_chunk(
         self,
-        mode="random",
         reference_spectra=None,
         n_lines=None,
         n_spectra=None,
@@ -105,46 +103,38 @@ class PeptideForest:
         if n_lines is None:
             n_lines = self.max_chunk_size
 
-        if mode == "spectrum":
-            # todo: maybe redundant to generate sample_dict here (generated in boost)
-            self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
-                self.params["input_files"].keys()
+        # todo: maybe redundant to generate sample_dict here (generated in boost)
+        self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
+            self.params["input_files"].keys()
+        )
+        # todo: also hacky
+        while True:
+            (
+                sample_dict,
+                sampled_spectra,
+            ) = peptide_forest.sample.generate_sample_dict(
+                self.spectrum_index,
+                reference_spectra_ids=reference_spectra,
+                n_spectra=n_spectra,
+                max_chunk_size=n_lines,
             )
-            # todo: also hacky
-            while True:
-                (
-                    sample_dict,
-                    sampled_spectra,
-                ) = peptide_forest.sample.generate_sample_dict(
-                    self.spectrum_index,
-                    reference_spectra_ids=reference_spectra,
-                    n_spectra=n_spectra,
-                    max_chunk_size=n_lines,
-                )
 
-                # todo: make this less hacky
-                if drop is True:
-                    first_file = list(self.spectrum_index.keys())[0]
-                    spectra = self.spectrum_index[first_file]
-                    spectra = {
-                        k: v for k, v in spectra.items() if k not in sampled_spectra
-                    }
-                    self.spectrum_index[first_file] = spectra
-                    if len(sampled_spectra) == 0:
-                        logger.info("No more spectra to sample. Exiting.")
-                        break
+            # todo: make this less hacky
+            if drop is True:
+                first_file = list(self.spectrum_index.keys())[0]
+                spectra = self.spectrum_index[first_file]
+                spectra = {k: v for k, v in spectra.items() if k not in sampled_spectra}
+                self.spectrum_index[first_file] = spectra
+                if len(sampled_spectra) == 0:
+                    logger.info("No more spectra to sample. Exiting.")
+                    break
 
-                logger.info(f"Sampling {n_spectra} spectra.")
-                self.prep_ursgal_csvs(sample_dict=sample_dict)
-                self.calc_features()
-                yield self.input_df
-        elif mode == "random":
-            while True:
-                self.prep_ursgal_csvs(n_lines=n_lines)
-                self.calc_features()
-                yield self.input_df
+            logger.info(f"Sampling {n_spectra} spectra.")
+            self.prep_ursgal_csvs(sample_dict=sample_dict)
+            self.calc_features()
+            yield self.input_df
 
-    def prep_ursgal_csvs(self, n_lines: int = None, sample_dict=None):
+    def prep_ursgal_csvs(self, sample_dict=None):
         """Combine engine files named in ursgal dict and preprocesses dataframe for
         training.
         """
@@ -160,7 +150,6 @@ class PeptideForest:
             df = peptide_forest.file_handling.load_csv_with_sampling_information(
                 file,
                 shared_cols + [info["score_col"]],
-                n_lines=n_lines,
                 sample_dict=sample_dict,
             )
 
@@ -235,7 +224,7 @@ class PeptideForest:
 
     def score_with_model(self, gen=None, use_disk=False):
         if gen is None:
-            gen = self.get_data_chunk(mode="spectrum")
+            gen = self.get_data_chunk()
         while True:
             # iterative loading of data
             try:
@@ -349,7 +338,6 @@ class PeptideForest:
             # )
 
             self.input_df = self.get_data_chunk(
-                mode="spectrum",
                 reference_spectra=train_spectra,
                 n_spectra=self.config.n_spectra.value,
             )
@@ -362,9 +350,7 @@ class PeptideForest:
 
             if eval_test_set:
                 # todo: this also just works in memory as only one df is returned
-                eval_gen = self.get_data_chunk(
-                    mode="spectrum", reference_spectra=test_spectra
-                )
+                eval_gen = self.get_data_chunk(reference_spectra=test_spectra)
 
                 if write_results:
                     write_output = True
