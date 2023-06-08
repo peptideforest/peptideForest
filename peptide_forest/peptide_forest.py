@@ -359,7 +359,6 @@ class PeptideForest:
                 self.fit(fold=fold)
 
                 if eval_test_set:
-                    # todo: this also just works in memory as only one df is returned
                     eval_gen = self.get_data_chunk(
                         file=self.file, reference_spectra=test_spectra
                     )
