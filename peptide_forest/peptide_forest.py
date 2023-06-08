@@ -46,7 +46,9 @@ class PeptideForest:
         self.scaler = None
         self.file = None
         self.unique_spectrum_ids = None
-        self.spectrum_index = {}
+        self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
+            self.params["input_files"].keys()
+        )
         self.buffered_scores = []
 
         engine_path = self.params.get("engine_path", None)
@@ -102,13 +104,6 @@ class PeptideForest:
         # ensure reproducibility
         random.seed(42)
 
-        if n_lines is None:
-            n_lines = self.max_chunk_size
-
-        # todo: maybe redundant to generate sample_dict here (generated in boost)
-        self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
-            self.params["input_files"].keys()
-        )
         while True:
             (
                 sample_dict,
@@ -289,15 +284,7 @@ class PeptideForest:
             eval_test_set=True,
             retrain=False,
     ):
-        """Perform cross-validated training and evaluation.
-
-        1. Obtaining all unique spectrum ids that are available
-        2.
-        """
-        # create index
-        self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
-            self.params["input_files"].keys()
-        )
+        """Perform cross-validated training and evaluation."""
         files = list(self.spectrum_index.keys())
         if len(files) > 1:
             logger.info("multiple files found in input, analyzing file by file.")
