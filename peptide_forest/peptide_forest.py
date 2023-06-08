@@ -44,6 +44,7 @@ class PeptideForest:
         self.max_chunk_size = None
         self.engine = None
         self.scaler = None
+        self.file = None
         self.unique_spectrum_ids = None
         self.spectrum_index = {}
         self.buffered_scores = []
@@ -81,7 +82,7 @@ class PeptideForest:
             # todo: determine default / optimal chunk size if no max is given.
             self.max_chunk_size = 1e12
         else:
-            self.prep_ursgal_csvs(n_lines=10)
+            self.prep_ursgal_csvs()
             self.calc_features()
             n_files = len(self.params["input_files"])
             df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
@@ -90,11 +91,12 @@ class PeptideForest:
             )
 
     def get_data_chunk(
-        self,
-        reference_spectra=None,
-        n_lines=None,
-        n_spectra=None,
-        drop=True,
+            self,
+            file,
+            reference_spectra=None,
+            n_lines=None,
+            n_spectra=None,
+            drop=True,
     ):
         """Get generator that yields data chunks for training."""
         # ensure reproducibility
@@ -107,7 +109,6 @@ class PeptideForest:
         self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
             self.params["input_files"].keys()
         )
-        # todo: also hacky
         while True:
             (
                 sample_dict,
@@ -119,12 +120,10 @@ class PeptideForest:
                 max_chunk_size=n_lines,
             )
 
-            # todo: make this less hacky
             if drop is True:
-                first_file = list(self.spectrum_index.keys())[0]
-                spectra = self.spectrum_index[first_file]
+                spectra = self.spectrum_index[file]
                 spectra = {k: v for k, v in spectra.items() if k not in sampled_spectra}
-                self.spectrum_index[first_file] = spectra
+                self.spectrum_index[file] = spectra
                 if len(sampled_spectra) == 0:
                     logger.info("No more spectra to sample. Exiting.")
                     break
@@ -224,7 +223,7 @@ class PeptideForest:
 
     def score_with_model(self, gen=None, use_disk=False):
         if gen is None:
-            gen = self.get_data_chunk()
+            gen = self.get_data_chunk(file=self.file)
         while True:
             # iterative loading of data
             try:
@@ -283,84 +282,101 @@ class PeptideForest:
                 )
             return output_df
 
-    def boost(self, write_results=True, dump_train_test_data=False, eval_test_set=True):
+    def boost(
+            self,
+            write_results=True,
+            dump_train_test_data=False,
+            eval_test_set=True,
+            retrain=False,
+    ):
         """Perform cross-validated training and evaluation.
 
         1. Obtaining all unique spectrum ids that are available
         2.
         """
         # create index
-        # todo: note [0] is a hack to get the first file, but several files should be supported
         self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
             self.params["input_files"].keys()
         )
-        first_file = list(self.spectrum_index.keys())[0]
-        self.unique_spectrum_ids = list(
-            dict.fromkeys(self.spectrum_index[first_file].keys())
-        )
+        files = list(self.spectrum_index.keys())
+        if len(files) > 1:
+            logger.info("multiple files found in input, analyzing file by file.")
 
-        if dump_train_test_data:
+        for file in files:
+            self.file = file
+            # reset output path with filename as folder
             peptide_forest.file_handling.create_dir_if_not_exists(
-                self.output_path.parent, "tt_data"
+                self.output_path.parent, Path(self.file).stem
+            )
+            self.output_path = (
+                    self.output_path.parent / Path(
+                self.file).stem / self.output_path.name
             )
 
-        # create folds
-        num_folds = self.config.n_folds.value
-        cv = KFold(n_splits=num_folds, shuffle=True, random_state=42)
-        splits = cv.split(self.unique_spectrum_ids.copy())
-        fold = 1
-        for train_ids, test_ids in splits:
-            unique_spectrum_ids = self.unique_spectrum_ids.copy()
-            self.config = self.initial_config.copy()
-            train_spectra = [unique_spectrum_ids[i] for i in train_ids]
-            test_spectra = [unique_spectrum_ids[i] for i in test_ids]
-            logger.info(
-                f"Starting Fold {fold} of {num_folds}: train on {len(train_spectra)} "
-                f"spectra, score {len(test_spectra)} spectra"
+            self.unique_spectrum_ids = list(
+                dict.fromkeys(self.spectrum_index[file].keys())
             )
 
             if dump_train_test_data:
-                with open(
-                    self.output_path.parent / "tt_data" / f"data_f{fold}.json", "w"
-                ) as f:
-                    tt_data = {
-                        "train_spectra": train_spectra,
-                        "test_spectra": test_spectra,
-                        "fold": fold,
-                    }
-                    json.dump(tt_data, f)
-
-            # set number of spectra based on number of iterations and available spectra
-            # todo: n_spectra does not need to be dependent on n_train
-            # self.config.n_train.value = 5
-            # self.config.n_spectra.value = int(
-            #     len(train_spectra) / self.config.n_train.value
-            # )
-
-            self.input_df = self.get_data_chunk(
-                reference_spectra=train_spectra,
-                n_spectra=self.config.n_spectra.value,
-            )
-
-            # todo: this needs to be adabtable to ensure continuing to train a
-            #  pretrained model is possible
-            self.engine = None
-
-            self.fit(fold=fold)
-
-            if eval_test_set:
-                # todo: this also just works in memory as only one df is returned
-                eval_gen = self.get_data_chunk(reference_spectra=test_spectra)
-
-                if write_results:
-                    write_output = True
-                else:
-                    write_output = False
-
-                _ = self.get_results(
-                    gen=eval_gen, use_disk=False, write_output=write_output
+                peptide_forest.file_handling.create_dir_if_not_exists(
+                    self.output_path.parent, "tt_data"
                 )
 
-            logger.info(self.config)
-            self.fold_configs[fold] = self.config
-            fold += 1
+            # create folds
+            num_folds = self.config.n_folds.value
+            cv = KFold(n_splits=num_folds, shuffle=True, random_state=42)
+            splits = cv.split(self.unique_spectrum_ids.copy())
+            fold = 1
+            for train_ids, test_ids in splits:
+                unique_spectrum_ids = self.unique_spectrum_ids.copy()
+                self.config = self.initial_config.copy()
+                train_spectra = [unique_spectrum_ids[i] for i in train_ids]
+                test_spectra = [unique_spectrum_ids[i] for i in test_ids]
+                logger.info(
+                    f"Starting Fold {fold} of {num_folds}: train on {len(train_spectra)} "
+                    f"spectra, score {len(test_spectra)} spectra"
+                )
+
+                if dump_train_test_data:
+                    with open(
+                            self.output_path.parent
+                            / "tt_data"
+                            / f"data_f{fold}.json",
+                            "w",
+                    ) as f:
+                        tt_data = {
+                            "train_spectra": train_spectra,
+                            "test_spectra": test_spectra,
+                            "fold": fold,
+                        }
+                        json.dump(tt_data, f)
+
+                self.input_df = self.get_data_chunk(
+                    file=self.file,
+                    reference_spectra=train_spectra,
+                    n_spectra=self.config.n_spectra.value,
+                )
+
+                if not retrain:
+                    self.engine = None
+
+                self.fit(fold=fold)
+
+                if eval_test_set:
+                    # todo: this also just works in memory as only one df is returned
+                    eval_gen = self.get_data_chunk(
+                        file=self.file, reference_spectra=test_spectra
+                    )
+
+                    if write_results:
+                        write_output = True
+                    else:
+                        write_output = False
+
+                    _ = self.get_results(
+                        gen=eval_gen, use_disk=False, write_output=write_output
+                    )
+
+                logger.info(self.config)
+                self.fold_configs[fold] = self.config
+                fold += 1

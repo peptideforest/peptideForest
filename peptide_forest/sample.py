@@ -30,12 +30,14 @@ def generate_spectrum_index(input_files):
 
 
 def generate_sample_dict(
-        index_dict, reference_spectra_ids=None, n_spectra=None, max_chunk_size=None
+        index_dict, file, reference_spectra_ids=None, n_spectra=None,
+        max_chunk_size=None
 ):
     """Generate a sample dict to get all data lines for a given number of spectra.
 
     Args:
         index_dict (dict): dictionary indexing locations of spectrum ids in input files
+        file (str): file to be sampled
         reference_spectra_ids (list, None): list of reference spectra ids, used for crossvalidation
         n_spectra (int, None): number of spectra to sample
         max_chunk_size (int, None): maximum number of lines to sample
@@ -44,12 +46,10 @@ def generate_sample_dict(
         sample_dict (dict): dictionary of lines to keep per input file
         sampled_spectra (list): list of sampled spectrum ids
     """
-    # todo: hack, fix
-    first_file = list(index_dict.keys())[0]
     if reference_spectra_ids is not None:
         spectra_ids = reference_spectra_ids
     else:
-        spectra_ids = list(index_dict[first_file].keys())
+        spectra_ids = list(index_dict[file].keys())
     # spectra_ids = [s for s in spectra_ids if s in reference_spectra_ids]
     if n_spectra is None:
         n_spectra = len(spectra_ids)
@@ -60,7 +60,7 @@ def generate_sample_dict(
         spectrum_id = random.choice(spectra_ids)
         sampled_spectra.append(spectrum_id)
         spectra_ids.remove(spectrum_id)
-        spectrum_info = index_dict[first_file][spectrum_id]
+        spectrum_info = index_dict[file][spectrum_id]
         sampled_lines += peptide_forest.tools.count_elements_in_nested_dict(
             spectrum_info
         )
