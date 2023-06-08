@@ -1,10 +1,8 @@
 import argparse
 import multiprocessing as mp
-import random
 from uuid import uuid4
 
 import peptide_forest
-from peptide_forest.visualization import plot_model_performance, plot_q_value_curve, plot_psms_at_qval_threshold
 
 if __name__ == "__main__":
     mp.freeze_support()
@@ -23,7 +21,3 @@ if __name__ == "__main__":
         max_mp_count=1,  # args.mp_limit,
     )
     pf.boost()
-    files = {"Test": output}    # output
-    title = "Test"
-    plot_q_value_curve(files, title=title)
-    plot_psms_at_qval_threshold(files, title=title)

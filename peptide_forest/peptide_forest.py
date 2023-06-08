@@ -106,13 +106,17 @@ class PeptideForest:
         """Get generator that yields data chunks for training."""
         # ensure reproducibility
         random.seed(42)
+        self.spectrum_index = peptide_forest.sample.generate_spectrum_index(
+            self.params["input_files"].keys()
+        )
 
         while True:
             (
                 sample_dict,
                 sampled_spectra,
             ) = peptide_forest.sample.generate_sample_dict(
-                self.spectrum_index,
+                self.spectrum_index.copy(),
+                file,
                 reference_spectra_ids=reference_spectra,
                 n_spectra=n_spectra,
                 max_chunk_size=self.max_chunk_size,
@@ -333,9 +337,7 @@ class PeptideForest:
 
                 if dump_train_test_data:
                     with open(
-                            self.output_path.parent
-                            / "tt_data"
-                            / f"data_f{fold}.json",
+                            self.output_path.parent / "tt_data" / f"data_f{fold}.json",
                             "w",
                     ) as f:
                         tt_data = {
