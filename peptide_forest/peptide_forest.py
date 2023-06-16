@@ -276,6 +276,7 @@ class PeptideForest:
                     score_collection.append(
                         df[["spectrum_id", "sequence", "is_decoy", *score_cols]]
                     )
+                    del df
                 else:
                     score_collection.append(df)
 
@@ -289,6 +290,7 @@ class PeptideForest:
                 sensitivity=self.params.get("sensitivity", 0.9),
                 q_cut=self.params.get("q_cut", 0.01),
             )
+            del total_scores
 
             if write_output:
                 with pd.read_csv(temp_path, chunksize=self.max_chunk_size) as reader:
