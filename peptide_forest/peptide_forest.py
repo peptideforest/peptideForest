@@ -4,7 +4,6 @@ import multiprocessing as mp
 import os
 import random
 from pathlib import Path
-from uuid import uuid4
 
 import pandas as pd
 from loguru import logger
@@ -223,7 +222,7 @@ class PeptideForest:
 
             # todo: dump prepared data for scoring results
 
-    def score_with_model(self, gen=None, use_disk=False):
+    def score_with_model(self, gen=None):
         if gen is None:
             gen = self.get_data_chunk(file=self.file)
         while True:
@@ -245,44 +244,74 @@ class PeptideForest:
                 df[feature_columns].astype(float)
             )
 
-            if use_disk:
-                p = Path(f"./temp/{uuid4()}.pkl")
-                df.to_pickle(p)
-                self.buffered_scores.append(p)
-            else:
-                # todo: assumes whole df can be returned
-                return df
+            yield df
         return None
 
-    def get_results(self, gen=None, use_disk=False, write_output=True):
+    def get_results(self, gen=None, write_output=True):
         """Interpret classifier output and appends final data to dataframe."""
         with peptide_forest.tools.Timer(description="Processed results in"):
-            df = self.score_with_model(gen=gen, use_disk=use_disk)
-            if use_disk:
-                # todo: only works in memory this way
-                df = pd.concat([pd.read_pickle(p) for p in self.buffered_scores])
-                self.buffered_scores = []
+            scored_gen = self.score_with_model(gen=gen)
+            temp_path = self.output_path.parent / "temp.csv"
+            score_collection = []
+
+            while True:
+                try:
+                    df = next(scored_gen)
+                    df["modifications"].replace(
+                        {"None": None}, inplace=True, regex=False
+                    )
+                except StopIteration:
+                    break
+
+                # check if output path exists
+                # todo: note, this does not overwrite the output file if no new path is
+                #   given, could be unexpected
+                if os.path.exists(temp_path):
+                    mode, header = "a", False
+                else:
+                    mode, header = "w", True
+                if write_output:
+                    df.to_csv(temp_path, mode=mode, header=header, index=False)
+                    score_cols = [c for c in df.columns if "score_processed_" in c]
+                    score_collection.append(
+                        df[["spectrum_id", "sequence", "is_decoy", *score_cols]]
+                    )
+                else:
+                    score_collection.append(df)
+
+            total_scores = pd.concat(score_collection)
+            del score_collection
 
             # process results
             output_df = peptide_forest.results.process_final(
-                df=df,
+                df=total_scores,
                 init_eng=self.init_eng,
                 sensitivity=self.params.get("sensitivity", 0.9),
                 q_cut=self.params.get("q_cut", 0.01),
             )
 
-            # check if output path exists
-            # todo: note, this does not overwrite the output file if no new path is
-            #   given, could be unexpected
-            if os.path.exists(self.output_path):
-                mode, header = "a", False
-            else:
-                mode, header = "w", True
             if write_output:
-                output_df.to_csv(
-                    self.output_path, mode=mode, header=header, index=False
-                )
-            return output_df
+                with pd.read_csv(temp_path, chunksize=self.max_chunk_size) as reader:
+                    for chunk in reader:
+                        chunk = chunk.merge(
+                            output_df.copy(),
+                            how="left",
+                            on=["spectrum_id", "sequence"],
+                        )
+                        # check if output path exists
+                        # todo: note, this does not overwrite the output file if no new path is
+                        #   given, could be unexpected
+                        if os.path.exists(self.output_path):
+                            mode, header = "a", False
+                        else:
+                            mode, header = "w", True
+                        chunk.to_csv(
+                            self.output_path, mode=mode, header=header, index=False
+                        )
+                os.remove(temp_path)
+                return None
+            else:
+                return output_df
 
     def boost(
             self,
@@ -363,14 +392,7 @@ class PeptideForest:
                         file=self.file, reference_spectra=test_spectra
                     )
 
-                    if write_results:
-                        write_output = True
-                    else:
-                        write_output = False
-
-                    _ = self.get_results(
-                        gen=eval_gen, use_disk=False, write_output=write_output
-                    )
+                    _ = self.get_results(gen=eval_gen, write_output=write_results)
 
                 logger.info(self.config)
                 self.fold_configs[fold] = self.config

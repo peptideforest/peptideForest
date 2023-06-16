@@ -46,6 +46,4 @@ def process_final(
         rank_col = f"rank_{score_col.split('score_processed_')[-1]}"
         df[rank_col] = df[score_col].rank(ascending=False, method="first")
 
-        df["modifications"].replace({"None": None}, inplace=True, regex=False)
-
     return df
