@@ -321,7 +321,6 @@ class PeptideForest:
             dump_train_test_data=False,
             eval_test_set=True,
             retrain=False,
-            train_data_generator=None,
     ):
         """Perform cross-validated training and evaluation."""
         files = list(self.spectrum_index.keys())
@@ -379,14 +378,11 @@ class PeptideForest:
                         }
                         json.dump(tt_data, f)
 
-                if train_data_generator is not None:
-                    self.input_df = self.get_data_chunk(
-                        file=self.file,
-                        reference_spectra=train_spectra,
-                        n_spectra=self.config.n_spectra.value,
-                    )
-                else:
-                    self.input_df = train_data_generator
+                self.input_df = self.get_data_chunk(
+                    file=self.file,
+                    reference_spectra=train_spectra,
+                    n_spectra=self.config.n_spectra.value,
+                )
 
                 if not retrain:
                     self.engine = None
