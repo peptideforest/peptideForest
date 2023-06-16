@@ -116,7 +116,7 @@ class PeptideForest:
             ) = peptide_forest.sample.generate_sample_dict(
                 self.spectrum_index.copy(),
                 file,
-                reference_spectra_ids=reference_spectra,
+                reference_spectra_ids=reference_spectra.copy(),
                 n_spectra=n_spectra,
                 max_chunk_size=self.max_chunk_size,
             )
