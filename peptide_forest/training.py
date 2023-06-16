@@ -417,7 +417,9 @@ def train(
             logger.info("Rescoring with trained model")
             X = scaler.transform(df[features].astype(float))
             df["engine_score"] = model.score_psms(X)
-        score_col = get_highest_scoring_engine(df_training)
+            score_col = "engine_score"
+        else:
+            score_col = get_highest_scoring_engine(df_training)
 
         # get train data
         train_data = _generate_train_data(
