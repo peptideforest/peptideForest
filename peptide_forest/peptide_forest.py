@@ -110,13 +110,17 @@ class PeptideForest:
         )
 
         while True:
+            if not drop:
+                ref = reference_spectra.copy()
+            else:
+                ref = reference_spectra
             (
                 sample_dict,
                 sampled_spectra,
             ) = peptide_forest.sample.generate_sample_dict(
                 self.spectrum_index.copy(),
                 file,
-                reference_spectra_ids=reference_spectra.copy(),
+                reference_spectra_ids=ref,
                 n_spectra=n_spectra,
                 max_chunk_size=self.max_chunk_size,
             )
