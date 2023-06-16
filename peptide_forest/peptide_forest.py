@@ -279,7 +279,7 @@ class PeptideForest:
                 else:
                     score_collection.append(df)
 
-            total_scores = pd.concat(score_collection)
+            total_scores = pd.concat(score_collection).reset_index(drop=True)
             del score_collection
 
             # process results
