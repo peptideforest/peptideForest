@@ -321,6 +321,7 @@ class PeptideForest:
             dump_train_test_data=False,
             eval_test_set=True,
             retrain=False,
+            drop_used_spectra=True,
     ):
         """Perform cross-validated training and evaluation."""
         files = list(self.spectrum_index.keys())
@@ -382,6 +383,7 @@ class PeptideForest:
                     file=self.file,
                     reference_spectra=train_spectra,
                     n_spectra=self.config.n_spectra.value,
+                    drop=drop_used_spectra,
                 )
 
                 if not retrain:
