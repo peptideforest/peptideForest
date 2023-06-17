@@ -133,7 +133,7 @@ class PeptideForest:
                     logger.info("No more spectra to sample. Exiting.")
                     break
 
-            logger.info(f"Sampling {n_spectra} spectra.")
+            logger.info(f"Sampling {len(sampled_spectra)} spectra.")
             self.prep_ursgal_csvs(sample_dict=sample_dict)
             self.calc_features()
             yield self.input_df
