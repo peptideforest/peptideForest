@@ -18,6 +18,5 @@ if __name__ == "__main__":
         config_path="./docker_test_data/config_local.json",  # args.c
         output=output,  # args.o,
         memory_limit=None,  # args.m,
-        max_mp_count=1,  # args.mp_limit,
     )
     pf.boost()

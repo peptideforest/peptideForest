@@ -55,23 +55,29 @@ class PeptideForest:
             self.engine = peptide_forest.training.get_classifier()
             self.engine.load_model(engine_path)
 
-        if max_mp_count is None:
-            self.max_mp_count = mp.cpu_count() - 1
-        else:
-            try:
-                self.max_mp_count = int(max_mp_count)
-            except ValueError:
-                logger.error(
-                    "Invalid input for max_mp_count. Using available cores - 1."
-                )
-                self.max_mp_count = mp.cpu_count() - 1
+        if max_mp_count is not None:
+            logger.warning("max_mp_count is deprecated. Use n_jobs in config instead.")
 
         self.timer = peptide_forest.tools.Timer(
             description="\nPeptide forest completed in"
         )
         self.config = PFConfig(self.params.get("config", {}))
         # todo: add default config to knowledge base
-        self.config.n_jobs.value = self.max_mp_count
+        # todo: remove max_mp_count and only use config. Redundancy is not necessary.
+        if self.config.n_jobs.value is None:
+            self.config.n_jobs.value = mp.cpu_count() - 1
+        if self.config.n_jobs.value > mp.cpu_count():
+            logger.warning(
+                f"n_jobs ({self.config.n_jobs.value}) > cpu_count ({mp.cpu_count()}). "
+                f"Setting n_jobs to {mp.cpu_count() - 1}."
+            )
+            self.config.n_jobs.value = mp.cpu_count() - 1
+        if type(self.config.n_jobs.value) is not int:
+            logger.warning(
+                f"n_jobs ({self.config.n_jobs.value}) is not an integer. "
+                f"Setting n_jobs to {mp.cpu_count() - 1}."
+            )
+            self.config.n_jobs.value = mp.cpu_count() - 1
         self.initial_config = self.config.copy()
         self.fold_configs = {}
 
@@ -193,10 +199,10 @@ class PeptideForest:
         logger.info("Calculating features...")
         with peptide_forest.tools.Timer("Computed features"):
             self.input_df = peptide_forest.prep.calc_row_features(
-                self.input_df, max_mp_count=self.max_mp_count
+                self.input_df, max_mp_count=self.config.n_jobs.value
             )
             self.input_df = peptide_forest.prep.calc_col_features(
-                self.input_df, max_mp_count=self.max_mp_count
+                self.input_df, max_mp_count=self.config.n_jobs.value
             )
 
     def fit(self, fold=None):
