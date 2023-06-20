@@ -93,10 +93,10 @@ class PeptideForest:
                 file=self.file,
                 n_spectra=100,
             )
-            self.prep_ursgal_csvs(sample_dict=sample_dict)
-            self.calc_features()
+            df = self.prep_ursgal_csvs(sample_dict=sample_dict)
+            df = self.calc_features(df)
             n_files = len(self.params["input_files"])
-            df_mem = self.input_df.memory_usage(deep=True).sum() / len(self.input_df)
+            df_mem = df.memory_usage(deep=True).sum() / len(self.input_df)
             self.max_chunk_size = int(
                 self.memory_limit * safety_margin / df_mem / n_files
             )
