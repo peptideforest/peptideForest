@@ -140,9 +140,9 @@ class PeptideForest:
                     break
 
             logger.info(f"Sampling {len(sampled_spectra)} spectra.")
-            self.prep_ursgal_csvs(sample_dict=sample_dict)
-            self.calc_features()
-            yield self.input_df
+            df = self.prep_ursgal_csvs(sample_dict=sample_dict)
+            df = self.calc_features(df=df)
+            yield df
 
     def prep_ursgal_csvs(self, sample_dict=None):
         """Combine engine files named in ursgal dict and preprocesses dataframe for
@@ -192,18 +192,19 @@ class PeptideForest:
             min_mscore = combined_df[combined_df["m_score"] != 0]["m_score"].min()
             combined_df.loc[combined_df["m_score"] == 0, "m_score"] = min_mscore
 
-        self.input_df = combined_df
+        return combined_df
 
-    def calc_features(self):
+    def calc_features(self, df):
         """Calculate and adds features to dataframe."""
         logger.info("Calculating features...")
         with peptide_forest.tools.Timer("Computed features"):
-            self.input_df = peptide_forest.prep.calc_row_features(
-                self.input_df, max_mp_count=self.config.n_jobs.value
+            df = peptide_forest.prep.calc_row_features(
+                df, max_mp_count=self.config.n_jobs.value
             )
-            self.input_df = peptide_forest.prep.calc_col_features(
-                self.input_df, max_mp_count=self.config.n_jobs.value
+            df = peptide_forest.prep.calc_col_features(
+                df, max_mp_count=self.config.n_jobs.value
             )
+            return df
 
     def fit(self, fold=None):
         """Perform cross-validated training and evaluation."""
