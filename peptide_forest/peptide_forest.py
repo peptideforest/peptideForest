@@ -23,7 +23,10 @@ from peptide_forest.pf_config import PFConfig
 class PeptideForest:
     """Main class to handle peptide forest functionalities."""
 
-    def __init__(self, config_path, output, memory_limit=None, max_mp_count=None):
+    def __init__(
+            self, config_path, output, memory_limit=None, max_mp_count=None,
+            in_memory=False
+    ):
         """Initialize new peptide forest class object.
         
         Args:
@@ -38,6 +41,7 @@ class PeptideForest:
         self.output_path = Path(output)
         self.memory_limit = peptide_forest.tools.convert_to_bytes(memory_limit)
         self.init_eng = self.params.get("initial_engine", None)
+        self.in_memory = in_memory
 
         self.input_df = None
         self.max_chunk_size = None
@@ -142,6 +146,28 @@ class PeptideForest:
             logger.info(f"Sampling {len(sampled_spectra)} spectra.")
             df = self.prep_ursgal_csvs(sample_dict=sample_dict)
             df = self.calc_features(df=df)
+            yield df
+
+    def get_data_cunk_from_df(
+            self,
+            df,
+            reference_spectra=None,
+            n_spectra=None,
+            drop=True,
+    ):
+        random.seed(42)
+        while True:
+            if n_spectra is None:
+                n_spectra = len(reference_spectra)
+            if len(reference_spectra) == 0:
+                logger.info("No more spectra to sample. Exiting.")
+                break
+            refs = random.sample(reference_spectra, n_spectra)
+            if drop is True:
+                reference_spectra = [r for r in reference_spectra if r not in refs]
+            refs = [int(r) for r in refs]
+            df = df[df["spectrum_id"].isin(refs)]
+            logger.info(f"Sampling {len(refs)} spectra.")
             yield df
 
     def prep_ursgal_csvs(self, sample_dict=None):
@@ -363,6 +389,11 @@ class PeptideForest:
                     self.output_path.parent, "tt_data"
                 )
 
+            if self.in_memory is True:
+                df = self.prep_ursgal_csvs()
+                df = df[df["raw_data_location"] == file]
+                df = self.calc_features(df)
+
             # create folds
             num_folds = self.config.n_folds.value
             cv = KFold(n_splits=num_folds, shuffle=True, random_state=42)
@@ -390,12 +421,17 @@ class PeptideForest:
                         }
                         json.dump(tt_data, f)
 
-                self.input_df = self.get_data_chunk(
-                    file=self.file,
-                    reference_spectra=train_spectra,
-                    n_spectra=self.config.n_spectra.value,
-                    drop=drop_used_spectra,
-                )
+                if self.in_memory is True:
+                    self.input_df = self.get_data_cunk_from_df(
+                        df.copy(), train_spectra, drop=drop_used_spectra
+                    )
+                else:
+                    self.input_df = self.get_data_chunk(
+                        file=self.file,
+                        reference_spectra=train_spectra,
+                        n_spectra=self.config.n_spectra.value,
+                        drop=drop_used_spectra,
+                    )
 
                 if not retrain:
                     self.engine = None
@@ -403,9 +439,12 @@ class PeptideForest:
                 self.fit(fold=fold)
 
                 if eval_test_set:
-                    eval_gen = self.get_data_chunk(
-                        file=self.file, reference_spectra=test_spectra
-                    )
+                    if self.in_memory is True:
+                        eval_gen = self.get_data_cunk_from_df(df.copy(), test_spectra)
+                    else:
+                        eval_gen = self.get_data_chunk(
+                            file=self.file, reference_spectra=test_spectra
+                        )
 
                     _ = self.get_results(gen=eval_gen, write_output=write_results)
 

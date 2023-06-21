@@ -11,17 +11,34 @@
     },
     "initial_engine": "msfragger_3_0",
     "config": {
-        "q_cut": {"value": 0.01, "strategy": "_"},
-        "n_train": {"value": 1},
-        "n_spectra": {},
-        "n_folds": {"value": 2},
-        "n_estimators": {"strategy":  "+=10"},
-        "max_depth": {},
-        "learning_rate": {},
-        "reg_alpha": {},
-        "reg_lambda": {},
-        "min_split_loss": {},
-        "engine_rescore": {},
-        "n_jobs": {"value": 1}
+      "q_cut": {
+        "value": 0.2,
+        "strategy": "_"
+      },
+      "n_train": {
+        "value": 1
+      },
+      "n_spectra": {
+        "value": 5000
+      },
+      "n_folds": {
+        "value": 3
+      },
+      "n_estimators": {
+        "value": 200
+      },
+      "max_depth": {
+        "value": 6
+      },
+      "learning_rate": {},
+      "reg_alpha": {},
+      "reg_lambda": {},
+      "min_split_loss": {},
+      "engine_rescore": {
+        "value": true
+      },
+      "n_jobs": {
+        "value": 2
+      }
     }
 }

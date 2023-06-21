@@ -26,6 +26,7 @@ parameters = {
         "modifications",
         "is_decoy",
         "protein_id",
+        "engine_score",
         "model_score",
         "model_score_all",
         "model_score_train",

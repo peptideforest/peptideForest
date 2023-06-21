@@ -25,6 +25,9 @@ def load_csv_with_sampling_information(
     """
     file_size = sum(1 for l in open(file))
 
+    if sample_dict is None:
+        return pd.read_csv(file, usecols=cols)
+
     lines_to_keep = sample_dict.get(file, None)
     if lines_to_keep is None:
         return None
