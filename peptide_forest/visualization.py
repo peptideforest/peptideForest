@@ -96,7 +96,7 @@ def plot_q_value_curve(
     plt.xscale("log")
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
     plt.savefig(
-        f"./plots/{title}_q_value_lines.png",
+        f"./{title}_q_value_lines.png",
         dpi=400,
         bbox_inches="tight",
     )
@@ -135,5 +135,5 @@ def plot_psms_at_qval_threshold(
     )
     plt.title(title)
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
-    plt.savefig(f"./plots/{title}_npsms.png", dpi=400, bbox_inches="tight")
+    plt.savefig(f"./{title}_npsms.png", dpi=400, bbox_inches="tight")
     plt.show()
