@@ -174,12 +174,13 @@ def _score_psms(clf, data):
     return 2 * (0.5 - clf.predict(data))
 
 
-def get_regressor(hyperparameters, model_type="random_forest"):
+def get_regressor(hyperparameters, model_type="random_forest", model_path=None):
     """Initialize random forest regressor.
 
     Args:
         hyperparameters (dict): sklearn hyperparameters for classifier
         model_type (str): type of model to use either "random_forest" or "xgboost"
+        model_path (str): path to model to load
 
     Returns:
         clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
@@ -190,6 +191,14 @@ def get_regressor(hyperparameters, model_type="random_forest"):
         clf = XGBRegressor(**hyperparameters)
     else:
         raise ValueError(f"Unknown model type {model_type}")
+
+    # load model if path is given
+    if model_path is not None:
+        if model_type == "random_forest":
+            clf = pickle.load(open(model_path, "rb"))
+        elif model_type == "xgboost":
+            clf.load_model(model_path)
+
     # Add scoring function
     clf.score_psms = types.MethodType(_score_psms, clf)
 
