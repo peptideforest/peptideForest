@@ -286,8 +286,37 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
             f"hyperparameters_{conf['model_type']}"
         ]
         hyperparameters["n_jobs"] = mp.cpu_count() - 1
-        rfreg = get_regressor(hyperparameters=hyperparameters)
-        rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
+
+        finetune_model_path = conf.get("trained_model_path", None)
+        eval_model_path = conf.get("eval_model_path", None)
+        model_type = conf.get("model_type", "random_forest")
+        additional_estimators = conf.get("additional_estimators", 50)
+
+        if finetune_model_path is not None:
+            _clf = get_regressor(
+                model_type=model_type,
+                hyperparameters=hyperparameters,
+                model_path=finetune_model_path,
+            )
+            hyperparameters = _clf.get_params()
+            hyperparameters["n_estimators"] += additional_estimators
+        rfreg = get_regressor(
+            model_type=model_type,
+            hyperparameters=hyperparameters,
+            model_path=eval_model_path,
+        )
+        if eval_model_path is None:
+            if model_type == "random_forest":
+                rfreg.fit(
+                    X=train_data[features].astype(float),
+                    y=train_data["is_decoy"].astype(int),
+                )
+            elif model_type == "xgboost":
+                rfreg.fit(
+                    X=train_data[features].astype(float),
+                    y=train_data["is_decoy"].astype(int),
+                    xgb_model=finetune_model_path,
+                )
 
         # Record feature importances
         feature_importances.append(rfreg.feature_importances_)
