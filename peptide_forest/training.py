@@ -195,7 +195,7 @@ def get_regressor(hyperparameters, model_type="random_forest"):
     return clf
 
 
-def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
+def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -204,11 +204,17 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         cv_split_data (list): list with indices of data to split by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
+        conf (dict): configuration dictionary
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
         feature_importances (list): list of arrays with the feature importance for all splits in epoch
     """
+    # ensure proper None values in config
+    for key, value in conf.items():
+        if value == "None":
+            conf[key] = None
+
     # Reset scores
     df.loc[:, "model_score"] = 0
     df.loc[:, "model_score_train"] = 0
@@ -266,7 +272,9 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         test.loc[:, features] = scaler.transform(test.loc[:, features])
 
         # Get RF-reg classifier and train
-        hyperparameters = knowledge_base.parameters["hyperparameters"]
+        hyperparameters = knowledge_base.parameters[
+            f"hyperparameters_{conf['model_type']}"
+        ]
         hyperparameters["n_jobs"] = mp.cpu_count() - 1
         rfreg = get_regressor(hyperparameters=hyperparameters)
         rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
@@ -285,7 +293,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
     return df, feature_importances
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
+def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
@@ -296,6 +304,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         q_cut_train (float): q-value cutoff for PSM selection to use during training
         n_train (int): number of training epochs
         n_eval (int): number of evaluation epochs
+        conf (dict): configuration dictionary for training
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -345,6 +354,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
             cv_split_data=train_cv_splits,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
+            conf=conf,
         )
 
         # Record how many PSMs are below q-cut in the target set

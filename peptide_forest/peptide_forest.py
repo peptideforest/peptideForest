@@ -142,6 +142,9 @@ class PeptideForest:
                 q_cut_train=self.params.get("q_cut_train", 0.10),
                 n_train=self.params.get("n_train", 10),
                 n_eval=self.params.get("n_eval", 10),
+                conf=self.params.get(
+                    "conf", peptide_forest.knowledge_base.parameters["conf"]
+                ),
             )
 
     def get_results(self):
