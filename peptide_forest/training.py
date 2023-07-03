@@ -173,7 +173,7 @@ def _score_psms(clf, data):
     return 2 * (0.5 - clf.predict(data))
 
 
-def get_rf_reg_classifier(hyperparameters, model_type="random_forest"):
+def get_regressor(hyperparameters, model_type="random_forest"):
     """Initialize random forest regressor.
 
     Args:
@@ -268,7 +268,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         # Get RF-reg classifier and train
         hyperparameters = knowledge_base.parameters["hyperparameters"]
         hyperparameters["n_jobs"] = mp.cpu_count() - 1
-        rfreg = get_rf_reg_classifier(hyperparameters=hyperparameters)
+        rfreg = get_regressor(hyperparameters=hyperparameters)
         rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
 
         # Record feature importances
