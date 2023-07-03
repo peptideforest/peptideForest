@@ -1,5 +1,6 @@
 """Train peptide forest."""
 import multiprocessing as mp
+import pickle
 import sys
 import types
 
@@ -289,6 +290,29 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         df.loc[train.index, "model_score_train"] += scores_train
         df.loc[test.index, "model_score"] = scores_test
     df.loc[:, "model_score_train"] /= len(cv_split_data) - 1
+
+    # Save model
+    file_extension = conf["model_output_path"].split(".")[-1]
+    if conf["model_type"] == "xgboost":
+        if file_extension == "json":
+            rfreg.save_model(conf["model_output_path"])
+        else:
+            corr_path = conf["model_output_path"].split(".")[0] + ".json"
+            rfreg.save_model(corr_path)
+            logger.warning(
+                f"Wrong file extension used {file_extension}. Model saved as .json"
+            )
+        rfreg.save_model(conf["model_output_path"])
+    elif conf["model_type"] == "random_forest":
+        del rfreg.score_psms
+        if file_extension == "pkl":
+            pickle.dump(rfreg, open(conf["model_output_path"], "wb"))
+        else:
+            corr_path = conf["model_output_path"].split(".")[0] + ".pkl"
+            pickle.dump(rfreg, open(corr_path, "wb"))
+            logger.warning(
+                f"Wrong file extension used: {file_extension}. Model saved as .pkl"
+            )
 
     return df, feature_importances
 

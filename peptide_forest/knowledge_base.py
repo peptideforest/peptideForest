@@ -46,5 +46,6 @@ parameters = {
     },
     "conf": {
         "model_type": "random_forest",
+        "model_output_path": "peptide_forest_model.pkl",
     },
 }
