@@ -205,6 +205,42 @@ def get_regressor(hyperparameters, model_type="random_forest", model_path=None):
     return clf
 
 
+def save_regressor(clf, model_output_path, model_type="random_forest"):
+    """
+    Save trained classifier.
+
+    Args:
+        clf (sklearn.ensemble.RandomForestRegressor or xgboost.XGBRegressor): trained
+            classifier
+        model_output_path (str): path to save model to
+        model_type (str): type of model to use either "random_forest" or "xgboost"
+
+    Returns:
+        None
+    """
+    file_extension = model_output_path.split(".")[-1]
+    if model_type == "xgboost":
+        if file_extension == "json":
+            clf.save_model(model_output_path)
+        else:
+            corr_path = model_output_path.split(".")[0] + ".json"
+            clf.save_model(corr_path)
+            logger.warning(
+                f"Wrong file extension used {file_extension}. Model saved as .json"
+            )
+        clf.save_model(model_output_path)
+    elif model_type == "random_forest":
+        del clf.score_psms
+        if file_extension == "pkl":
+            pickle.dump(clf, open(model_output_path, "wb"))
+        else:
+            corr_path = model_output_path.split(".")[0] + ".pkl"
+            pickle.dump(clf, open(corr_path, "wb"))
+            logger.warning(
+                f"Wrong file extension used: {file_extension}. Model saved as .pkl"
+            )
+
+
 def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
     """Process single-epoch of cross validated training.
 
@@ -330,27 +366,11 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
     df.loc[:, "model_score_train"] /= len(cv_split_data) - 1
 
     # Save model
-    file_extension = conf["model_output_path"].split(".")[-1]
-    if conf["model_type"] == "xgboost":
-        if file_extension == "json":
-            rfreg.save_model(conf["model_output_path"])
-        else:
-            corr_path = conf["model_output_path"].split(".")[0] + ".json"
-            rfreg.save_model(corr_path)
-            logger.warning(
-                f"Wrong file extension used {file_extension}. Model saved as .json"
-            )
-        rfreg.save_model(conf["model_output_path"])
-    elif conf["model_type"] == "random_forest":
-        del rfreg.score_psms
-        if file_extension == "pkl":
-            pickle.dump(rfreg, open(conf["model_output_path"], "wb"))
-        else:
-            corr_path = conf["model_output_path"].split(".")[0] + ".pkl"
-            pickle.dump(rfreg, open(corr_path, "wb"))
-            logger.warning(
-                f"Wrong file extension used: {file_extension}. Model saved as .pkl"
-            )
+    model_output_path = conf.get("model_output_path", None)
+    if model_output_path is not None:
+        save_regressor(
+            clf=rfreg, model_output_path=model_output_path, model_type=model_type
+        )
 
     return df, feature_importances
 
