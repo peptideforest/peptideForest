@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
+from xgboost import XGBRegressor
 
 from peptide_forest import knowledge_base
 
@@ -172,16 +173,22 @@ def _score_psms(clf, data):
     return 2 * (0.5 - clf.predict(data))
 
 
-def get_rf_reg_classifier(hyperparameters):
+def get_rf_reg_classifier(hyperparameters, model_type="random_forest"):
     """Initialize random forest regressor.
 
     Args:
         hyperparameters (dict): sklearn hyperparameters for classifier
+        model_type (str): type of model to use either "random_forest" or "xgboost"
 
     Returns:
         clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
     """
-    clf = RandomForestRegressor(**hyperparameters)
+    if model_type == "random_forest":
+        clf = RandomForestRegressor(**hyperparameters)
+    elif model_type == "xgboost":
+        clf = XGBRegressor(**hyperparameters)
+    else:
+        raise ValueError(f"Unknown model type {model_type}")
     # Add scoring function
     clf.score_psms = types.MethodType(_score_psms, clf)
 
