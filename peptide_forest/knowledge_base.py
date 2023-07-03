@@ -44,4 +44,7 @@ parameters = {
         "max_depth": 22,
         "max_features": 7,
     },
+    "conf": {
+        "model_type": "random_forest",
+    },
 }
