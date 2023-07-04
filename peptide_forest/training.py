@@ -201,8 +201,7 @@ def get_feature_cols(df):
         c
         for c in df.columns
         if not any(
-            c.startswith(r)
-            for r in knowledge_base.parameters["non_trainable_columns"]
+            c.startswith(r) for r in knowledge_base.parameters["non_trainable_columns"]
         )
     ]
     return sorted(features)
