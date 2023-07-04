@@ -251,7 +251,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         )[["q-value", "is_decoy"]]
         train_q_cut_met_targets = train_q_vals.loc[
             (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
-            ].index
+        ].index
         train_targets = train_data.loc[train_q_cut_met_targets, :]
         # Get same number of decoys to match targets at random
         train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
