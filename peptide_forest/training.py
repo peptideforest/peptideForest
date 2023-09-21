@@ -1,5 +1,6 @@
 """Train peptide forest."""
 import multiprocessing as mp
+import pickle
 import sys
 import types
 
@@ -10,6 +11,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
+from xgboost import XGBRegressor
 
 from peptide_forest import knowledge_base
 
@@ -172,16 +174,31 @@ def _score_psms(clf, data):
     return 2 * (0.5 - clf.predict(data))
 
 
-def get_rf_reg_classifier(hyperparameters):
+def get_regressor(hyperparameters, model_type="random_forest", model_path=None):
     """Initialize random forest regressor.
 
     Args:
         hyperparameters (dict): sklearn hyperparameters for classifier
+        model_type (str): type of model to use either "random_forest" or "xgboost"
+        model_path (str): path to model to load
 
     Returns:
         clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
     """
-    clf = RandomForestRegressor(**hyperparameters)
+    if model_type == "random_forest":
+        clf = RandomForestRegressor(**hyperparameters)
+    elif model_type == "xgboost":
+        clf = XGBRegressor(**hyperparameters)
+    else:
+        raise ValueError(f"Unknown model type {model_type}")
+
+    # load model if path is given
+    if model_path is not None:
+        if model_type == "random_forest":
+            clf = pickle.load(open(model_path, "rb"))
+        elif model_type == "xgboost":
+            clf.load_model(model_path)
+
     # Add scoring function
     clf.score_psms = types.MethodType(_score_psms, clf)
 
@@ -207,7 +224,43 @@ def get_feature_cols(df):
     return sorted(features)
 
 
-def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
+def save_regressor(clf, model_output_path, model_type="random_forest"):
+    """
+    Save trained classifier.
+
+    Args:
+        clf (sklearn.ensemble.RandomForestRegressor or xgboost.XGBRegressor): trained
+            classifier
+        model_output_path (str): path to save model to
+        model_type (str): type of model to use either "random_forest" or "xgboost"
+
+    Returns:
+        None
+    """
+    file_extension = model_output_path.split(".")[-1]
+    if model_type == "xgboost":
+        if file_extension == "json":
+            clf.save_model(model_output_path)
+        else:
+            corr_path = model_output_path.split(".")[0] + ".json"
+            clf.save_model(corr_path)
+            logger.warning(
+                f"Wrong file extension used {file_extension}. Model saved as .json"
+            )
+        clf.save_model(model_output_path)
+    elif model_type == "random_forest":
+        del clf.score_psms
+        if file_extension == "pkl":
+            pickle.dump(clf, open(model_output_path, "wb"))
+        else:
+            corr_path = model_output_path.split(".")[0] + ".pkl"
+            pickle.dump(clf, open(corr_path, "wb"))
+            logger.warning(
+                f"Wrong file extension used: {file_extension}. Model saved as .pkl"
+            )
+
+
+def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -216,11 +269,17 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         cv_split_data (list): list with indices of data to split by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
+        conf (dict): configuration dictionary
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
         feature_importances (list): list of arrays with the feature importance for all splits in epoch
     """
+    # ensure proper None values in config
+    for key, value in conf.items():
+        if value == "None":
+            conf[key] = None
+
     # Reset scores
     df.loc[:, "model_score"] = 0
     df.loc[:, "model_score_train"] = 0
@@ -267,10 +326,41 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         test.loc[:, features] = scaler.transform(test.loc[:, features])
 
         # Get RF-reg classifier and train
-        hyperparameters = knowledge_base.parameters["hyperparameters"]
+        hyperparameters = knowledge_base.parameters[
+            f"hyperparameters_{conf['model_type']}"
+        ]
         hyperparameters["n_jobs"] = mp.cpu_count() - 1
-        rfreg = get_rf_reg_classifier(hyperparameters=hyperparameters)
-        rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
+
+        finetune_model_path = conf.get("trained_model_path", None)
+        eval_model_path = conf.get("eval_model_path", None)
+        model_type = conf.get("model_type", "random_forest")
+        additional_estimators = conf.get("additional_estimators", 50)
+
+        if finetune_model_path is not None:
+            _clf = get_regressor(
+                model_type=model_type,
+                hyperparameters=hyperparameters,
+                model_path=finetune_model_path,
+            )
+            hyperparameters = _clf.get_params()
+            hyperparameters["n_estimators"] += additional_estimators
+        rfreg = get_regressor(
+            model_type=model_type,
+            hyperparameters=hyperparameters,
+            model_path=eval_model_path,
+        )
+        if eval_model_path is None:
+            if model_type == "random_forest":
+                rfreg.fit(
+                    X=train_data[features].astype(float),
+                    y=train_data["is_decoy"].astype(int),
+                )
+            elif model_type == "xgboost":
+                rfreg.fit(
+                    X=train_data[features].astype(float),
+                    y=train_data["is_decoy"].astype(int),
+                    xgb_model=finetune_model_path,
+                )
 
         # Record feature importances
         feature_importances.append(rfreg.feature_importances_)
@@ -283,10 +373,17 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         df.loc[test.index, "model_score"] = scores_test
     df.loc[:, "model_score_train"] /= len(cv_split_data) - 1
 
+    # Save model
+    model_output_path = conf.get("model_output_path", None)
+    if model_output_path is not None:
+        save_regressor(
+            clf=rfreg, model_output_path=model_output_path, model_type=model_type
+        )
+
     return df, feature_importances
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
+def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
@@ -297,6 +394,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         q_cut_train (float): q-value cutoff for PSM selection to use during training
         n_train (int): number of training epochs
         n_eval (int): number of evaluation epochs
+        conf (dict): configuration dictionary for training
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -346,6 +444,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
             cv_split_data=train_cv_splits,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
+            conf=conf,
         )
 
         # Record how many PSMs are below q-cut in the target set
