@@ -135,3 +135,11 @@ def is_matching_filename(filename, pattern=PATTERN, **kwargs):
 def check_uniform_column_content(df, col):
     if len(df[col].unique()) > 1:
         raise ValueError(f"All values in {col} must be the same.")
+
+
+def generate_accepted_groups_dict(splitting_group, available_options):
+    for option in available_options[splitting_group]:
+        yield {
+            group: (option if group == splitting_group else "*")
+            for group in available_options.keys()
+        }

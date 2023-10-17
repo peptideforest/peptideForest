@@ -4,6 +4,7 @@ from itertools import permutations
 from iterative_training_helpers import (
     create_run_config,
     get_split_options,
+    generate_accepted_groups_dict,
 )
 
 # define a model to be trained and a criterion for iterations (e.g. split by reps)
@@ -30,20 +31,17 @@ if __name__ == "__main__":
     test_pattern = re.compile(
         r"(?P<fraction>cytosol|membrane)_(?P<group>Big12|FASP_v5)"
     )
+    split_by = "fraction"
 
     options = get_split_options(data_dir, pattern=test_pattern)
 
     # create base run configs
-    split_by = "strain"
     base_files = []
-    for option in options[split_by]:
+    for accepted_group_values in generate_accepted_groups_dict(split_by, options):
         file_name, _ = create_run_config(
             data_path=data_dir,
-            strain="*" if split_by != "strain" else option,
-            fraction="*" if split_by != "fraction" else option,
-            enzyme="*" if split_by != "enzyme" else option,
-            rep="*" if split_by != "rep" else option,
             filename_pattern=test_pattern,
+            accepted_re_group_values=accepted_group_values,
         )
         base_files.append(file_name)
 
