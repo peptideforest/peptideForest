@@ -35,7 +35,7 @@ parameters = {
         # todo: experimental! testing universal feature cols, see if it works...
         "score_processed_",
         "delta_score_2_",
-        "delta_score_3_"
+        "delta_score_3_",
     },
     "hyperparameters_xgboost": {
         "reg_alpha": 50,
