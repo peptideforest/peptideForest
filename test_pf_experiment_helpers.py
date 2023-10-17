@@ -1,11 +1,7 @@
-import pandas as pd
 import pytest
-from unittest.mock import patch, mock_open
 import re
-import glob
 
-from iterative_training_helpers import is_matching_filename
-from pf4_paper_experiments import extract_variables, get_split_options
+from iterative_training_helpers import is_matching_filename, get_split_options
 
 
 @pytest.mark.parametrize(
