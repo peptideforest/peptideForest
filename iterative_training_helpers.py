@@ -43,9 +43,7 @@ def get_split_options(data_path, pattern=PATTERN, col="raw_data_location"):
     for file in csv_files:
         df = pd.read_csv(file)
         raw_file = df[col].unique()[0]
-        if len(df[col].unique()) > 1:
-            raise ValueError("Data aggregated from too many sources")
-
+        check_uniform_column_content(df, col)
         vars_file = extract_variables(raw_file, pattern=pattern)
         for variable, option in vars_file.items():
             split_options[variable].add(option)
@@ -82,8 +80,7 @@ def create_run_config(
             filename_pattern=filename_pattern,
         ):
             continue
-        if len(df["search_engine"].unique()) > 1:
-            raise ValueError("Too many engines used in one file")
+        check_uniform_column_content(df, "search_engine")
         score_col = SCORE_COL_MAPPING[engine]
         config[file] = {"engine": engine, "score_col": score_col}
 
@@ -133,3 +130,8 @@ def is_matching_filename(filename, pattern=PATTERN, **kwargs):
             return False
 
     return True
+
+
+def check_uniform_column_content(df, col):
+    if len(df[col].unique()) > 1:
+        raise ValueError(f"All values in {col} must be the same.")
