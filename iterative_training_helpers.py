@@ -26,13 +26,24 @@ def extract_variables(filename, pattern=PATTERN):
     return None
 
 
-def get_split_options(data_path, pattern=PATTERN):
+def get_split_options(data_path, pattern=PATTERN, col="raw_data_location"):
+    """
+
+    Args:
+        data_path: str to directory with csvs
+        pattern: regex pattern containing groups to be matched
+        col: str column name used for extracting strings
+
+    Returns: defaultdict mapping group names to all possible values for matches found in
+    the directory
+
+    """
     split_options = defaultdict(set)
     csv_files = glob.glob(f"{data_path}/*.csv")
     for file in csv_files:
         df = pd.read_csv(file)
-        raw_file = df["raw_data_location"].unique()[0]
-        if len(df["raw_data_location"].unique()) > 1:
+        raw_file = df[col].unique()[0]
+        if len(df[col].unique()) > 1:
             raise ValueError("Data aggregated from too many sources")
 
         vars_file = extract_variables(raw_file, pattern=pattern)
