@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 from unittest.mock import patch, mock_open
+import re
 import glob
 
 from iterative_training_helpers import is_matching_filename
@@ -8,37 +9,48 @@ from pf4_paper_experiments import extract_variables, get_split_options
 
 
 @pytest.mark.parametrize(
-    "filename, strain, fraction, enzyme, rep, expected",
-    [
-        ("something_a_b_c_1", "*", "*", "*", "*", True),
-        ("something_a_b_c_1", "*", "*", "c", "*", True),
-        ("something_a_b_x_1", "*", "*", "c", "*", False),
-        ("something_a_b_c_1", "*", ["a", "b"], ["c", "d"], "*", True),
-        ("something_z_b_c_1", ["a", "b"], "*", ["c", "d"], "*", False),
-        ("something_a_b_c_2", ["a", "x"], "*", "c", ["1", "2", "3"], True),
-        ("something_a_b_c_4", ["a", "x"], "*", "c", ["1", "2", "3"], False),
-    ],
-)
-def test_is_matching_filename(filename, strain, fraction, enzyme, rep, expected):
-    assert is_matching_filename(filename, strain, fraction, enzyme, rep) == expected
-
-
-@pytest.mark.parametrize(
-    "filename, expected",
+    "filename, pattern, value_map, expected",
     [
         (
-            "prefix_something_a_b_c_1.raw",
-            {"strain": "a", "fraction": "b", "enzyme": "c", "rep": "1"},
+            # all wildcards
+            "something_a_b_c_1.raw",
+            r".*_(?P<val1>[^_]+)_(?P<val2>[^_]+)_(?P<val3>[^_]+)_(?P<val4>[^_]+)\.raw$",
+            {"val1": "*", "val2": "*", "val3": "*", "val4": "*"},
+            True,
         ),
         (
-            "anotherThing_x_y_z_2.raw",
-            {"strain": "x", "fraction": "y", "enzyme": "z", "rep": "2"},
+            # different length
+            "something_a_b.raw",
+            r".*_(?P<val1>[^_]+)_(?P<val2>[^_]+)\.raw$",
+            {"val1": "*", "val2": "*"},
+            True,
+        ),
+        (
+            # wrong character
+            "something_a_b.raw",
+            r".*_(?P<val1>[^_]+)_(?P<val2>[^_]+)\.raw$",
+            {"val1": "*", "val2": "a"},
+            False,
+        ),
+        (
+            # lists
+            "something_a_b.raw",
+            r".*_(?P<val1>[^_]+)_(?P<val2>[^_]+)\.raw$",
+            {"val1": ["a", "c"], "val2": ["b", "c"]},
+            True,
+        ),
+        (
+            # individual characters
+            "something_1_c.raw",
+            r".*_(?P<val1>[^_]+)_(?P<val2>[^_]+)\.raw$",
+            {"val1": "1", "val2": "c"},
+            True,
         ),
     ],
 )
-def test_extract_variables(filename, expected):
-    assert extract_variables(filename) == expected
-
+def test_is_matching_filename(filename, value_map, pattern, expected):
+    re_pattern = re.compile(pattern)
+    assert is_matching_filename(filename, pattern=re_pattern, **value_map) == expected
 
 @pytest.fixture
 def mock_csv_files(tmpdir):
