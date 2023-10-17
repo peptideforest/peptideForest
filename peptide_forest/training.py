@@ -312,6 +312,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
             (train_q_vals["q-value"] <= q_cut) & (~train_q_vals["is_decoy"])
         ].index
         train_targets = train_data.loc[train_q_cut_met_targets, :]
+        logger.info(f"Number of train targets: {len(train_targets)} | split: {i} | available decoys: {train_data[train_data['is_decoy']].shape[0]}")
         # Get same number of decoys to match targets at random
         if train_data[train_data["is_decoy"]].shape[0] < train_targets.shape[0]:
             train_decoys = train_data[train_data["is_decoy"]]
