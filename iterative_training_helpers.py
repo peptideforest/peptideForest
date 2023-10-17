@@ -70,9 +70,22 @@ def create_run_config(
     return filename, config_dict
 
 
-def is_matching_filename(
-    filename, strain, fraction, enzyme, rep, filename_pattern=PATTERN
-):
+def is_matching_filename(filename, pattern=PATTERN, **kwargs):
+    """Checks the group values of a filename matching a regex pattern are allowed values
+
+    Args:
+        filename: str filename
+        pattern: r-string specifying groups to be identified
+        **kwargs: specify the allowed values in the format group_name="allowed_value"
+
+        Allowed values are either strings or lists with several allowed strings, * is a
+        wildcard option.
+
+        ! regex group names (<group_name>) must match kwargs keys.
+
+    Returns: bool depending on whether the criteria set in the kwargs are met.
+    """
+
     def check_value(val, acceptable_values):
         if acceptable_values == "*":
             return True
@@ -82,19 +95,13 @@ def is_matching_filename(
             return True
         return False
 
-    vars_filename = extract_variables(filename, pattern=filename_pattern)
-    strain_val = vars_filename["strain"]
-    fraction_val = vars_filename["fraction"]
-    enzyme_val = vars_filename["enzyme"]
-    rep_val = vars_filename["rep"]
+    vars_filename = extract_variables(filename, pattern=pattern)
 
-    if not check_value(strain_val, strain):
-        return False
-    if not check_value(fraction_val, fraction):
-        return False
-    if not check_value(enzyme_val, enzyme):
-        return False
-    if not check_value(rep_val, rep):
-        return False
+    if kwargs.keys() != vars_filename.keys():
+        raise ValueError("Groups in pattern and given kwargs do not match.")
+
+    for name_element, allowed_values in kwargs.items():
+        if not check_value(vars_filename[name_element], allowed_values):
+            return False
 
     return True
