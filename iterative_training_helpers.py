@@ -19,14 +19,14 @@ PATTERN = re.compile(
 )
 
 
-def extract_variables(filename, pattern=PATTERN):
+def extract_variables(filename, pattern):
     match = pattern.match(filename)
     if match:
         return match.groupdict()
     return None
 
 
-def get_split_options(data_path, pattern=PATTERN, col="raw_data_location"):
+def get_split_options(data_path, pattern, col="raw_data_location"):
     """
 
     Args:
@@ -53,11 +53,8 @@ def get_split_options(data_path, pattern=PATTERN, col="raw_data_location"):
 
 def create_run_config(
     data_path,
-    strain,
-    fraction,
-    enzyme,
-    rep,
-    filename_pattern=PATTERN,
+    filename_pattern,
+    accepted_re_group_values,
     initial_engine="omssa_2_1_9",
     name="pf4",
     write_file=True,
@@ -66,27 +63,25 @@ def create_run_config(
     config = dict()
 
     for file in csv_files:
-        df = pd.read_csv(
-            file,
-        )
+        df = pd.read_csv(file)
         engine = df["search_engine"].unique()[0]
         raw_file = df["raw_data_location"].unique()[0]
+        check_uniform_column_content(df, "search_engine")
         if not is_matching_filename(
             filename=Path(raw_file).stem,
-            strain=strain,
-            fraction=fraction,
-            enzyme=enzyme,
-            rep=rep,
             filename_pattern=filename_pattern,
+            **accepted_re_group_values,
         ):
             continue
-        check_uniform_column_content(df, "search_engine")
         score_col = SCORE_COL_MAPPING[engine]
         config[file] = {"engine": engine, "score_col": score_col}
 
     config_dict = {"input_files": config, "initial_engine": initial_engine}
 
-    filename = f"config_{name}_str{''.join(strain)}_frc{''.join(fraction)}_enz{''.join(enzyme)}_rep{''.join(rep)}.json"
+    accepted_re_group_values_str = ""
+    for group, options in accepted_re_group_values.items():
+        accepted_re_group_values_str += f"_{group}|{''.join(options)}"
+    filename = f"config_{name}_{accepted_re_group_values_str}.json"
 
     if write_file:
         with open(filename, "w") as json_file:
