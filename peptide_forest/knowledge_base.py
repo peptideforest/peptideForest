@@ -32,6 +32,10 @@ parameters = {
         "model_score_train_all",
         "prev_score_train",
         "reported_by_",
+        # todo: experimental! testing universal feature cols, see if it works...
+        "score_processed_",
+        "delta_score_2_",
+        "delta_score_3_"
     },
     "hyperparameters_xgboost": {
         "reg_alpha": 50,
