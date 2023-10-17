@@ -1,3 +1,4 @@
+from collections import defaultdict
 import glob
 import json
 from pathlib import Path
@@ -23,6 +24,22 @@ def extract_variables(filename, pattern=PATTERN):
     if match:
         return match.groupdict()
     return None
+
+
+def get_split_options(data_path, pattern=PATTERN):
+    split_options = defaultdict(set)
+    csv_files = glob.glob(f"{data_path}/*.csv")
+    for file in csv_files:
+        df = pd.read_csv(file)
+        raw_file = df["raw_data_location"].unique()[0]
+        if len(df["raw_data_location"].unique()) > 1:
+            raise ValueError("Data aggregated from too many sources")
+
+        vars_file = extract_variables(raw_file, pattern=pattern)
+        for variable, option in vars_file.items():
+            split_options[variable].add(option)
+
+    return split_options
 
 
 def create_run_config(
