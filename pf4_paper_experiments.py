@@ -1,14 +1,8 @@
-import glob
 import re
 from itertools import permutations
-from collections import defaultdict
-
-import pandas as pd
 
 from iterative_training_helpers import (
     create_run_config,
-    extract_variables,
-    PATTERN,
     get_split_options,
 )
 
