@@ -56,8 +56,8 @@ def create_run_config(
     filename_pattern,
     accepted_re_group_values,
     initial_engine="omssa_2_1_9",
-    name="pf4",
     write_file=True,
+    config_dir="./",
 ):
     csv_files = glob.glob(f"{data_path}/*.csv")
     config = dict()
@@ -81,10 +81,10 @@ def create_run_config(
     accepted_re_group_values_str = ""
     for group, options in accepted_re_group_values.items():
         accepted_re_group_values_str += f"_{group}|{''.join(options)}"
-    filename = f"config_{name}_{accepted_re_group_values_str}.json"
+    filename = f"config_{accepted_re_group_values_str}.json"
 
     if write_file:
-        with open(filename, "w") as json_file:
+        with open(config_dir + "/" + filename, "w") as json_file:
             json.dump(config_dict, json_file, indent=4)
 
     return filename, config_dict

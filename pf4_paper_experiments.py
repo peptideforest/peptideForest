@@ -28,6 +28,9 @@ from iterative_training_helpers import (
 
 if __name__ == "__main__":
     data_dir = "./data"
+    model_dir = "./models"
+    output_dir = "./outputs"
+    config_dir = "./configs"
     test_pattern = re.compile(
         r"(?P<fraction>cytosol|membrane)_(?P<group>Big12|FASP_v5)"
     )
@@ -42,6 +45,7 @@ if __name__ == "__main__":
             data_path=data_dir,
             filename_pattern=test_pattern,
             accepted_re_group_values=accepted_group_values,
+            config_dir=config_dir,
         )
         base_files.append(file_name)
 
