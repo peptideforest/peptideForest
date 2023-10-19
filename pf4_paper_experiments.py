@@ -1,3 +1,4 @@
+import json
 import re
 from itertools import permutations
 
@@ -5,25 +6,10 @@ from iterative_training_helpers import (
     create_run_config,
     get_split_options,
     generate_accepted_groups_dict,
+    check_for_trained_models,
+    get_model_name_str,
 )
-
-# define a model to be trained and a criterion for iterations (e.g. split by reps)
-# code then handles:
-#   - training the base model
-#   - repeats until the exhaustion of all possible combinations (prove training order does not matter)
-#   - evaluating all splits (seen/unseen) by the trained model
-#   - training each possible increment
-
-"""
-- get all options for splits (strain, fraction, enzyme, rep from base dir)
-- create run config dirs for each specified split
-    - create all possible starting options
-    - create all possible training paths
-- structure runs
-- run
-    - train
-    - cross eval
-"""
+from run_peptide_forest import run_peptide_forest
 
 
 if __name__ == "__main__":
