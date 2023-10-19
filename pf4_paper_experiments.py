@@ -98,7 +98,7 @@ if __name__ == "__main__":
                 )
 
                 cross_eval_config_file = cross_eval_prefix + file
-                with open(cross_eval_config_file, "w") as json_file:
+                with open(config_dir + "/" + cross_eval_config_file, "w") as json_file:
                     json.dump(config_dict, json_file, indent=4)
                 run_peptide_forest(
                     config_path=config_dir + "/" + cross_eval_config_file,
