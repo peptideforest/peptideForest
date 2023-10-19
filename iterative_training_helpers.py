@@ -1,5 +1,6 @@
 import glob
 import json
+import os.path
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -139,3 +140,57 @@ def generate_accepted_groups_dict(splitting_group, available_options):
             group: (option if group == splitting_group else "*")
             for group in available_options.keys()
         }
+
+
+def check_for_trained_models(model_name, model_dir, config_dict):
+    """Checks if there are already models with the same name stored in the model_dir.
+
+    Args:
+        model_name: str, filename to be checked
+        model_dir: str, location of all stored models
+        config_dict: config dict of the run
+
+    Returns:
+        Bool: true if the model could be found in the directory, false otherwise
+    """
+    if config_dict is None:
+        config_dict = {}
+
+    model_conf = config_dict.get("conf", "*")
+    if model_conf != "*":
+        model_type = model_conf.get("model_type", "any")
+    else:
+        model_type = "any"
+
+    if model_type == "random_forest":
+        return os.path.isfile(Path(model_dir) / f"{model_name}.pkl")
+    elif model_type == "xgboost":
+        return os.path.isfile(Path(model_dir) / f"{model_name}.json")
+    elif model_type == "any":
+        return os.path.isfile(Path(model_dir) / f"{model_name}.pkl") or os.path.isfile(
+            Path(model_dir) / f"{model_name}.json"
+        )
+    else:
+        raise ValueError("Unknown model_type")
+
+
+def get_model_name_str(training_schedule, current_idx):
+    """Based on a list of config file names and an index of the list generates a name
+    for the model at that position.
+
+    Args:
+        training_schedule: list or tuple of several config file names to be trained
+            sequentially
+        current_idx: index of the config file in the list to generate the model name for
+
+    Returns:
+        model_name as str
+
+    """
+    if current_idx == -1:
+        return None
+    model_name = "model_" + ">".join(
+        file.split("config_")[1].split(".json")[0]
+        for file in training_schedule[: current_idx + 1]
+    )
+    return model_name

@@ -5,6 +5,8 @@ from iterative_training_helpers import (
     is_matching_filename,
     get_split_options,
     generate_accepted_groups_dict,
+    check_for_trained_models,
+    get_model_name_str,
 )
 
 
@@ -88,3 +90,56 @@ def test_generate_accepted_groups_dict(splitting_group, available_options, expec
         )
     ]
     assert all_groups_dicts == expected
+
+
+@pytest.mark.parametrize(
+    "model_name, model_dir, config_dict, availability",
+    [
+        ("iamamodel", "./test_files/models", {"conf": {"model_type": "xgboost"}}, True),
+        (
+            "iamadifferentmodel",
+            "./test_files/models",
+            {"conf": {"model_type": "random_forest"}},
+            True,
+        ),
+        ("iamamodel", "./test_files/models", {"not_conf": ""}, True),
+        (
+            "youwontfnidme",
+            "./test_files/models",
+            {"conf": {"model_type": "xgboost"}},
+            False,
+        ),
+        (
+            "iamadifferentmodel",
+            "./test_files/models",
+            None,
+            True,
+        ),
+    ],
+)
+def test_check_for_trained_models(model_name, model_dir, config_dict, availability):
+    assert check_for_trained_models(model_name, model_dir, config_dict) == availability
+
+
+@pytest.mark.parametrize(
+    "training_schedule, current_idx, expected_str",
+    [
+        (
+            ["config_a.json", "config_b.json", "config_c.json", "config_d.json"],
+            2,
+            "model_a>b>c",
+        ),
+        (
+            ["config_a.json", "config_b.json", "config_c.json", "config_d.json"],
+            0,
+            "model_a",
+        ),
+        (
+            ["config_a.json", "config_b.json", "config_c.json", "config_d.json"],
+            -1,
+            None,
+        ),
+    ],
+)
+def test_get_model_name_str(training_schedule, current_idx, expected_str):
+    assert get_model_name_str(training_schedule, current_idx) == expected_str
