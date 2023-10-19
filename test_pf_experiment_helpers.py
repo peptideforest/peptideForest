@@ -9,7 +9,7 @@ from iterative_training_helpers import (
 
 
 @pytest.mark.parametrize(
-    "filename, pattern, value_map, expected",
+    "filename, pattern, allowed_values, expected",
     [
         (
             # all wildcards
@@ -48,9 +48,14 @@ from iterative_training_helpers import (
         ),
     ],
 )
-def test_is_matching_filename(filename, value_map, pattern, expected):
+def test_is_matching_filename(filename, allowed_values, pattern, expected):
     re_pattern = re.compile(pattern)
-    assert is_matching_filename(filename, pattern=re_pattern, **value_map) == expected
+    assert (
+        is_matching_filename(
+            filename, pattern=re_pattern, allowed_values=allowed_values
+        )
+        == expected
+    )
 
 
 def test_get_split_options():

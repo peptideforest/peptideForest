@@ -69,8 +69,8 @@ def create_run_config(
         check_uniform_column_content(df, "search_engine")
         if not is_matching_filename(
             filename=Path(raw_file).stem,
-            filename_pattern=filename_pattern,
-            **accepted_re_group_values,
+            pattern=filename_pattern,
+            allowed_values=accepted_re_group_values,
         ):
             continue
         score_col = SCORE_COL_MAPPING[engine]
@@ -90,13 +90,14 @@ def create_run_config(
     return filename, config_dict
 
 
-def is_matching_filename(filename, pattern=PATTERN, **kwargs):
+def is_matching_filename(filename, pattern, allowed_values):
     """Checks the group values of a filename matching a regex pattern are allowed values
 
     Args:
         filename: str filename
         pattern: r-string specifying groups to be identified
-        **kwargs: specify the allowed values in the format group_name="allowed_value"
+        allowed_values: dict specify the allowed values in the format
+            group_name="allowed_value"
 
         Allowed values are either strings or lists with several allowed strings, * is a
         wildcard option.
@@ -117,10 +118,10 @@ def is_matching_filename(filename, pattern=PATTERN, **kwargs):
 
     vars_filename = extract_variables(filename, pattern=pattern)
 
-    if kwargs.keys() != vars_filename.keys():
+    if allowed_values.keys() != vars_filename.keys():
         raise ValueError("Groups in pattern and given kwargs do not match.")
 
-    for name_element, allowed_values in kwargs.items():
+    for name_element, allowed_values in allowed_values.items():
         if not check_value(vars_filename[name_element], allowed_values):
             return False
 
