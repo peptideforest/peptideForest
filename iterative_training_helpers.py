@@ -13,7 +13,6 @@ SCORE_COL_MAPPING = {
     "xtandem_vengeance": "x!tandem:hyperscore",
     "msfragger_3_0": "msfragger:hyperscore",
 }
-# DATA_PATH = "./data/newDecoys"
 
 PATTERN = re.compile(
     r".*_(?P<strain>[^_]+)_(?P<fraction>[^_]+)_(?P<enzyme>[^_]+)_(?P<rep>[^_]+)\.raw$"
