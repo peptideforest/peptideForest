@@ -111,7 +111,8 @@ if __name__ == "__main__":
                     json.dump(config_dict, json_file, indent=4)
 
                 logger.info(
-                    f"Evaluating model: {model_name} with config: {cross_eval_prefix.replace('_crosseval>model|', '')}"
+                    f"Evaluating model: {model_name} with config: "
+                    f"{cross_eval_prefix.replace('_crosseval>model|', '')}"
                 )
                 run_peptide_forest(
                     config_path=config_dir + "/" + cross_eval_config_file,
