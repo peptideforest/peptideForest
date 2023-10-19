@@ -1,6 +1,7 @@
 import json
 import re
 from itertools import permutations
+from loguru import logger
 
 from iterative_training_helpers import (
     create_run_config,
@@ -34,11 +35,13 @@ if __name__ == "__main__":
             config_dir=config_dir,
         )
         base_files.append(file_name)
+    logger.info("Finished creating config directories for iterative train run.")
 
     # create run tree (base, evals, iterations)
     training_paths = permutations(base_files, len(base_files))
 
-    for training_path in training_paths:
+    for n, training_path in enumerate(training_paths):
+        logger.info(f"Starting training path {n+1}")
         for i, base_file in enumerate(training_path):
             model_name = get_model_name_str(training_path, i)
             with open(config_dir + "/" + base_file, "r") as f:
@@ -46,6 +49,10 @@ if __name__ == "__main__":
 
             model_exists = check_for_trained_models(model_name, model_dir, config_dict)
             if model_exists:
+                logger.info(
+                    f"Model {model_name} has already been trained. Skipping to"
+                    f" next training iteration."
+                )
                 continue
 
             model_type = "xgboost"  # xgboost or random_forest
@@ -69,6 +76,8 @@ if __name__ == "__main__":
                 json.dump(config_dict, json_file, indent=4)
 
             output_name = model_name.replace("model_", "results_") + ".csv"
+
+            logger.info(f"Training Model: {model_name}")
             run_peptide_forest(
                 config_path=config_dir + "/" + base_file,
                 output=output_dir + "/" + output_name,
@@ -100,6 +109,10 @@ if __name__ == "__main__":
                 cross_eval_config_file = cross_eval_prefix + file
                 with open(config_dir + "/" + cross_eval_config_file, "w") as json_file:
                     json.dump(config_dict, json_file, indent=4)
+
+                logger.info(
+                    f"Evaluating model: {model_name} with config: {cross_eval_prefix.replace('_crosseval>model|', '')}"
+                )
                 run_peptide_forest(
                     config_path=config_dir + "/" + cross_eval_config_file,
                     output=output_dir + "/" + cross_eval_output_file,
