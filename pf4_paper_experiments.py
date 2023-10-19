@@ -18,7 +18,7 @@ if __name__ == "__main__":
     output_dir = "./outputs"
     config_dir = "./configs"
     test_pattern = re.compile(
-        r"(?P<fraction>cytosol|membrane)_(?P<group>Big12|FASP_v5)"
+        r".+_(?P<fraction>cytosol|membrane)_.*(?P<group>Big12|FASP_v5)"
     )
     split_by = "fraction"
 
