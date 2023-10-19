@@ -70,7 +70,8 @@ if __name__ == "__main__":
 
             output_name = model_name.replace("model_", "results_") + ".csv"
             run_peptide_forest(
-                config_path=base_file, output=output_dir + "/" + output_name
+                config_path=config_dir + "/" + base_file,
+                output=output_dir + "/" + output_name,
             )
 
             # eval runs
@@ -100,6 +101,6 @@ if __name__ == "__main__":
                 with open(cross_eval_config_file, "w") as json_file:
                     json.dump(config_dict, json_file, indent=4)
                 run_peptide_forest(
-                    config_path=cross_eval_config_file,
+                    config_path=config_dir + "/" + cross_eval_config_file,
                     output=output_dir + "/" + cross_eval_output_file,
                 )
