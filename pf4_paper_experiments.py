@@ -78,10 +78,19 @@ if __name__ == "__main__":
             output_name = model_name.replace("model_", "results_") + ".csv"
 
             logger.info(f"Training Model: {model_name}")
-            run_peptide_forest(
-                config_path=config_dir + "/" + base_file,
-                output=output_dir + "/" + output_name,
-            )
+            try:
+                run_peptide_forest(
+                    config_path=config_dir + "/" + base_file,
+                    output=output_dir + "/" + output_name,
+                )
+            except Exception as e:
+                # todo: use more specific exceptions
+                logger.error(e)
+                logger.warning(
+                    f"Training of model {model_name} failed. Skipping to "
+                    f"next training path."
+                )
+                break
 
             # eval runs
             ml_model_config_eval = {
@@ -114,7 +123,13 @@ if __name__ == "__main__":
                     f"Evaluating model: {model_name} with config: "
                     f"{cross_eval_prefix.replace('_crosseval>model|', '')}"
                 )
-                run_peptide_forest(
-                    config_path=config_dir + "/" + cross_eval_config_file,
-                    output=output_dir + "/" + cross_eval_output_file,
-                )
+                try:
+                    run_peptide_forest(
+                        config_path=config_dir + "/" + cross_eval_config_file,
+                        output=output_dir + "/" + cross_eval_output_file,
+                    )
+                except Exception as e:
+                    logger.error("e")
+                    logger.warning(
+                        f"Could not complete eval of {cross_eval_config_file}."
+                    )
