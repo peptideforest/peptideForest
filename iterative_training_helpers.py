@@ -55,8 +55,9 @@ def create_run_config(
     data_path,
     filename_pattern,
     accepted_re_group_values,
-    initial_engine="omssa_2_1_9",
+    initial_engine="msfragger_3_0",
     write_file=True,
+    dataset_name=None,
     config_dir="./",
 ):
     csv_files = glob.glob(f"{data_path}/*.csv")
@@ -68,7 +69,7 @@ def create_run_config(
         raw_file = df["raw_data_location"].unique()[0]
         check_uniform_column_content(df, "search_engine")
         if not is_matching_filename(
-            filename=Path(raw_file).stem,
+            filename=Path(raw_file).name,
             pattern=filename_pattern,
             allowed_values=accepted_re_group_values,
         ):
