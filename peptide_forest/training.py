@@ -2,6 +2,7 @@
 import multiprocessing as mp
 import pickle
 import sys
+import tempfile
 import types
 
 import numpy as np
@@ -420,6 +421,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         eval_model_path = conf.get("eval_model_path", None)
         model_type = conf.get("model_type", "random_forest")
         additional_estimators = conf.get("additional_estimators", 50)
+        finetune_mode = conf.get("finetune_mode", "extend")
 
         if finetune_model_path is not None:
             _clf = get_regressor(
@@ -441,11 +443,35 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
                     y=train_data["is_decoy"].astype(int),
                 )
             elif model_type == "xgboost":
-                rfreg.fit(
-                    X=train_data[features].astype(float),
-                    y=train_data["is_decoy"].astype(int),
-                    xgb_model=finetune_model_path,
-                )
+                if finetune_mode == "extend":
+                    rfreg.fit(
+                        X=train_data[features].astype(float),
+                        y=train_data["is_decoy"].astype(int),
+                        xgb_model=finetune_model_path,
+                    )
+                elif finetune_mode == "prune":
+                    gamma = identify_pruning_gamma(
+                        booster=rfreg.get_booster(),
+                        X=train_data[features].astype(float),
+                        y=train_data["is_decoy"].astype(int),
+                    )
+                    pruned_booster = prune_model(
+                        booster=rfreg.get_booster(),
+                        X=train_data[features].astype(float),
+                        y=train_data["is_decoy"].astype(int),
+                        gamma=gamma,
+                    )
+                    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                        save_regressor(
+                            clf=pruned_booster,
+                            model_output_path=tmp.name,
+                            model_type=model_type,
+                        )
+                        rfreg = get_regressor(
+                            model_type=model_type,
+                            hyperparameters=hyperparameters,
+                            model_path=tmp.name,
+                        )
 
         # Record feature importances
         feature_importances.append(rfreg.feature_importances_)
