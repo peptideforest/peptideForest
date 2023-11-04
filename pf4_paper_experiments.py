@@ -2,6 +2,7 @@ import json
 import re
 from itertools import permutations
 from loguru import logger
+from pathlib import Path
 
 from iterative_training_helpers import (
     create_run_config,
@@ -9,8 +10,39 @@ from iterative_training_helpers import (
     generate_accepted_groups_dict,
     check_for_trained_models,
     get_model_name_str,
+    PATTERN,
 )
 from run_peptide_forest import run_peptide_forest
+
+URSGAL_OUTPUTS = Path.cwd().parent / "ursgalOutputs"
+
+
+def run_eval(config_dir, filename):
+    with open(config_dir + "/" + filename, "r") as f:
+        config_dict = json.load(f)
+    config_dict["conf"] = ml_model_config_eval
+    config_dict["n_train"] = 0
+
+    cross_eval_prefix = (
+        f"data>{filename.split('config_')[1].split('.json')[0]}" f"_crosseval>model|"
+    )
+    cross_eval_output_file = output_name.replace("results", cross_eval_prefix)
+    cross_eval_config_file = cross_eval_prefix + filename
+    with open(config_dir + "/" + cross_eval_config_file, "w") as json_file:
+        json.dump(config_dict, json_file, indent=4)
+
+    logger.info(
+        f"Evaluating model: {model_name} with config: "
+        f"{cross_eval_prefix.replace('_crosseval>model|', '')}"
+    )
+    try:
+        run_peptide_forest(
+            config_path=config_dir + "/" + cross_eval_config_file,
+            output=output_dir + "/" + cross_eval_output_file,
+        )
+    except Exception as e:
+        logger.error("e")
+        logger.warning(f"Could not complete eval of {cross_eval_config_file}.")
 
 
 if __name__ == "__main__":
@@ -102,34 +134,4 @@ if __name__ == "__main__":
             for file in base_files:
                 if file is base_file:
                     continue
-                with open(config_dir + "/" + file, "r") as f:
-                    config_dict = json.load(f)
-                config_dict["conf"] = ml_model_config_eval
-                config_dict["n_train"] = 0
-
-                cross_eval_prefix = (
-                    f"data>{file.split('config_')[1].split('.json')[0]}"
-                    f"_crosseval>model|"
-                )
-                cross_eval_output_file = output_name.replace(
-                    "results", cross_eval_prefix
-                )
-
-                cross_eval_config_file = cross_eval_prefix + file
-                with open(config_dir + "/" + cross_eval_config_file, "w") as json_file:
-                    json.dump(config_dict, json_file, indent=4)
-
-                logger.info(
-                    f"Evaluating model: {model_name} with config: "
-                    f"{cross_eval_prefix.replace('_crosseval>model|', '')}"
-                )
-                try:
-                    run_peptide_forest(
-                        config_path=config_dir + "/" + cross_eval_config_file,
-                        output=output_dir + "/" + cross_eval_output_file,
-                    )
-                except Exception as e:
-                    logger.error("e")
-                    logger.warning(
-                        f"Could not complete eval of {cross_eval_config_file}."
-                    )
+                run_eval(config_dir=config_dir, filename=file)
