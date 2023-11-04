@@ -252,23 +252,27 @@ def identify_pruning_gamma(booster, X, y, tolerance=0.05):
             during pruning while still accepting the gamma value used
 
     Returns:
-        gamma (float): optimal value to be used for pruning the model
-
+        optimal_gamma (float): optimal value to be used for pruning the model
     """
     n_leaves = []
     test_rmse = []
 
     g_vals = np.logspace(-4, 4, num=30, endpoint=True, base=10).tolist()
     g_vals = [0] + g_vals
-    for gamma in g_vals:
-        test_booster = booster.copy()
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-        dtrain = xgboost.DMatrix(X_train, label=y_train)
-        dtest = xgboost.DMatrix(X_test, label=y_test)
 
-        pruning_result: xgboost.callback.EvaluationMonitor.EvalsLog = {}
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    dtrain = xgboost.DMatrix(X_train, label=y_train)
+    dtest = xgboost.DMatrix(X_test, label=y_test)
+
+    optimal_gamma = 0
+    max_leaf_reduction = 0
+    baseline_n_leaves = booster.trees_to_dataframe().shape[0]
+
+    for i, gamma in enumerate(g_vals):
+        test_booster = booster.copy()
+        pruning_result = {}
         pruned = xgboost.train(
             {
                 "process_type": "update",
@@ -282,8 +286,22 @@ def identify_pruning_gamma(booster, X, y, tolerance=0.05):
             evals=[(dtest, "Test")],
             evals_result=pruning_result,
         )
-        n_leaves.append(pruned.trees_to_dataframe().shape[0])
-        test_rmse.append(pruning_result["Test"]["rmse"][-1])
+        current_rmse = pruning_result["Test"]["rmse"][-1]
+        current_n_leaves = pruned.trees_to_dataframe().shape[0]
+
+        if i == 0:
+            baseline_rmse = current_rmse
+
+        if current_rmse <= baseline_rmse + baseline_rmse * tolerance:
+            leaf_reduction = baseline_n_leaves - current_n_leaves
+            if leaf_reduction > max_leaf_reduction:
+                max_leaf_reduction = leaf_reduction
+                optimal_gamma = gamma
+
+        n_leaves.append(current_n_leaves)
+        test_rmse.append(current_rmse)
+
+    return optimal_gamma
 
 
 def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
