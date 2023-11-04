@@ -83,6 +83,9 @@ def create_run_config(
         accepted_re_group_values_str += f"_{group}|{''.join(options)}"
     filename = f"config_{accepted_re_group_values_str}.json"
 
+    if dataset_name is not None:
+        filename = filename.replace("config_", f"config__ds_{dataset_name}__")
+
     if write_file:
         with open(config_dir + "/" + filename, "w") as json_file:
             json.dump(config_dict, json_file, indent=4)
