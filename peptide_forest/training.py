@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupKFold, train_test_split
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-from xgboost import XGBRegressor
+import xgboost
 
 from peptide_forest import knowledge_base
 
@@ -188,7 +188,7 @@ def get_regressor(hyperparameters, model_type="random_forest", model_path=None):
     if model_type == "random_forest":
         clf = RandomForestRegressor(**hyperparameters)
     elif model_type == "xgboost":
-        clf = XGBRegressor(**hyperparameters)
+        clf = xgboost.XGBRegressor(**hyperparameters)
     else:
         raise ValueError(f"Unknown model type {model_type}")
 
@@ -239,6 +239,51 @@ def save_regressor(clf, model_output_path, model_type="random_forest"):
             logger.warning(
                 f"Wrong file extension used: {file_extension}. Model saved as .pkl"
             )
+
+
+def identify_pruning_gamma(booster, X, y, tolerance=0.05):
+    """Identifies a value for gamma to be used in pruning xgboost models.
+
+    Args:
+        booster (xgboost.Booster): model to be pruned later
+        X (pd.DataFrame): features
+        y (pd.Series): labels
+        tolerance (float): degree to which the evaluation metric is allowed to get worse
+            during pruning while still accepting the gamma value used
+
+    Returns:
+        gamma (float): optimal value to be used for pruning the model
+
+    """
+    n_leaves = []
+    test_rmse = []
+
+    g_vals = np.logspace(-4, 4, num=30, endpoint=True, base=10).tolist()
+    g_vals = [0] + g_vals
+    for gamma in g_vals:
+        test_booster = booster.copy()
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        dtrain = xgboost.DMatrix(X_train, label=y_train)
+        dtest = xgboost.DMatrix(X_test, label=y_test)
+
+        pruning_result: xgboost.callback.EvaluationMonitor.EvalsLog = {}
+        pruned = xgboost.train(
+            {
+                "process_type": "update",
+                "updater": "prune",
+                "max_depth": test_booster.attr("max_depth"),
+                "gamma": gamma,
+            },
+            dtrain,
+            num_boost_round=len(test_booster.get_dump()),
+            xgb_model=test_booster,
+            evals=[(dtest, "Test")],
+            evals_result=pruning_result,
+        )
+        n_leaves.append(pruned.trees_to_dataframe().shape[0])
+        test_rmse.append(pruning_result["Test"]["rmse"][-1])
 
 
 def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
