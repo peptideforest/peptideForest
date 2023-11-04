@@ -46,23 +46,25 @@ def run_eval(config_dir, filename):
 
 
 if __name__ == "__main__":
-    data_dir = "./data"
+    data_dir = (
+        URSGAL_OUTPUTS
+        / "paperPXD021874"
+        / "pyiohat_1_7_1_w1_7ef0257438c92c90c4aebaee159757a3"
+    )
     model_dir = "./models"
     output_dir = "./outputs"
-    config_dir = "./configs"
-    test_pattern = re.compile(
-        r".+_(?P<fraction>cytosol|membrane)_.*(?P<group>Big12|FASP_v5)"
-    )
-    split_by = "fraction"
+    config_dir = "./config_files"
+    pattern = PATTERN
+    split_by = "strain"
 
-    options = get_split_options(data_dir, pattern=test_pattern)
+    options = get_split_options(data_dir, pattern=pattern)
 
-    # create base run configs
+    # create base run config_files
     base_files = []
     for accepted_group_values in generate_accepted_groups_dict(split_by, options):
         file_name, _ = create_run_config(
             data_path=data_dir,
-            filename_pattern=test_pattern,
+            filename_pattern=pattern,
             accepted_re_group_values=accepted_group_values,
             config_dir=config_dir,
         )
