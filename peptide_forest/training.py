@@ -304,6 +304,36 @@ def identify_pruning_gamma(booster, X, y, tolerance=0.05):
     return optimal_gamma
 
 
+def prune_model(booster, X, y, gamma):
+    """Reduce the complexity of a model by pruning nodes, that don't improve the loss
+    more than a threshold (gamma).
+
+    Args:
+        booster (xgboost.Booster): booster that should be pruned
+        X (pd.DataFrame): features
+        y (pd.Series): labels
+        gamma (float): value to be used for pruning, nodes that do not improve loss more
+            than this value will be pruned.
+
+    Returns:
+        pruned_booster (xgboost.Booster): Booster with reduced complexity
+
+    """
+    dtrain = xgboost.DMatrix(X, label=y)
+    pruned_booster = xgboost.train(
+        {
+            "process_type": "update",
+            "updater": "prune",
+            "max_depth": booster.attr("max_depth"),
+            "gamma": gamma,
+        },
+        dtrain,
+        num_boost_round=len(booster.get_dump()),
+        xgb_model=booster,
+    )
+    return pruned_booster
+
+
 def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
     """Process single-epoch of cross validated training.
 
