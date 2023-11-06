@@ -51,7 +51,7 @@ if __name__ == "__main__":
         / "paperPXD021874"
         / "pyiohat_1_7_1_w1_7ef0257438c92c90c4aebaee159757a3"
     )
-    base_dir = "./paper/base_run"
+    base_dir = "./paper/base_run_engine_cols"
     model_dir = base_dir + "/models"
     output_dir = base_dir + "/outputs"
     config_dir = base_dir + "/config_files"
