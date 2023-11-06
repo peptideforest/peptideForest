@@ -307,7 +307,9 @@ def fit_cv(
         # Scale the data
         non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
         if universal_feature_cols:
-            non_trainable_cols += knowledge_base.parameters["engine_feature_columns"]
+            non_trainable_cols.union(
+                knowledge_base.parameters["engine_feature_columns"]
+            )
         features = list(
             set(train_data.columns).difference(
                 set(
@@ -517,7 +519,7 @@ def train(
     feature_importances = np.mean(feature_importances, axis=0)
     non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
     if universal_feature_cols:
-        non_trainable_cols += knowledge_base.parameters["engine_feature_columns"]
+        non_trainable_cols.union(knowledge_base.parameters["engine_feature_columns"])
     features = set(df_training.columns).difference(
         set(
             [
