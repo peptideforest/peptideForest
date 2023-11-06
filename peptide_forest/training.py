@@ -201,7 +201,9 @@ def get_feature_cols(df, universal_feature_cols=False):
     """
     non_trainable_columns = knowledge_base.parameters["non_trainable_columns"]
     if universal_feature_cols:
-        non_trainable_columns.union(knowledge_base.parameters["engine_feature_columns"])
+        non_trainable_columns = non_trainable_columns.union(
+            knowledge_base.parameters["engine_feature_columns"]
+        )
     features = [
         c for c in df.columns if not any(c.startswith(r) for r in non_trainable_columns)
     ]
