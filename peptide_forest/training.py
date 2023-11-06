@@ -188,21 +188,20 @@ def get_rf_reg_classifier(hyperparameters):
     return clf
 
 
-def get_feature_cols(df):
+def get_feature_cols(df, non_trainable_cols=None):
     """Get feature columns from dataframe columns.
 
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
+        non_trainable_cols (set): columns that are not used as features
 
     Returns:
         features (list): list of feature column names
     """
+    if non_trainable_cols is None:
+        non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
     features = [
-        c
-        for c in df.columns
-        if not any(
-            c.startswith(r) for r in knowledge_base.parameters["non_trainable_columns"]
-        )
+        c for c in df.columns if not any(c.startswith(r) for r in non_trainable_cols)
     ]
     return sorted(features)
 
@@ -268,7 +267,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, universal_feature_c
             non_trainable_cols.union(
                 knowledge_base.parameters["engine_feature_columns"]
             )
-        features = get_feature_cols(df)
+        features = get_feature_cols(df, non_trainable_cols=non_trainable_cols)
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         train.loc[:, features] = scaler.transform(train.loc[:, features])
@@ -426,7 +425,7 @@ def train(
     non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
     if universal_feature_cols:
         non_trainable_cols.union(knowledge_base.parameters["engine_feature_columns"])
-    features = get_feature_cols(df_training)
+    features = get_feature_cols(df_training, non_trainable_cols=non_trainable_cols)
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
         index=list(features),
