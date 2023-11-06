@@ -45,6 +45,8 @@ def get_split_options(data_path, pattern, col="raw_data_location"):
         raw_file = df[col].unique()[0]
         check_uniform_column_content(df, col)
         vars_file = extract_variables(raw_file, pattern=pattern)
+        if vars_file is None:
+            continue
         for variable, option in vars_file.items():
             split_options[variable].add(option)
 
@@ -121,6 +123,9 @@ def is_matching_filename(filename, pattern, allowed_values):
         return False
 
     vars_filename = extract_variables(filename, pattern=pattern)
+
+    if vars_filename is None:
+        return False
 
     if allowed_values.keys() != vars_filename.keys():
         raise ValueError("Groups in pattern and given kwargs do not match.")
