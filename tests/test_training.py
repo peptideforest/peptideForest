@@ -97,3 +97,25 @@ def test_get_feature_cols():
         "score_processed_test_eng",
         "ucalc_mass",
     ]
+
+
+def test_universal_feature_cols():
+    df["min_score"] = 0
+    df["max_score"] = 0
+    df["median_score"] = 0
+    df["mean_score"] = 0
+    df["std_score"] = 0
+
+    feature_cols = training.get_feature_cols(df, universal_feature_cols=True)
+
+    assert all(
+        col in feature_cols
+        for col in [
+            "min_score",
+            "max_score",
+            "median_score",
+            "mean_score",
+            "std_score",
+        ]
+    )
+    assert "score_processed_test_eng" not in feature_cols
