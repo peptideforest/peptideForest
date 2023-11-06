@@ -156,13 +156,16 @@ def get_stats(df):
     return stats
 
 
-def calc_col_features(df, min_data=0.7):
+def calc_col_features(df, min_data=0.7, universal_feature_cols=False):
     """Compute all column level features for input data.
 
     Args:
         df (pd.DataFrame): input data
         min_data (float): fraction of PSMs with higher number of i PSMs per spectrum id
                           and engine than total number of spectra per engine
+        universal_feature_cols (bool):  whether to calculate universal feature cols (
+                                        engine specific cols get aggregated by mean,
+                                        median, std, min, max)
 
     Returns:
         df (pd.DataFrame): input data with added column level features
@@ -233,15 +236,26 @@ def calc_col_features(df, min_data=0.7):
     # Fill missing values with minimum for each column
     df.fillna({col: df[col].min() for col in delta_columns}, inplace=True)
 
-    # create universal score columns
-    universal_scores = partial(create_universal_feature_cols, feature_cols=score_cols, feature_name="score")
-    df = _parallel_apply(df, universal_scores)
-    d2_columns = [c for c in df.columns if c.startswith("delta_score_2_")]
-    universal_d2 = partial(create_universal_feature_cols, feature_cols=d2_columns, feature_name="delta_score_2")
-    df = _parallel_apply(df, universal_d2)
-    d3_columns = [c for c in df.columns if c.startswith("delta_score_3_")]
-    universal_d3 = partial(create_universal_feature_cols, feature_cols=d3_columns, feature_name="delta_score_3")
-    df = _parallel_apply(df, universal_d3)
+    if universal_feature_cols:
+        # create universal score columns
+        universal_scores = partial(
+            create_universal_feature_cols, feature_cols=score_cols, feature_name="score"
+        )
+        df = _parallel_apply(df, universal_scores)
+        d2_columns = [c for c in df.columns if c.startswith("delta_score_2_")]
+        universal_d2 = partial(
+            create_universal_feature_cols,
+            feature_cols=d2_columns,
+            feature_name="delta_score_2",
+        )
+        df = _parallel_apply(df, universal_d2)
+        d3_columns = [c for c in df.columns if c.startswith("delta_score_3_")]
+        universal_d3 = partial(
+            create_universal_feature_cols,
+            feature_cols=d3_columns,
+            feature_name="delta_score_3",
+        )
+        df = _parallel_apply(df, universal_d3)
 
     return df
 
@@ -265,7 +279,6 @@ def create_universal_feature_cols(df, feature_cols, feature_name="score"):
     df[f"std_{feature_name}"] = df[feature_cols].std(axis=1)
     # df[f"{feature_name}_count"] = len(feature_cols) # let's hope it does work without this feature
     return df
-
 
 
 def calc_row_features(df):
