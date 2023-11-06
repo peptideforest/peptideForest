@@ -11,8 +11,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pf = peptide_forest.PeptideForest(
-        config_path="pxd010824/config_new_decoys.json",  # args.c,
-        output="test_output_universal_features_xgb.csv",  # args.o,
+        config_path=args.c,
+        output=args.o,
     )
     pf.prep_ursgal_csvs()
     pf.calc_features()
