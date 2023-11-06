@@ -188,20 +188,22 @@ def get_rf_reg_classifier(hyperparameters):
     return clf
 
 
-def get_feature_cols(df, non_trainable_cols=None):
+def get_feature_cols(df, universal_feature_cols=False):
     """Get feature columns from dataframe columns.
 
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
-        non_trainable_cols (set): columns that are not used as features
+        universal_feature_cols (bool):  use aggregated feature columns and ignore engine
+                                        specific feature cols if true
 
     Returns:
         features (list): list of feature column names
     """
-    if non_trainable_cols is None:
-        non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
+    non_trainable_columns = knowledge_base.parameters["non_trainable_columns"]
+    if universal_feature_cols:
+        non_trainable_columns.union(knowledge_base.parameters["engine_feature_columns"])
     features = [
-        c for c in df.columns if not any(c.startswith(r) for r in non_trainable_cols)
+        c for c in df.columns if not any(c.startswith(r) for r in non_trainable_columns)
     ]
     return sorted(features)
 
@@ -262,12 +264,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, universal_feature_c
         train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
 
         # Scale the data
-        non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
-        if universal_feature_cols:
-            non_trainable_cols.union(
-                knowledge_base.parameters["engine_feature_columns"]
-            )
-        features = get_feature_cols(df, non_trainable_cols=non_trainable_cols)
+        features = get_feature_cols(df, universal_feature_cols=universal_feature_cols)
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         train.loc[:, features] = scaler.transform(train.loc[:, features])
@@ -422,10 +419,9 @@ def train(
     # Show feature importances and deviations for eval epochs
     sigma = np.std(feature_importances, axis=0)
     feature_importances = np.mean(feature_importances, axis=0)
-    non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
-    if universal_feature_cols:
-        non_trainable_cols.union(knowledge_base.parameters["engine_feature_columns"])
-    features = get_feature_cols(df_training, non_trainable_cols=non_trainable_cols)
+    features = get_feature_cols(
+        df_training, universal_feature_cols=universal_feature_cols
+    )
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
         index=list(features),
