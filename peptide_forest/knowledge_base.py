@@ -32,7 +32,8 @@ parameters = {
         "model_score_train_all",
         "prev_score_train",
         "reported_by_",
-        # todo: experimental! testing universal feature cols, see if it works...
+    },
+    "engine_feature_columns": {
         "score_processed_",
         "delta_score_2_",
         "delta_score_3_",

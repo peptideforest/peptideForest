@@ -148,6 +148,7 @@ class PeptideForest:
                 conf=self.params.get(
                     "conf", peptide_forest.knowledge_base.parameters["conf"]
                 ),
+                universal_feature_cols=self.params.get("universal_feature_cols", False),
             )
 
     def get_results(self):

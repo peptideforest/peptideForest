@@ -241,7 +241,9 @@ def save_regressor(clf, model_output_path, model_type="random_forest"):
             )
 
 
-def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
+def fit_cv(
+    df, score_col, cv_split_data, sensitivity, q_cut, conf, universal_feature_cols
+):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -251,10 +253,13 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
         conf (dict): configuration dictionary
+        universal_feature_cols (bool):  if training runs on the engine cols directly or
+                                        on aggregated columns.
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
-        feature_importances (list): list of arrays with the feature importance for all splits in epoch
+        feature_importances (list): list of arrays with the feature importance for all
+                                    splits in epoch
     """
     # ensure proper None values in config
     for key, value in conf.items():
@@ -300,13 +305,16 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
 
         # Scale the data
+        non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
+        if universal_feature_cols:
+            non_trainable_cols += knowledge_base.parameters["engine_feature_columns"]
         features = list(
             set(train_data.columns).difference(
                 set(
                     [
                         c
                         for c in train_data.columns
-                        for r in knowledge_base.parameters["non_trainable_columns"]
+                        for r in non_trainable_cols
                         if c.startswith(r)
                     ]
                 )
@@ -375,7 +383,17 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
     return df, feature_importances
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
+def train(
+    df,
+    init_eng,
+    sensitivity,
+    q_cut,
+    q_cut_train,
+    n_train,
+    n_eval,
+    conf,
+    universal_feature_cols,
+):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
@@ -387,6 +405,8 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
         n_train (int): number of training epochs
         n_eval (int): number of evaluation epochs
         conf (dict): configuration dictionary for training
+        universal_feature_cols (bool):  if training runs on the engine cols directly or
+                                        on aggregated columns.
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -437,6 +457,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
             sensitivity=sensitivity,
             q_cut=q_cut_train,
             conf=conf,
+            universal_feature_cols=universal_feature_cols,
         )
 
         # Record how many PSMs are below q-cut in the target set
@@ -494,12 +515,15 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
     # Show feature importances and deviations for eval epochs
     sigma = np.std(feature_importances, axis=0)
     feature_importances = np.mean(feature_importances, axis=0)
+    non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
+    if universal_feature_cols:
+        non_trainable_cols += knowledge_base.parameters["engine_feature_columns"]
     features = set(df_training.columns).difference(
         set(
             [
                 c
                 for c in df_training.columns
-                for r in knowledge_base.parameters["non_trainable_columns"]
+                for r in non_trainable_cols
                 if c.startswith(r)
             ]
         )
