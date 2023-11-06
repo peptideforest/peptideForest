@@ -205,21 +205,18 @@ def get_regressor(hyperparameters, model_type="random_forest", model_path=None):
     return clf
 
 
-def get_feature_cols(df):
+def get_feature_cols(df, non_trainable_cols):
     """Get feature columns from dataframe columns.
 
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
+        non_trainable_cols (List | Set): Columns that should not be used for training
 
     Returns:
         features (list): list of feature column names
     """
     features = [
-        c
-        for c in df.columns
-        if not any(
-            c.startswith(r) for r in knowledge_base.parameters["non_trainable_columns"]
-        )
+        c for c in df.columns if not any(c.startswith(r) for r in non_trainable_cols)
     ]
     return sorted(features)
 
@@ -322,9 +319,10 @@ def fit_cv(
             train_decoys = train_data[train_data["is_decoy"]]
             train_targets = train_targets.sample(n=len(train_decoys))
         else:
-            train_decoys = train_data[train_data["is_decoy"]].sample(n=len(train_targets))
-        #train_targets = train_targets.sample(n=len(train_decoys))
-
+            train_decoys = train_data[train_data["is_decoy"]].sample(
+                n=len(train_targets)
+            )
+        # train_targets = train_targets.sample(n=len(train_decoys))
 
         # Combine to form training dataset
         train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
@@ -333,18 +331,7 @@ def fit_cv(
         non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
         if universal_feature_cols:
             non_trainable_cols += knowledge_base.parameters["engine_feature_columns"]
-        features = list(
-            set(train_data.columns).difference(
-                set(
-                    [
-                        c
-                        for c in train_data.columns
-                        for r in non_trainable_cols
-                        if c.startswith(r)
-                    ]
-                )
-            )
-        )
+        features = get_feature_cols(train_data, non_trainable_cols)
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         train.loc[:, features] = scaler.transform(train.loc[:, features])
@@ -543,16 +530,7 @@ def train(
     non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
     if universal_feature_cols:
         non_trainable_cols += knowledge_base.parameters["engine_feature_columns"]
-    features = set(df_training.columns).difference(
-        set(
-            [
-                c
-                for c in df_training.columns
-                for r in non_trainable_cols
-                if c.startswith(r)
-            ]
-        )
-    )
+    features = get_feature_cols(df_training, non_trainable_cols)
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
         index=list(features),
