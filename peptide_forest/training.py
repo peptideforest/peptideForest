@@ -330,8 +330,10 @@ def fit_cv(
         # Scale the data
         non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
         if universal_feature_cols:
-            non_trainable_cols += knowledge_base.parameters["engine_feature_columns"]
-        features = get_feature_cols(train_data, non_trainable_cols)
+            non_trainable_cols.union(
+                knowledge_base.parameters["engine_feature_columns"]
+            )
+        features = get_feature_cols(train_data.copy(), non_trainable_cols)
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         train.loc[:, features] = scaler.transform(train.loc[:, features])
@@ -529,7 +531,7 @@ def train(
     feature_importances = np.mean(feature_importances, axis=0)
     non_trainable_cols = knowledge_base.parameters["non_trainable_columns"]
     if universal_feature_cols:
-        non_trainable_cols += knowledge_base.parameters["engine_feature_columns"]
+        non_trainable_cols.union(knowledge_base.parameters["engine_feature_columns"])
     features = get_feature_cols(df_training, non_trainable_cols)
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
