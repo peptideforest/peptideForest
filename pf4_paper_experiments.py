@@ -51,11 +51,14 @@ if __name__ == "__main__":
         / "paperPXD021874"
         / "pyiohat_1_7_1_w1_7ef0257438c92c90c4aebaee159757a3"
     )
-    model_dir = "./models"
-    output_dir = "./outputs"
-    config_dir = "./config_files"
-    pattern = PATTERN
-    split_by = "strain"
+    base_dir = "./paper/base_run"
+    model_dir = base_dir + "/models"
+    output_dir = base_dir + "/outputs"
+    config_dir = base_dir + "/config_files"
+    # pattern = PATTERN
+    split_by = "rep"
+
+    pattern = re.compile(r".*_(?P<rep>Rep1|Rep2|Rep3)\.raw$")
 
     options = get_split_options(data_dir, pattern=pattern)
 
