@@ -79,7 +79,11 @@ def create_run_config(
         score_col = SCORE_COL_MAPPING[engine]
         config[file] = {"engine": engine, "score_col": score_col}
 
-    config_dict = {"input_files": config, "initial_engine": initial_engine}
+    config_dict = {
+        "input_files": config,
+        "initial_engine": initial_engine,
+        "universal_feature_cols": True,
+    }
 
     accepted_re_group_values_str = ""
     for group, options in accepted_re_group_values.items():
