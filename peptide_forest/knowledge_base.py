@@ -33,5 +33,10 @@ parameters = {
         "prev_score_train",
         "reported_by_",
     },
+    "engine_feature_columns": {
+        "score_processed_",
+        "delta_score_2_",
+        "delta_score_3_",
+    },
     "hyperparameters": {"n_estimators": 100, "max_depth": 22, "max_features": 7},
 }

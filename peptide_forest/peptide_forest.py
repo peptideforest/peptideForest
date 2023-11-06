@@ -145,6 +145,7 @@ class PeptideForest:
                 q_cut_train=self.params.get("q_cut_train", 0.10),
                 n_train=self.params.get("n_train", 10),
                 n_eval=self.params.get("n_eval", 10),
+                universal_feature_cols=self.params.get("universal_feature_cols", False),
             )
 
     def get_results(self):
