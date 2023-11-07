@@ -350,17 +350,12 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
             model_path=eval_model_path,
         )
         if eval_model_path is None:
+            X = (train_data[features].astype(float),)
+            y = (train_data["is_decoy"].astype(int),)
             if model_type == "random_forest":
-                rfreg.fit(
-                    X=train_data[features].astype(float),
-                    y=train_data["is_decoy"].astype(int),
-                )
+                rfreg.fit(X=X, y=y)
             elif model_type == "xgboost":
-                rfreg.fit(
-                    X=train_data[features].astype(float),
-                    y=train_data["is_decoy"].astype(int),
-                    xgb_model=finetune_model_path,
-                )
+                rfreg.fit(X=X, y=y, xgb_model=finetune_model_path)
 
         # Record feature importances
         feature_importances.append(rfreg.feature_importances_)
