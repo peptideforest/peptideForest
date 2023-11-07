@@ -279,3 +279,39 @@ def test_col_features():
     assert all(df_test["score_processed_mascot_2_6_2"] == [0.0, 0.0, 0.0, 0.0, 20.0])
     assert all(df_test["score_processed_omssa_2_1_9"] == [30.0, 29.0, 20.0, 10.0, 0.0])
     assert all(df_test["delta_score_2_omssa_2_1_9"] == [1.0, 0.0, 0.0, 0.0, 0.0])
+
+
+def test_aggregated_col_features():
+    from pathlib import Path
+
+    pf = PeptideForest(
+        config_path=pytest._test_path
+        / "_data"
+        / "test_config_aggregated_features.json",
+        output=None,
+    )
+    pf.prep_ursgal_csvs()
+    pf.calc_features()
+    df_test = pf.input_df.copy()
+    assert all(
+        col in df_test.columns
+        for col in [
+            "min_score",
+            "max_score",
+            "median_score",
+            "mean_score",
+            "std_score",
+            "min_delta_score_2",
+            "max_delta_score_2",
+            "median_delta_score_2",
+            "mean_delta_score_2",
+            "std_delta_score_2",
+            "min_delta_score_3",
+            "max_delta_score_3",
+            "median_delta_score_3",
+            "mean_delta_score_3",
+            "std_delta_score_3",
+        ]
+    )
+    assert all(df_test["max_score"] == [30.0, 29.0, 20.0, 10.0, 20.0])
+    assert all(df_test["min_score"] == [0.0, 0.0, 0.0, 0.0, 0.0])

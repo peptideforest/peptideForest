@@ -33,6 +33,11 @@ parameters = {
         "prev_score_train",
         "reported_by_",
     },
+    "engine_feature_columns": {
+        "score_processed_",
+        "delta_score_2_",
+        "delta_score_3_",
+    },
     "hyperparameters_xgboost": {
         "reg_alpha": 50,
         "n_estimators": 200,
