@@ -82,3 +82,18 @@ def test_get_q_vals():
         0.3,
         0.3,
     ]
+
+
+def test_get_feature_cols():
+    df["charge"] = 0
+    df["exp_mz"] = 0
+    df["ucalc_mass"] = 0
+
+    feature_cols = training.get_feature_cols(df)
+
+    assert feature_cols == [
+        "charge",
+        "exp_mz",
+        "score_processed_test_eng",
+        "ucalc_mass",
+    ]
