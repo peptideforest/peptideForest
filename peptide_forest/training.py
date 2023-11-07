@@ -205,6 +205,25 @@ def get_regressor(hyperparameters, model_type="random_forest", model_path=None):
     return clf
 
 
+def get_feature_cols(df):
+    """Get feature columns from dataframe columns.
+
+    Args:
+        df (pd.DataFrame): dataframe containing search engine scores for all PSMs
+
+    Returns:
+        features (list): list of feature column names
+    """
+    features = [
+        c
+        for c in df.columns
+        if not any(
+            c.startswith(r) for r in knowledge_base.parameters["non_trainable_columns"]
+        )
+    ]
+    return sorted(features)
+
+
 def save_regressor(clf, model_output_path, model_type="random_forest"):
     """
     Save trained classifier.
@@ -300,18 +319,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
 
         # Scale the data
-        features = list(
-            set(train_data.columns).difference(
-                set(
-                    [
-                        c
-                        for c in train_data.columns
-                        for r in knowledge_base.parameters["non_trainable_columns"]
-                        if c.startswith(r)
-                    ]
-                )
-            )
-        )
+        features = get_feature_cols(df)
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         train.loc[:, features] = scaler.transform(train.loc[:, features])
@@ -494,16 +502,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
     # Show feature importances and deviations for eval epochs
     sigma = np.std(feature_importances, axis=0)
     feature_importances = np.mean(feature_importances, axis=0)
-    features = set(df_training.columns).difference(
-        set(
-            [
-                c
-                for c in df_training.columns
-                for r in knowledge_base.parameters["non_trainable_columns"]
-                if c.startswith(r)
-            ]
-        )
-    )
+    features = get_feature_cols(df_training)
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
         index=list(features),
