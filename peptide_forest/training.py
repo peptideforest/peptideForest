@@ -367,7 +367,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
 
         # Score predictions
         scores_train = rfreg.score_psms(train[features].astype(float))
-        scores_test = rfreg.score_psms(test[features].astype(int))
+        scores_test = rfreg.score_psms(test[features].astype(float))
         df.loc[train.index, "prev_score_train"] = scores_train
         df.loc[train.index, "model_score_train"] += scores_train
         df.loc[test.index, "model_score"] = scores_test
