@@ -367,6 +367,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         df.loc[train.index, "model_score_train"] += scores_train
         df.loc[test.index, "model_score"] = scores_test
     df.loc[:, "model_score_train"] /= len(cv_split_data) - 1
+    df["prev_score_test"] = df["model_score"]
 
     # Save model
     model_output_path = conf.get("model_output_path", None)
@@ -431,7 +432,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
             df_training["model_score_train_all"] = 0
 
         else:
-            score_col = "prev_score_train"
+            score_col = "prev_score_test"
 
         df_training, feature_importance_sub = fit_cv(
             df=df_training,
