@@ -1,19 +1,15 @@
 """Train peptide forest."""
-import multiprocessing as mp
-import pickle
 import sys
-import types
 
 import numpy as np
 import pandas as pd
 from loguru import logger
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-from xgboost import XGBRegressor
 
 from peptide_forest import knowledge_base
+from peptide_forest.regressor_model import RegressorModel
 
 
 def find_psms_to_keep(df_scores, score_col):
@@ -161,50 +157,6 @@ def calc_num_psms(df, score_col, q_cut, sensitivity):
     return n_psms
 
 
-def _score_psms(clf, data):
-    """Apply scoring function to classifier prediction.
-
-    Args:
-        clf (sklearn.ensemble.RandomForestRegressor): trained classifier
-        data (array): input data for prediction
-
-    Returns:
-        data (array): predictions with applied scoring function
-    """
-    return 2 * (0.5 - clf.predict(data))
-
-
-def get_regressor(hyperparameters, model_type="random_forest", model_path=None):
-    """Initialize random forest regressor.
-
-    Args:
-        hyperparameters (dict): sklearn hyperparameters for classifier
-        model_type (str): type of model to use either "random_forest" or "xgboost"
-        model_path (str): path to model to load
-
-    Returns:
-        clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
-    """
-    if model_type == "random_forest":
-        clf = RandomForestRegressor(**hyperparameters)
-    elif model_type == "xgboost":
-        clf = XGBRegressor(**hyperparameters)
-    else:
-        raise ValueError(f"Unknown model type {model_type}")
-
-    # load model if path is given
-    if model_path is not None:
-        if model_type == "random_forest":
-            clf = pickle.load(open(model_path, "rb"))
-        elif model_type == "xgboost":
-            clf.load_model(model_path)
-
-    # Add scoring function
-    clf.score_psms = types.MethodType(_score_psms, clf)
-
-    return clf
-
-
 def get_feature_cols(df):
     """Get feature columns from dataframe columns.
 
@@ -222,42 +174,6 @@ def get_feature_cols(df):
         )
     ]
     return sorted(features)
-
-
-def save_regressor(clf, model_output_path, model_type="random_forest"):
-    """
-    Save trained classifier.
-
-    Args:
-        clf (sklearn.ensemble.RandomForestRegressor or xgboost.XGBRegressor): trained
-            classifier
-        model_output_path (str): path to save model to
-        model_type (str): type of model to use either "random_forest" or "xgboost"
-
-    Returns:
-        None
-    """
-    file_extension = model_output_path.split(".")[-1]
-    if model_type == "xgboost":
-        if file_extension == "json":
-            clf.save_model(model_output_path)
-        else:
-            corr_path = model_output_path.split(".")[0] + ".json"
-            clf.save_model(corr_path)
-            logger.warning(
-                f"Wrong file extension used {file_extension}. Model saved as .json"
-            )
-        clf.save_model(model_output_path)
-    elif model_type == "random_forest":
-        del clf.score_psms
-        if file_extension == "pkl":
-            pickle.dump(clf, open(model_output_path, "wb"))
-        else:
-            corr_path = model_output_path.split(".")[0] + ".pkl"
-            pickle.dump(clf, open(corr_path, "wb"))
-            logger.warning(
-                f"Wrong file extension used: {file_extension}. Model saved as .pkl"
-            )
 
 
 def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
@@ -326,55 +242,34 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         test.loc[:, features] = scaler.transform(test.loc[:, features])
 
         # Get RF-reg classifier and train
-        hyperparameters = knowledge_base.parameters[
-            f"hyperparameters_{conf['model_type']}"
-        ]
-        hyperparameters["n_jobs"] = mp.cpu_count() - 1
-
-        finetune_model_path = conf.get("trained_model_path", None)
-        eval_model_path = conf.get("eval_model_path", None)
-        model_type = conf.get("model_type", "random_forest")
-        additional_estimators = conf.get("additional_estimators", 50)
-
-        if finetune_model_path is not None:
-            _clf = get_regressor(
-                model_type=model_type,
-                hyperparameters=hyperparameters,
-                model_path=finetune_model_path,
-            )
-            hyperparameters = _clf.get_params()
-            hyperparameters["n_estimators"] += additional_estimators
-        rfreg = get_regressor(
-            model_type=model_type,
-            hyperparameters=hyperparameters,
-            model_path=eval_model_path,
+        model = RegressorModel(
+            model_type=conf.get("model_type", "random_forest"),
+            pretrained_model_path=conf.get("pretrained_model_path", None),
+            mode=conf.get("mode", "train"),
+            additional_estimators=conf.get("additional_estimators", 50),
+            model_output_path=conf.get("model_output_path", None),
         )
-        if eval_model_path is None:
-            X = train_data[features].astype(float)
-            y = train_data["is_decoy"].astype(int)
-            if model_type == "random_forest":
-                rfreg.fit(X=X, y=y)
-            elif model_type == "xgboost":
-                rfreg.fit(X=X, y=y, xgb_model=finetune_model_path)
+
+        model.load()
+
+        model.train(
+            X=train_data[features].astype(float),
+            y=train_data["is_decoy"].astype(int),
+        )
 
         # Record feature importances
-        feature_importances.append(rfreg.feature_importances_)
+        feature_importances.append(model.regressor.feature_importances_)
 
         # Score predictions
-        scores_train = rfreg.score_psms(train[features].astype(float))
-        scores_test = rfreg.score_psms(test[features].astype(float))
+        scores_train = model.score_psms(train[features].astype(float))
+        scores_test = model.score_psms(test[features].astype(float))
         df.loc[train.index, "prev_score_train"] = scores_train
         df.loc[train.index, "model_score_train"] += scores_train
         df.loc[test.index, "model_score"] = scores_test
     df.loc[:, "model_score_train"] /= len(cv_split_data) - 1
     df["prev_score_test"] = df["model_score"]
 
-    # Save model
-    model_output_path = conf.get("model_output_path", None)
-    if model_output_path is not None:
-        save_regressor(
-            clf=rfreg, model_output_path=model_output_path, model_type=model_type
-        )
+    model.save()
 
     return df, feature_importances
 
