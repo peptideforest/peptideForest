@@ -166,12 +166,15 @@ class RegressorModel:
             )
             return
 
+        # todo: use path objects in final version
+        self.model_output_path = str(self.model_output_path)
+
         file_extension = self.model_output_path.split(".")[-1]
         if self.model_type == "xgboost":
             if file_extension == "json":
                 self.regressor.save_model(self.model_output_path)
             else:
-                self.model_output_path = self.model_output_path.split(".")[0] + ".json"
+                self.model_output_path = self.model_output_path.split(".")[-2] + ".json"
                 self.regressor.save_model(self.model_output_path)
                 logger.warning(
                     f"Wrong file extension used {file_extension}. Model saved as .json"
@@ -180,7 +183,7 @@ class RegressorModel:
             if file_extension == "pkl":
                 pickle.dump(self.regressor, open(self.model_output_path, "wb"))
             else:
-                self.model_output_path = self.model_output_path.split(".")[0] + ".pkl"
+                self.model_output_path = self.model_output_path.split(".")[-2] + ".pkl"
                 pickle.dump(self.regressor, open(self.model_output_path, "wb"))
                 logger.warning(
                     f"Wrong file extension used: {file_extension}. Model saved as .pkl"
