@@ -11,11 +11,11 @@ from peptide_forest import knowledge_base
 class RegressorModel:
     def __init__(
         self,
-        model_type,
-        pretrained_model_path,
-        mode,
-        additional_estimators,
-        model_output_path,
+        model_type="random_forest",
+        pretrained_model_path=None,
+        mode="train",
+        additional_estimators=0,
+        model_output_path=None,
     ):
         self.model_type = model_type
         self.pretrained_model_path = pretrained_model_path
