@@ -64,9 +64,16 @@ class RegressorModel:
             clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
         """
         if self.model_type == "random_forest":
-            clf = RandomForestRegressor(**self.hyperparameters)
+            hyperparameters = self.hyperparameters
+            hyperparameters["warm_start"] = True
+            clf = RandomForestRegressor(**hyperparameters)
         elif self.model_type == "xgboost":
             clf = xgb.XGBRegressor(**self.hyperparameters)
+        else:
+            raise ValueError(
+                f"Model type {self.model_type} does not exist, use either"
+                f"'random_forest' or 'xgboost'."
+            )
 
         # load model if path is given
         if model_path is not None:
@@ -78,15 +85,45 @@ class RegressorModel:
         return clf
 
     def load(self):
-        if self.mode == "finetune" and self.pretrained_model_path is not None:
-            _clf = self._get_regressor(
+        if self.mode == "finetune":
+            if self.pretrained_model_path is None:
+                raise ValueError(
+                    "pretrained_model_path has not been set, model cannot be loaded."
+                )
+            if self.model_type == "xgboost":
+                _clf = self._get_regressor(
+                    model_path=self.pretrained_model_path,
+                )
+                self.hyperparameters = _clf.get_params()
+                self.hyperparameters["n_estimators"] += self.additional_estimators
+                self.regressor = self._get_regressor(model_path=None)
+            elif self.model_type == "random_forest":
+                rf_clf = self._get_regressor(
+                    model_path=self.pretrained_model_path,
+                )
+                rf_clf.set_params(
+                    n_estimators=rf_clf.n_estimators + self.additional_estimators
+                )
+                self.regressor = rf_clf
+            else:
+                raise ValueError(
+                    f"Model type {self.model_type} is not implemented, use"
+                    f" either 'random_forest' or 'xgboost'."
+                )
+        elif self.mode == "eval":
+            if self.pretrained_model_path is None:
+                raise ValueError(
+                    "pretrained_model_path has not been set, model cannot be loaded."
+                )
+            self.regressor = self._get_regressor(
                 model_path=self.pretrained_model_path,
             )
-            self.hyperparameters = _clf.get_params()
-            self.hyperparameters["n_estimators"] += self.additional_estimators
-        self.regressor = self._get_regressor(
-            model_path=self.pretrained_model_path,
-        )
+        elif self.mode == "train":
+            self.regressor = self._get_regressor(model_path=None)
+        else:
+            raise ValueError(
+                f"Unknown mode {self.mode}. Use one of: 'finetune', 'eval', 'train'"
+            )
 
     def train(self, X, y):
         """Fits a regressor.
@@ -101,12 +138,20 @@ class RegressorModel:
         """
         if self.mode == "eval":
             logger.info("Model is running in eval mode, data will not be fitted.")
-            return
-
-        if self.model_type == "random_forest":
-            self.regressor.fit(X=X, y=y)
-        elif self.model_type == "xgboost":
-            self.regressor.fit(X=X, y=y, xgb_model=self.pretrained_model_path)
+        elif self.mode in ["train", "finetune"]:
+            if self.model_type == "random_forest":
+                self.regressor.fit(X=X, y=y)
+            elif self.model_type == "xgboost":
+                self.regressor.fit(X=X, y=y, xgb_model=self.pretrained_model_path)
+            else:
+                raise ValueError(
+                    f"Model type {self.model_type} is not implemented, use either "
+                    f"'random_forest' or 'xgboost'."
+                )
+        else:
+            raise ValueError(
+                f"Unknown mode {self.mode}. Use one of: 'finetune', 'eval', 'train'"
+            )
 
     def save(self):
         """
