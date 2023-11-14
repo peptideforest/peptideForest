@@ -151,6 +151,14 @@ class RegressorModel:
                     f"Model type {self.model_type} is not implemented, use either "
                     f"'random_forest' or 'xgboost'."
                 )
+        elif self.mode == "prune":
+            if self.model_type != "xgboost":
+                raise NotImplementedError(
+                    f"Pruning is currently only supported for "
+                    f"models of type xgboost. Your model type is "
+                    f"{self.model_type}"
+                )
+            self.prune_model(X=X, y=y)
         else:
             raise ValueError(
                 f"Unknown mode {self.mode}. Use one of: 'finetune', 'eval', 'train'"
