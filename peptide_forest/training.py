@@ -1,12 +1,16 @@
 """Train peptide forest."""
 import sys
+import tempfile
+import types
 
 import numpy as np
 import pandas as pd
 from loguru import logger
-from sklearn.model_selection import GroupKFold
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GroupKFold, train_test_split
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
+import xgboost
 
 from peptide_forest import knowledge_base
 from peptide_forest.regressor_model import RegressorModel
@@ -174,6 +178,99 @@ def get_feature_cols(df):
         )
     ]
     return sorted(features)
+
+
+def identify_pruning_gamma(booster, X, y, tolerance=0.05):
+    """Identifies a value for gamma to be used in pruning xgboost models.
+
+    Args:
+        booster (xgboost.Booster): model to be pruned later
+        X (pd.DataFrame): features
+        y (pd.Series): labels
+        tolerance (float): degree to which the evaluation metric is allowed to get worse
+            during pruning while still accepting the gamma value used
+
+    Returns:
+        optimal_gamma (float): optimal value to be used for pruning the model
+    """
+    n_leaves = []
+    test_rmse = []
+
+    g_vals = np.logspace(-4, 4, num=30, endpoint=True, base=10).tolist()
+    g_vals = [0] + g_vals
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    dtrain = xgboost.DMatrix(X_train, label=y_train)
+    dtest = xgboost.DMatrix(X_test, label=y_test)
+
+    optimal_gamma = 0
+    max_leaf_reduction = 0
+    baseline_n_leaves = booster.trees_to_dataframe().shape[0]
+
+    for i, gamma in enumerate(g_vals):
+        test_booster = booster.copy()
+        pruning_result = {}
+        pruned = xgboost.train(
+            {
+                "process_type": "update",
+                "updater": "prune",
+                "max_depth": test_booster.attr("max_depth"),
+                "gamma": gamma,
+            },
+            dtrain,
+            num_boost_round=len(test_booster.get_dump()),
+            xgb_model=test_booster,
+            evals=[(dtest, "Test")],
+            evals_result=pruning_result,
+        )
+        current_rmse = pruning_result["Test"]["rmse"][-1]
+        current_n_leaves = pruned.trees_to_dataframe().shape[0]
+
+        if i == 0:
+            baseline_rmse = current_rmse
+
+        if current_rmse <= baseline_rmse + baseline_rmse * tolerance:
+            leaf_reduction = baseline_n_leaves - current_n_leaves
+            if leaf_reduction > max_leaf_reduction:
+                max_leaf_reduction = leaf_reduction
+                optimal_gamma = gamma
+
+        n_leaves.append(current_n_leaves)
+        test_rmse.append(current_rmse)
+
+    return optimal_gamma
+
+
+def prune_model(booster, X, y, gamma):
+    """Reduce the complexity of a model by pruning nodes, that don't improve the loss
+    more than a threshold (gamma).
+
+    Args:
+        booster (xgboost.Booster): booster that should be pruned
+        X (pd.DataFrame): features
+        y (pd.Series): labels
+        gamma (float): value to be used for pruning, nodes that do not improve loss more
+            than this value will be pruned.
+
+    Returns:
+        pruned_booster (xgboost.Booster): Booster with reduced complexity
+
+    """
+    dtrain = xgboost.DMatrix(X, label=y)
+    pruned_booster = xgboost.train(
+        {
+            "process_type": "update",
+            "updater": "prune",
+            "max_depth": booster.attr("max_depth"),
+            "gamma": gamma,
+        },
+        dtrain,
+        num_boost_round=len(booster.get_dump()),
+        xgb_model=booster,
+    )
+    return pruned_booster
 
 
 def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
