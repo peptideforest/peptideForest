@@ -1,0 +1,11 @@
+{
+    "input_files": {
+        "tests/_data/mascot_dat2csv_1_0_0.csv": {
+            "engine": "mascot",
+            "score_col": "mascot:score"
+        },
+        "tests/_data/omssa_2_1_9.csv": {"engine": "omssa", "score_col": "omssa:pvalue"}
+    },
+    "initial_engine": "omssa",
+    "universal_feature_cols": true
+}

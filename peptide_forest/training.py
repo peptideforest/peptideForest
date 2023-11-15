@@ -157,26 +157,31 @@ def calc_num_psms(df, score_col, q_cut, sensitivity):
     return n_psms
 
 
-def get_feature_cols(df):
+def get_feature_cols(df, universal_feature_cols=False):
     """Get feature columns from dataframe columns.
 
     Args:
         df (pd.DataFrame): dataframe containing search engine scores for all PSMs
+        universal_feature_cols (bool):  use aggregated feature columns and ignore engine
+                                        specific feature cols if true
 
     Returns:
         features (list): list of feature column names
     """
-    features = [
-        c
-        for c in df.columns
-        if not any(
-            c.startswith(r) for r in knowledge_base.parameters["non_trainable_columns"]
+    non_trainable_columns = knowledge_base.parameters["non_trainable_columns"]
+    if universal_feature_cols:
+        non_trainable_columns = non_trainable_columns.union(
+            knowledge_base.parameters["engine_feature_columns"]
         )
+    features = [
+        c for c in df.columns if not any(c.startswith(r) for r in non_trainable_columns)
     ]
     return sorted(features)
 
 
-def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
+def fit_cv(
+    df, score_col, cv_split_data, sensitivity, q_cut, conf, universal_feature_cols
+):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -186,10 +191,13 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
         conf (dict): configuration dictionary
+        universal_feature_cols (bool):  if training runs on the engine cols directly or
+                                        on aggregated columns.
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
-        feature_importances (list): list of arrays with the feature importance for all splits in epoch
+        feature_importances (list): list of arrays with the feature importance for all
+                                    splits in epoch
     """
     # ensure proper None values in config
     for key, value in conf.items():
@@ -246,7 +254,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         train_data = pd.concat([train_targets, train_decoys]).sample(frac=1)
 
         # Scale the data
-        features = get_feature_cols(df)
+        features = get_feature_cols(df, universal_feature_cols=universal_feature_cols)
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         train.loc[:, features] = scaler.transform(train.loc[:, features])
@@ -285,7 +293,17 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
     return df, feature_importances
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
+def train(
+    df,
+    init_eng,
+    sensitivity,
+    q_cut,
+    q_cut_train,
+    n_train,
+    n_eval,
+    conf,
+    universal_feature_cols,
+):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
@@ -297,6 +315,8 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
         n_train (int): number of training epochs
         n_eval (int): number of evaluation epochs
         conf (dict): configuration dictionary for training
+        universal_feature_cols (bool):  if training runs on the engine cols directly or
+                                        on aggregated columns.
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -347,6 +367,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
             sensitivity=sensitivity,
             q_cut=q_cut_train,
             conf=conf,
+            universal_feature_cols=universal_feature_cols,
         )
 
         # Record how many PSMs are below q-cut in the target set
@@ -404,7 +425,9 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
     # Show feature importances and deviations for eval epochs
     sigma = np.std(feature_importances, axis=0)
     feature_importances = np.mean(feature_importances, axis=0)
-    features = get_feature_cols(df_training)
+    features = get_feature_cols(
+        df_training, universal_feature_cols=universal_feature_cols
+    )
     df_feature_importance = pd.DataFrame(
         {"feature_importance": feature_importances, "standard deviation": sigma},
         index=list(features),

@@ -105,7 +105,10 @@ class PeptideForest:
         logger.info("Calculating features...")
         with Timer("Computed features"):
             self.input_df = peptide_forest.prep.calc_row_features(self.input_df)
-            self.input_df = peptide_forest.prep.calc_col_features(self.input_df)
+            self.input_df = peptide_forest.prep.calc_col_features(
+                self.input_df,
+                universal_feature_cols=self.params.get("universal_feature_cols", False),
+            )
 
     def fit(self):
         """Perform cross-validated training and evaluation."""
@@ -145,6 +148,7 @@ class PeptideForest:
                 conf=self.params.get(
                     "conf", peptide_forest.knowledge_base.parameters["conf"]
                 ),
+                universal_feature_cols=self.params.get("universal_feature_cols", False),
             )
 
     def get_results(self):
