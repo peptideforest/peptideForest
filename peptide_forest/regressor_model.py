@@ -1,6 +1,6 @@
 import multiprocessing as mp
 import pickle
-import tempfile
+from pathlib import Path
 
 import numpy as np
 import xgboost as xgb
@@ -245,6 +245,7 @@ class RegressorModel:
                 xgb_model=test_booster,
                 evals=[(dtest, "Test")],
                 evals_result=pruning_result,
+                verbose_eval=False,
             )
             current_rmse = pruning_result["Test"]["rmse"][-1]
             current_n_leaves = pruned.trees_to_dataframe().shape[0]
@@ -253,6 +254,7 @@ class RegressorModel:
                 baseline_rmse = current_rmse
 
             if current_rmse <= baseline_rmse + baseline_rmse * tolerance:
+                baseline_rmse = current_rmse
                 leaf_reduction = baseline_n_leaves - current_n_leaves
                 if leaf_reduction > max_leaf_reduction:
                     max_leaf_reduction = leaf_reduction
@@ -280,12 +282,12 @@ class RegressorModel:
             pruned_booster (xgboost.Booster): Booster with reduced complexity
 
         """
-        booster = self.regressor
+        booster = self.regressor.get_booster()
 
         # determine optimal gamma parameter for pruning
         X_gamma = X.copy().sample(frac=gamma_subset)
         y_gamma = y[X_gamma.index].copy()
-        gamma = self._identify_pruning_gamma(booster.copy(), X_gamma, y_gamma)
+        gamma = self._identify_pruning_gamma(booster, X_gamma, y_gamma)
         pruned_booster = xgb.train(
             {
                 "process_type": "update",
@@ -298,7 +300,7 @@ class RegressorModel:
             xgb_model=booster,
         )
 
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            pruned_booster.save_model(tmp.name)
-            self.regressor = self._get_regressor(model_path=tmp.name)
-        return pruned_booster
+        model_dump = Path().cwd() / f"model.json"
+        pruned_booster.save_model(model_dump)
+        self.regressor = self._get_regressor(model_path=model_dump)
+        model_dump.unlink(missing_ok=True)
