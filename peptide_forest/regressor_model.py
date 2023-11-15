@@ -55,7 +55,15 @@ class RegressorModel:
         Returns:
             data (array): predictions with applied scoring function
         """
-        return 2 * (0.5 - self.regressor.predict(data))
+        if self.model_type == "xgboost":
+            dmatrix_data = xgb.DMatrix(data)
+            predictions = self.regressor.predict(dmatrix_data)
+        elif self.model_type == "random_forest":
+            predictions = self.regressor.predict(data)
+        else:
+            raise ValueError(f"Unknown model type: {self.model_type}")
+
+        return 2 * (0.5 - predictions)
 
     def _get_regressor(self, model_path=None):
         """Initialize random forest regressor.
@@ -71,7 +79,7 @@ class RegressorModel:
             hyperparameters["warm_start"] = True
             clf = RandomForestRegressor(**hyperparameters)
         elif self.model_type == "xgboost":
-            clf = xgb.XGBRegressor(**self.hyperparameters)
+            clf = None
         else:
             raise ValueError(
                 f"Model type {self.model_type} does not exist, use either"
@@ -83,6 +91,7 @@ class RegressorModel:
             if self.model_type == "random_forest":
                 clf = pickle.load(open(model_path, "rb"))
             elif self.model_type == "xgboost":
+                clf = xgb.Booster()
                 clf.load_model(model_path)
 
         return clf
@@ -94,12 +103,10 @@ class RegressorModel:
                     "pretrained_model_path has not been set, model cannot be loaded."
                 )
             if self.model_type == "xgboost":
-                _clf = self._get_regressor(
+                self.regressor = self._get_regressor(
                     model_path=self.pretrained_model_path,
                 )
-                self.hyperparameters = _clf.get_params()
-                self.hyperparameters["n_estimators"] += self.additional_estimators
-                self.regressor = self._get_regressor(model_path=None)
+                self.hyperparameters["n_estimators"] = self.additional_estimators
             elif self.model_type == "random_forest":
                 rf_clf = self._get_regressor(
                     model_path=self.pretrained_model_path,
@@ -145,7 +152,14 @@ class RegressorModel:
             if self.model_type == "random_forest":
                 self.regressor.fit(X=X, y=y)
             elif self.model_type == "xgboost":
-                self.regressor.fit(X=X, y=y, xgb_model=self.pretrained_model_path)
+                dtrain = xgb.DMatrix(X, label=y)
+                params = self.hyperparameters
+                self.regressor = xgb.train(
+                    params,
+                    dtrain,
+                    num_boost_round=params["n_estimators"],
+                    xgb_model=self.regressor,
+                )
             else:
                 raise ValueError(
                     f"Model type {self.model_type} is not implemented, use either "
@@ -282,25 +296,18 @@ class RegressorModel:
             pruned_booster (xgboost.Booster): Booster with reduced complexity
 
         """
-        booster = self.regressor.get_booster()
-
         # determine optimal gamma parameter for pruning
         X_gamma = X.copy().sample(frac=gamma_subset)
         y_gamma = y[X_gamma.index].copy()
-        gamma = self._identify_pruning_gamma(booster, X_gamma, y_gamma)
-        pruned_booster = xgb.train(
+        gamma = self._identify_pruning_gamma(self.regressor, X_gamma, y_gamma)
+        self.regressor = xgb.train(
             {
                 "process_type": "update",
                 "updater": "prune",
-                "max_depth": booster.attr("max_depth"),
+                "max_depth": self.regressor.attr("max_depth"),
                 "gamma": gamma,
             },
             xgb.DMatrix(X, label=y),
-            num_boost_round=len(booster.get_dump()),
-            xgb_model=booster,
+            num_boost_round=len(self.regressor.get_dump()),
+            xgb_model=self.regressor,
         )
-
-        model_dump = Path().cwd() / f"model.json"
-        pruned_booster.save_model(model_dump)
-        self.regressor = self._get_regressor(model_path=model_dump)
-        model_dump.unlink(missing_ok=True)
