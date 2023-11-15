@@ -1,5 +1,6 @@
 import os
 import tempfile
+from types import NoneType
 from unittest import mock
 
 import numpy as np
@@ -51,11 +52,10 @@ def test_correct_model_initialization(model_type, sample_data):
         model_type=model_type,
         pretrained_model_path=None,
         mode="train",
-        additional_estimators=10,
         model_output_path=None,
     )
     model.load()
-    assert isinstance(model.regressor, (RandomForestRegressor, xgb.XGBRegressor))
+    assert isinstance(model.regressor, (RandomForestRegressor, NoneType))
 
 
 def test_invalid_mode_with_pretrained_model():
@@ -77,7 +77,7 @@ def test_invalid_mode_with_pretrained_model():
             "sklearn.ensemble.RandomForestRegressor.fit",
             "random_forest_model.pkl",
         ),
-        ("xgboost", "xgboost.XGBRegressor.fit", "xgboost_model.json"),
+        ("xgboost", "xgboost.train", "xgboost_model.json"),
     ],
 )
 def test_eval_model_behavior(
@@ -135,7 +135,10 @@ def test_finetune_model_behavior(model_type, model_name, sample_data):
 
     buffered_model = pytest._test_path / "_data" / f"output.{model_name.split('.')[-1]}"
     buffered_model.unlink(missing_ok=True)
-    assert model2.regressor.n_estimators == model1.regressor.n_estimators + 42
+    if model_type == "random_forest":
+        assert model2.regressor.n_estimators == model1.regressor.n_estimators + 42
+    elif model_type == "xgboost":
+        assert len(model2.regressor.get_dump()) == len(model1.regressor.get_dump()) + 42
 
 
 def test_default_behavior(sample_data):
@@ -155,18 +158,16 @@ def test_prune_model_regressor_type_post_pruning(mock_regressor_model, sample_da
     mock_regressor_model.mode = "prune"
     mock_regressor_model.train(*sample_data)
     assert isinstance(
-        mock_regressor_model.regressor, xgb.XGBRegressor
+        mock_regressor_model.regressor, xgb.Booster
     ), "Regressor should be an instance of xgboost.XGBRegressor"
 
 
 def test_prune_model_reduced_complexity(mock_regressor_model, sample_data):
-    original_booster = mock_regressor_model.regressor.get_booster()
-    original_leaf_count = original_booster.trees_to_dataframe().shape[0]
+    original_leaf_count = mock_regressor_model.regressor.trees_to_dataframe().shape[0]
 
     mock_regressor_model.mode = "prune"
     mock_regressor_model.train(*sample_data)
-    pruned_model = mock_regressor_model.regressor.get_booster()
-    pruned_leaf_count = pruned_model.trees_to_dataframe().shape[0]
+    pruned_leaf_count = mock_regressor_model.regressor.trees_to_dataframe().shape[0]
 
     assert (
         pruned_leaf_count < original_leaf_count
@@ -174,18 +175,12 @@ def test_prune_model_reduced_complexity(mock_regressor_model, sample_data):
 
 
 def test_prune_model_same_root_node(mock_regressor_model, sample_data):
-    original_booster = mock_regressor_model.regressor.get_booster()
-    original_root = original_booster.trees_to_dataframe().iloc[0]
+    original_root = mock_regressor_model.regressor.trees_to_dataframe().iloc[0]
 
     mock_regressor_model.mode = "prune"
     mock_regressor_model.train(*sample_data)
-    pruned_model = mock_regressor_model.regressor.get_booster()
-    pruned_root = pruned_model.trees_to_dataframe().iloc[0]
+    pruned_root = mock_regressor_model.regressor.trees_to_dataframe().iloc[0]
 
-    import matplotlib.pyplot as plt
-
-    xgb.plot_tree(pruned_model, num_trees=0)
-    plt.show()
     assert original_root.equals(
         pruned_root
     ), "The root node of the pruned model should be the same as the original model"
