@@ -258,7 +258,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         )
 
         # Record feature importances
-        feature_importances.append(model.regressor.feature_importances_)
+        feature_importances.append(model.get_feature_importances())
 
         # Score predictions
         scores_train = model.score_psms(train[features].astype(float))

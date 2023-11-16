@@ -180,6 +180,24 @@ class RegressorModel:
                 f"Unknown mode {self.mode}. Use one of: 'finetune', 'eval', 'train'"
             )
 
+    def get_feature_importances(self):
+        if self.model_type == "random_forest":
+            return self.regressor.feature_importances_
+        elif self.model_type == "xgboost":
+            b = self.regressor
+            score = b.get_score(importance_type="gain")  # 'weight' for gblinear
+            if b.feature_names is None:
+                feature_names = [f"f{i}" for i in range(b.num_features)]
+            else:
+                feature_names = b.feature_names
+            # gblinear returns all features so the `get` in next line is only for gbtree.
+            all_features = [score.get(f, 0.0) for f in feature_names]
+            all_features_arr = np.array(all_features, dtype=np.float32)
+            total = all_features_arr.sum()
+            if total == 0:
+                return all_features_arr
+            return all_features_arr / total
+
     def save(self):
         """
         Save trained classifier.
