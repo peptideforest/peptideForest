@@ -31,6 +31,7 @@ parameters = {
         "model_score_train",
         "model_score_train_all",
         "prev_score_train",
+        "prev_score_test",
         "reported_by_",
     },
     "engine_feature_columns": {
