@@ -153,11 +153,13 @@ class RegressorModel:
                 self.regressor.fit(X=X, y=y)
             elif self.model_type == "xgboost":
                 dtrain = xgb.DMatrix(X, label=y)
-                params = self.hyperparameters
+                params = self.hyperparameters.copy()
+                del params["n_estimators"]
+                params["n_jobs"] = None
                 self.regressor = xgb.train(
                     params,
                     dtrain,
-                    num_boost_round=params["n_estimators"],
+                    num_boost_round=self.hyperparameters["n_estimators"],
                     xgb_model=self.regressor,
                 )
             else:
