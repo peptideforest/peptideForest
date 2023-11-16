@@ -141,6 +141,21 @@ def test_finetune_model_behavior(model_type, model_name, sample_data):
         assert len(model2.regressor.get_dump()) == len(model1.regressor.get_dump()) + 42
 
 
+def test_get_feature_importances(sample_data):
+    model = RegressorModel(model_type="random_forest")
+    model.load()
+    model.train(*sample_data)
+    rf_feature_importances = model.get_feature_importances()
+
+    model = RegressorModel(model_type="xgboost")
+    model.load()
+    model.train(*sample_data)
+    xgb_feature_importances = model.get_feature_importances()
+
+    assert isinstance(xgb_feature_importances, type(rf_feature_importances))
+    assert len(xgb_feature_importances) == len(rf_feature_importances)
+
+
 def test_default_behavior(sample_data):
     model = RegressorModel()
     model.load()
