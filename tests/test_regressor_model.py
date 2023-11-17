@@ -1,5 +1,6 @@
 import os
 import tempfile
+from pathlib import Path
 from types import NoneType
 from unittest import mock
 
@@ -139,6 +140,49 @@ def test_finetune_model_behavior(model_type, model_name, sample_data):
         assert model2.regressor.n_estimators == model1.regressor.n_estimators + 42
     elif model_type == "xgboost":
         assert len(model2.regressor.get_dump()) == len(model1.regressor.get_dump()) + 42
+
+
+@pytest.mark.filterwarnings("ignore")
+@pytest.mark.parametrize(
+    "model_type, model_name",
+    [
+        ("random_forest", "temp_random_forest_model.pkl"),
+        ("xgboost", "temp_xgboost_model.json"),
+    ],
+)
+def test_xgboost_base_trees_remain_same(model_type, model_name, sample_data):
+    temp_model = pytest._test_path / "_data" / model_name
+    model = RegressorModel(
+        model_type=model_type,
+        mode="train",
+        model_output_path=temp_model,
+    )
+    model.load()
+    model.train(*sample_data)
+    model.save()
+
+    ft_model = RegressorModel(
+        model_type=model_type,
+        mode="finetune",
+        additional_estimators=40,
+        pretrained_model_path=temp_model,
+    )
+    ft_model.load()
+    ft_model.train(*sample_data)
+    temp_model.unlink(missing_ok=True)
+
+    if model_type == "xgboost":
+        original_dump = model.regressor.get_dump()
+        loaded_dump = ft_model.regressor.get_dump()[:100]
+        for original_tree, loaded_tree in zip(original_dump, loaded_dump):
+            assert original_tree == loaded_tree, "Trees should be identical"
+    elif model_type == "random_forest":
+        for original_tree, loaded_tree in zip(
+            model.regressor.estimators_, ft_model.regressor.estimators_[:100]
+        ):
+            assert np.array_equal(
+                original_tree.tree_.value, loaded_tree.tree_.value
+            ), "Trees should be identical"
 
 
 def test_get_feature_importances(sample_data):
