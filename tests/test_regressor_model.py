@@ -1,6 +1,5 @@
 import os
 import tempfile
-from pathlib import Path
 from types import NoneType
 from unittest import mock
 
