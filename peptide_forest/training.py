@@ -212,6 +212,10 @@ def fit_cv(
 
     for i, split in enumerate(cv_split_data):
         train_inds, test_inds = split
+
+        if conf.get("overwrite_cv", False):
+            train_inds = train_inds + test_inds
+            test_inds = train_inds.copy()
         # Create training data copy for current split
         train = df.loc[train_inds.tolist(), :].copy(deep=True)
         test = df.loc[test_inds.tolist(), :].copy(deep=True)
@@ -285,7 +289,12 @@ def fit_cv(
         df.loc[train.index, "prev_score_train"] = scores_train
         df.loc[train.index, "model_score_train"] += scores_train
         df.loc[test.index, "model_score"] = scores_test
-    df.loc[:, "model_score_train"] /= len(cv_split_data) - 1
+
+        if conf.get("overwrite_cv", False):
+            break
+
+    n_splits = len(cv_split_data) if not conf.get("overwrite_cv", False) else 2
+    df.loc[:, "model_score_train"] /= n_splits - 1
     df["prev_score_test"] = df["model_score"]
 
     model.save()
@@ -358,7 +367,7 @@ def train(
             df_training["model_score_train_all"] = 0
 
         else:
-            score_col = "prev_score_test"
+            score_col = "prev_score_train"
 
         df_training, feature_importance_sub = fit_cv(
             df=df_training,
