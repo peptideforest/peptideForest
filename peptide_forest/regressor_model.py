@@ -19,6 +19,7 @@ class RegressorModel:
         mode="train",
         additional_estimators=0,
         model_output_path=None,
+        initial_estimators=None,
     ):
         self.model_type = model_type
         self.pretrained_model_path = pretrained_model_path
@@ -30,6 +31,8 @@ class RegressorModel:
             f"hyperparameters_{model_type}"
         ]
         self.hyperparameters["n_jobs"] = mp.cpu_count() - 1
+
+        self.initial_estimators = initial_estimators
 
         self._validate_str_arg(model_type, ["random_forest", "xgboost"], "Model Type")
         self._validate_str_arg(mode, ["eval", "finetune", "train"], "Mode")
@@ -74,6 +77,9 @@ class RegressorModel:
         Returns:
             clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
         """
+        if self.initial_estimators is not None:
+            self.hyperparameters["n_estimators"] = self.initial_estimators
+
         if self.model_type == "random_forest":
             hyperparameters = self.hyperparameters
             hyperparameters["warm_start"] = True

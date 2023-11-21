@@ -214,7 +214,7 @@ def fit_cv(
         train_inds, test_inds = split
 
         if conf.get("overwrite_cv", False):
-            train_inds = train_inds + test_inds
+            train_inds = np.concatenate([train_inds, test_inds])
             test_inds = train_inds.copy()
         # Create training data copy for current split
         train = df.loc[train_inds.tolist(), :].copy(deep=True)
@@ -271,6 +271,7 @@ def fit_cv(
             mode=conf.get("mode", "train"),
             additional_estimators=conf.get("additional_estimators", 50),
             model_output_path=conf.get("model_output_path", None),
+            initial_estimators=conf.get("initial_estimators", None),
         )
 
         model.load()
@@ -367,7 +368,7 @@ def train(
             df_training["model_score_train_all"] = 0
 
         else:
-            score_col = "prev_score_train"
+            score_col = "prev_score_test"
 
         df_training, feature_importance_sub = fit_cv(
             df=df_training,
