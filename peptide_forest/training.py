@@ -186,6 +186,8 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
         conf (dict): configuration dictionary
+        universal_feature_cols (bool):  if training runs on the engine cols directly or
+                                        on aggregated columns.
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -248,6 +250,7 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
             mode=conf.get("mode", "train"),
             additional_estimators=conf.get("additional_estimators", 50),
             model_output_path=conf.get("model_output_path", None),
+            initial_estimators=conf.get("initial_estimators", None),
         )
 
         model.load()

@@ -58,6 +58,22 @@ def test_correct_model_initialization(model_type, sample_data):
     assert isinstance(model.regressor, (RandomForestRegressor, NoneType))
 
 
+@pytest.mark.parametrize("model_type", ["random_forest", "xgboost"])
+def test_initial_estimators_parameter(model_type, sample_data):
+    model = RegressorModel(
+        model_type=model_type,
+        mode="train",
+        additional_estimators=10,
+        initial_estimators=5,
+    )
+    model.load()
+    model.train(*sample_data)
+    if model_type == "random_forest":
+        assert model.regressor.n_estimators == 5
+    elif model_type == "xgboost":
+        assert len(model.regressor.get_dump()) == 5
+
+
 def test_invalid_mode_with_pretrained_model():
     with pytest.raises(ValueError):
         RegressorModel(
