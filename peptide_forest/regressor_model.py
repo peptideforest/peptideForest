@@ -35,7 +35,7 @@ class RegressorModel:
         self.initial_estimators = initial_estimators
 
         self._validate_str_arg(model_type, ["random_forest", "xgboost"], "Model Type")
-        self._validate_str_arg(mode, ["eval", "finetune", "train"], "Mode")
+        self._validate_str_arg(mode, ["eval", "finetune", "train", "prune"], "Mode")
 
         self.regressor = None
 
@@ -103,7 +103,7 @@ class RegressorModel:
         return clf
 
     def load(self):
-        if self.mode == "finetune":
+        if self.mode in ["finetune", "prune"]:
             if self.pretrained_model_path is None:
                 raise ValueError(
                     "pretrained_model_path has not been set, model cannot be loaded."
