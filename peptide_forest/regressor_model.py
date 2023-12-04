@@ -1,5 +1,6 @@
 """
-Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide a unified interface for both models.
+Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide a
+    unified interface for both models.
 """
 
 import multiprocessing as mp
@@ -16,7 +17,8 @@ from peptide_forest import knowledge_base
 
 class RegressorModel:
     """
-    Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide a unified interface for both models.
+    Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to
+        provide a unified interface for both models.
     """
 
     def __init__(
@@ -92,7 +94,8 @@ class RegressorModel:
             model_path (str): path to model to load
 
         Returns:
-            clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
+            clf (sklearn.ensemble.RandomForestRegressor): classifier with added method
+                to score PSMs
         """
         if self.initial_estimators is not None:
             self.hyperparameters["n_estimators"] = self.initial_estimators
@@ -275,8 +278,8 @@ class RegressorModel:
             booster (xgboost.Booster): model to be pruned later
             X (pd.DataFrame): features
             y (pd.Series): labels
-            tolerance (float): degree to which the evaluation metric is allowed to get worse
-                during pruning while still accepting the gamma value used
+            tolerance (float): degree to which the evaluation metric is allowed to get
+                worse during pruning while still accepting the gamma value used
 
         Returns:
             optimal_gamma (float): optimal value to be used for pruning the model
@@ -334,14 +337,15 @@ class RegressorModel:
 
     def prune_model(self, X, y, gamma_subset=0.2):
         """
-        Reduce the complexity of a model by pruning nodes, that don't improve the loss more than a threshold (gamma).
+        Reduce the complexity of a model by pruning nodes, that don't improve the loss
+            more than a threshold (gamma).
 
         Args:
             booster (xgboost.Booster): booster that should be pruned
             X (pd.DataFrame): features
             y (pd.Series): labels
-            gamma (float): value to be used for pruning, nodes that do not improve loss more
-                than this value will be pruned.
+            gamma (float): value to be used for pruning, nodes that do not improve loss
+                more than this value will be pruned.
             gamma_subset (float): calculating gamma using a fraction of the training
                 data to increase calculation speed
 
