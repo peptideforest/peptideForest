@@ -1,6 +1,5 @@
 """
-Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide
-a unified interface for both models.
+Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide a unified interface for both models.
 """
 
 import multiprocessing as mp
@@ -16,17 +15,7 @@ from peptide_forest import knowledge_base
 
 
 class RegressorModel:
-    """Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide
-    a unified interface for both models.
-
-    Args:
-        model_type (str): type of model to be used, either 'random_forest' or 'xgboost'
-        pretrained_model_path (str): path to pretrained model
-        mode (str): mode in which the model is used, either 'train', 'finetune', 'eval' or 'prune'
-        additional_estimators (int): number of estimators to be added to a pretrained model
-        model_output_path (str): path to store the trained model
-        initial_estimators (int): number of estimators to be used for training the model
-    """
+    """Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide a unified interface for both models."""
 
     def __init__(
         self,
@@ -37,6 +26,16 @@ class RegressorModel:
         model_output_path=None,
         initial_estimators=None,
     ):
+        """Initialize a regressor model.
+
+        Args:
+            model_type (str): type of model to be used, either 'random_forest' or 'xgboost'
+            pretrained_model_path (str): path to pretrained model
+            mode (str): mode in which the model is used, either 'train', 'finetune', 'eval' or 'prune'
+            additional_estimators (int): number of estimators to be added to a pretrained model
+            model_output_path (str): path to store the trained model
+            initial_estimators (int): number of estimators to be used for training the model
+        """
         self.model_type = model_type
         self.pretrained_model_path = pretrained_model_path
         self.mode = mode
@@ -268,7 +267,7 @@ class RegressorModel:
 
     @staticmethod
     def _identify_gamma(booster, X, y, tolerance=0.05):
-        """Identifies a value for gamma to be used in pruning xgboost models.
+        """Identify a value for gamma to be used in pruning xgboost models.
 
         Args:
             booster (xgboost.Booster): model to be pruned later
