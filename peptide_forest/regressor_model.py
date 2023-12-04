@@ -1,6 +1,8 @@
 """
+
 Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide a
     unified interface for both models.
+
 """
 
 import multiprocessing as mp
@@ -17,8 +19,10 @@ from peptide_forest import knowledge_base
 
 class RegressorModel:
     """
+
     Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to
         provide a unified interface for both models.
+
     """
 
     def __init__(
@@ -235,8 +239,7 @@ class RegressorModel:
             return all_features_arr / total
 
     def save(self):
-        """
-        Save trained classifier.
+        """Save trained classifier.
 
         Returns:
             None
@@ -337,6 +340,7 @@ class RegressorModel:
 
     def prune_model(self, X, y, gamma_subset=0.2):
         """
+
         Reduce the complexity of a model by pruning nodes, that don't improve the loss
             more than a threshold (gamma).
 
