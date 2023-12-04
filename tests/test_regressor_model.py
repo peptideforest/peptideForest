@@ -1,4 +1,3 @@
-from types import NoneType
 from unittest import mock
 
 import numpy as np
@@ -18,7 +17,7 @@ def test_correct_model_initialization(model_type, sample_data):
         model_output_path=None,
     )
     model.load()
-    assert isinstance(model.regressor, (RandomForestRegressor, NoneType))
+    assert isinstance(model.regressor, (RandomForestRegressor, type(None)))
 
 
 @pytest.mark.parametrize("model_type", ["random_forest", "xgboost"])
