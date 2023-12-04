@@ -1,6 +1,10 @@
+"""
+Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide
+a unified interface for both models.
+"""
+
 import multiprocessing as mp
 import pickle
-from pathlib import Path
 
 import numpy as np
 import xgboost as xgb
@@ -263,7 +267,7 @@ class RegressorModel:
                 )
 
     @staticmethod
-    def _identify_pruning_gamma(booster, X, y, tolerance=0.05):
+    def _identify_gamma(booster, X, y, tolerance=0.05):
         """Identifies a value for gamma to be used in pruning xgboost models.
 
         Args:
@@ -328,8 +332,7 @@ class RegressorModel:
         return optimal_gamma
 
     def prune_model(self, X, y, gamma_subset=0.2):
-        """Reduce the complexity of a model by pruning nodes, that don't improve the loss
-        more than a threshold (gamma).
+        """Reduce the complexity of a model by pruning nodes, that don't improve the loss more than a threshold (gamma).
 
         Args:
             booster (xgboost.Booster): booster that should be pruned
@@ -347,7 +350,7 @@ class RegressorModel:
         # determine optimal gamma parameter for pruning
         X_gamma = X.copy().sample(frac=gamma_subset)
         y_gamma = y[X_gamma.index].copy()
-        gamma = self._identify_pruning_gamma(self.regressor, X_gamma, y_gamma)
+        gamma = self._identify_gamma(self.regressor, X_gamma, y_gamma)
         self.regressor = xgb.train(
             {
                 "process_type": "update",
