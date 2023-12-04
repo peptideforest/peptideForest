@@ -43,3 +43,43 @@ def mock_regressor_model(sample_data):
     model.load()
     model.train(*sample_data)
     return model
+
+
+@pytest.fixture
+def random_forest_stored_model(sample_data):
+    model_path = pytest._test_path / "_data" / "random_forest_model.pkl"
+
+    model = RegressorModel(
+        model_type="random_forest",
+        pretrained_model_path=None,
+        mode="train",
+        model_output_path=model_path,
+    )
+    model.load()
+    model.train(*sample_data)
+    model.save()
+
+    yield model_path
+
+    if os.path.exists(model_path):
+        os.remove(model_path)
+
+
+@pytest.fixture
+def xgboost_stored_model(sample_data):
+    model_path = pytest._test_path / "_data" / "xgboost_model.json"
+
+    model = RegressorModel(
+        model_type="xgboost",
+        pretrained_model_path=None,
+        mode="train",
+        model_output_path=model_path,
+    )
+    model.load()
+    model.train(*sample_data)
+    model.save()
+
+    yield model_path
+
+    if os.path.exists(model_path):
+        os.remove(model_path)

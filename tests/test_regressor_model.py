@@ -48,23 +48,29 @@ def test_invalid_mode_with_pretrained_model():
 
 
 @pytest.mark.parametrize(
-    "model_type, fit_path, model_name",
+    "model_type, fit_path",
     [
-        (
-            "random_forest",
-            "sklearn.ensemble.RandomForestRegressor.fit",
-            "random_forest_model.pkl",
-        ),
-        ("xgboost", "xgboost.train", "xgboost_model.json"),
+        ("random_forest", "sklearn.ensemble.RandomForestRegressor.fit"),
+        ("xgboost", "xgboost.train"),
     ],
 )
 def test_eval_model_behavior(
-    temp_model_file, model_type, fit_path, model_name, sample_data
+    temp_model_file,
+    model_type,
+    fit_path,
+    sample_data,
+    random_forest_stored_model,
+    xgboost_stored_model,
 ):
+    model_paths = {
+        "random_forest": random_forest_stored_model,
+        "xgboost": xgboost_stored_model,
+    }
+
     with mock.patch(fit_path) as mock_fit:
         model = RegressorModel(
             model_type=model_type,
-            pretrained_model_path=pytest._test_path / "_data" / model_name,
+            pretrained_model_path=model_paths[model_type],
             mode="eval",
             additional_estimators=None,
             model_output_path=None,
@@ -77,24 +83,25 @@ def test_eval_model_behavior(
 
 @pytest.mark.filterwarnings("ignore")
 @pytest.mark.parametrize(
-    "model_type, model_name",
-    [
-        (
-            "random_forest",
-            "random_forest_model.pkl",
-        ),
-        ("xgboost", "xgboost_model.json"),
-    ],
+    "model_type",
+    [("random_forest"), ("xgboost")],
 )
-def test_finetune_model_behavior(model_type, model_name, sample_data):
+def test_finetune_model_behavior(
+    model_type, sample_data, random_forest_stored_model, xgboost_stored_model
+):
+    model_paths = {
+        "random_forest": random_forest_stored_model,
+        "xgboost": xgboost_stored_model,
+    }
+
     # train first model
     model1 = RegressorModel(
         model_type=model_type,
-        pretrained_model_path=pytest._test_path / "_data" / model_name,
+        pretrained_model_path=model_paths[model_type],
         mode="finetune",
         model_output_path=pytest._test_path
         / "_data"
-        / f"output.{model_name.split('.')[-1]}",
+        / f"output.{model_paths[model_type].name.split('.')[-1]}",
     )
     model1.load()
     model1.train(*sample_data)
@@ -104,14 +111,18 @@ def test_finetune_model_behavior(model_type, model_name, sample_data):
         model_type=model_type,
         pretrained_model_path=pytest._test_path
         / "_data"
-        / f"output.{model_name.split('.')[-1]}",
+        / f"output.{model_paths[model_type].name.split('.')[-1]}",
         mode="finetune",
         additional_estimators=42,
     )
     model2.load()
     model2.train(*sample_data)
 
-    buffered_model = pytest._test_path / "_data" / f"output.{model_name.split('.')[-1]}"
+    buffered_model = (
+        pytest._test_path
+        / "_data"
+        / f"output.{model_paths[model_type].name.split('.')[-1]}"
+    )
     buffered_model.unlink(missing_ok=True)
     if model_type == "random_forest":
         assert model2.regressor.n_estimators == model1.regressor.n_estimators + 42
