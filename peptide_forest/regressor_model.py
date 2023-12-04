@@ -12,6 +12,18 @@ from peptide_forest import knowledge_base
 
 
 class RegressorModel:
+    """Regressor model for peptide forest. Wrapping aroud XGBoost and scikit learn to provide
+    a unified interface for both models.
+
+    Args:
+        model_type (str): type of model to be used, either 'random_forest' or 'xgboost'
+        pretrained_model_path (str): path to pretrained model
+        mode (str): mode in which the model is used, either 'train', 'finetune', 'eval' or 'prune'
+        additional_estimators (int): number of estimators to be added to a pretrained model
+        model_output_path (str): path to store the trained model
+        initial_estimators (int): number of estimators to be used for training the model
+    """
+
     def __init__(
         self,
         model_type="random_forest",
@@ -103,6 +115,12 @@ class RegressorModel:
         return clf
 
     def load(self):
+        """Load a regressor model that will be used for training.
+
+        Returns:
+            None
+
+        """
         if self.mode in ["finetune", "prune"]:
             if self.pretrained_model_path is None:
                 raise ValueError(
@@ -187,6 +205,11 @@ class RegressorModel:
             )
 
     def get_feature_importances(self):
+        """Get feature importances from trained classifier.
+
+        Returns:
+            feature_importances (np.array): feature importances
+        """
         if self.model_type == "random_forest":
             return self.regressor.feature_importances_
         elif self.model_type == "xgboost":
@@ -196,7 +219,6 @@ class RegressorModel:
                 feature_names = [f"f{i}" for i in range(b.num_features)]
             else:
                 feature_names = b.feature_names
-            # gblinear returns all features so the `get` in next line is only for gbtree.
             all_features = [score.get(f, 0.0) for f in feature_names]
             all_features_arr = np.array(all_features, dtype=np.float32)
             total = all_features_arr.sum()
