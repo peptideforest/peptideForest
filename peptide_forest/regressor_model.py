@@ -115,7 +115,8 @@ class RegressorModel:
         # load model if path is given
         if model_path is not None:
             if self.model_type == "random_forest":
-                clf = pickle.load(open(model_path, "rb"))
+                with open(model_path, "rb") as f:
+                    clf = pickle.load(f)
             elif self.model_type == "xgboost":
                 clf = xgb.Booster()
                 clf.load_model(model_path)
@@ -251,23 +252,20 @@ class RegressorModel:
 
         file_extension = self.model_output_path.split(".")[-1]
         if self.model_type == "xgboost":
-            if file_extension == "json":
-                self.regressor.save_model(self.model_output_path)
-            else:
+            if file_extension != "json":
                 self.model_output_path = self.model_output_path.split(".")[-2] + ".json"
-                self.regressor.save_model(self.model_output_path)
                 logger.warning(
                     f"Wrong file extension used {file_extension}. Model saved as .json"
                 )
+            self.regressor.save_model(self.model_output_path)
         elif self.model_type == "random_forest":
-            if file_extension == "pkl":
-                pickle.dump(self.regressor, open(self.model_output_path, "wb"))
-            else:
+            if file_extension != "pkl":
                 self.model_output_path = self.model_output_path.split(".")[-2] + ".pkl"
-                pickle.dump(self.regressor, open(self.model_output_path, "wb"))
                 logger.warning(
                     f"Wrong file extension used: {file_extension}. Model saved as .pkl"
                 )
+            with open(self.model_output_path, "wb") as f:
+                pickle.dump(self.regressor, f)
 
     @staticmethod
     def _identify_gamma(booster, X, y, tolerance=0.05):
