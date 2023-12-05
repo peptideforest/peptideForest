@@ -355,6 +355,8 @@ class RegressorModel:
         X_gamma = X.copy().sample(frac=gamma_subset)
         y_gamma = y[X_gamma.index].copy()
         gamma = self._identify_gamma(self.regressor, X_gamma, y_gamma)
+
+        # prune model
         self.regressor = xgb.train(
             {
                 "process_type": "update",
