@@ -1,17 +1,15 @@
 """Train peptide forest."""
-import multiprocessing as mp
 import sys
-import types
 
 import numpy as np
 import pandas as pd
 from loguru import logger
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from peptide_forest import knowledge_base
+from peptide_forest.regressor_model import RegressorModel
 
 
 def find_psms_to_keep(df_scores, score_col):
@@ -159,35 +157,6 @@ def calc_num_psms(df, score_col, q_cut, sensitivity):
     return n_psms
 
 
-def _score_psms(clf, data):
-    """Apply scoring function to classifier prediction.
-
-    Args:
-        clf (sklearn.ensemble.RandomForestRegressor): trained classifier
-        data (array): input data for prediction
-
-    Returns:
-        data (array): predictions with applied scoring function
-    """
-    return 2 * (0.5 - clf.predict(data))
-
-
-def get_rf_reg_classifier(hyperparameters):
-    """Initialize random forest regressor.
-
-    Args:
-        hyperparameters (dict): sklearn hyperparameters for classifier
-
-    Returns:
-        clf (sklearn.ensemble.RandomForestRegressor): classifier with added method to score PSMs
-    """
-    clf = RandomForestRegressor(**hyperparameters)
-    # Add scoring function
-    clf.score_psms = types.MethodType(_score_psms, clf)
-
-    return clf
-
-
 def get_feature_cols(df):
     """Get feature columns from dataframe columns.
 
@@ -207,7 +176,7 @@ def get_feature_cols(df):
     return sorted(features)
 
 
-def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
+def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
     """Process single-epoch of cross validated training.
 
     Args:
@@ -216,11 +185,19 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         cv_split_data (list): list with indices of data to split by
         sensitivity (float): proportion of positive results to true positives in the data
         q_cut (float): q-value cutoff for PSM selection
+        conf (dict): configuration dictionary
+        universal_feature_cols (bool):  if training runs on the engine cols directly or
+                                        on aggregated columns.
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
         feature_importances (list): list of arrays with the feature importance for all splits in epoch
     """
+    # ensure proper None values in config
+    for key, value in conf.items():
+        if value == "None":
+            conf[key] = None
+
     # Reset scores
     df.loc[:, "model_score"] = 0
     df.loc[:, "model_score_train"] = 0
@@ -278,26 +255,40 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut):
         test.loc[:, features] = scaler.transform(test.loc[:, features])
 
         # Get RF-reg classifier and train
-        hyperparameters = knowledge_base.parameters["hyperparameters"]
-        hyperparameters["n_jobs"] = mp.cpu_count() - 1
-        rfreg = get_rf_reg_classifier(hyperparameters=hyperparameters)
-        rfreg.fit(X=train_data[features], y=train_data["is_decoy"])
+        model = RegressorModel(
+            model_type=conf.get("model_type", "random_forest"),
+            pretrained_model_path=conf.get("pretrained_model_path", None),
+            mode=conf.get("mode", "train"),
+            additional_estimators=conf.get("additional_estimators", 50),
+            model_output_path=conf.get("model_output_path", None),
+            initial_estimators=conf.get("initial_estimators", None),
+        )
+
+        model.load()
+
+        model.train(
+            X=train_data[features].astype(float),
+            y=train_data["is_decoy"].astype(int),
+        )
 
         # Record feature importances
-        feature_importances.append(rfreg.feature_importances_)
+        feature_importances.append(model.get_feature_importances())
 
         # Score predictions
-        scores_train = rfreg.score_psms(train[features])
-        scores_test = rfreg.score_psms(test[features])
+        scores_train = model.score_psms(train[features].astype(float))
+        scores_test = model.score_psms(test[features].astype(float))
         df.loc[train.index, "prev_score_train"] = scores_train
         df.loc[train.index, "model_score_train"] += scores_train
         df.loc[test.index, "model_score"] = scores_test
     df.loc[:, "model_score_train"] /= len(cv_split_data) - 1
+    df["prev_score_test"] = df["model_score"]
+
+    model.save()
 
     return df, feature_importances
 
 
-def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
+def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
     """Train classifier on input data for a set number of training and evaluation epochs.
 
     Args:
@@ -308,6 +299,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
         q_cut_train (float): q-value cutoff for PSM selection to use during training
         n_train (int): number of training epochs
         n_eval (int): number of evaluation epochs
+        conf (dict): configuration dictionary for training
 
     Returns:
         df (pd.DataFrame): dataframe with training columns added
@@ -349,7 +341,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
             df_training["model_score_train_all"] = 0
 
         else:
-            score_col = "prev_score_train"
+            score_col = "prev_score_test"
 
         df_training, feature_importance_sub = fit_cv(
             df=df_training,
@@ -357,6 +349,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval):
             cv_split_data=train_cv_splits,
             sensitivity=sensitivity,
             q_cut=q_cut_train,
+            conf=conf,
         )
 
         # Record how many PSMs are below q-cut in the target set

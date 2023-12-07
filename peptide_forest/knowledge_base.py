@@ -33,5 +33,19 @@ parameters = {
         "prev_score_train",
         "reported_by_",
     },
-    "hyperparameters": {"n_estimators": 100, "max_depth": 22, "max_features": 7},
+    "hyperparameters_xgboost": {
+        "reg_alpha": 50,
+        "n_estimators": 200,
+        "max_depth": 6,
+        "learning_rate": 0.1,
+    },
+    "hyperparameters_random_forest": {
+        "n_estimators": 100,
+        "max_depth": 22,
+        "max_features": 7,
+    },
+    "conf": {
+        "model_type": "random_forest",
+        "model_output_path": "peptide_forest_model.pkl",
+    },
 }
