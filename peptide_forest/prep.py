@@ -1,4 +1,5 @@
 """Preparation of input data for training."""
+
 import multiprocessing as mp
 from functools import partial
 from itertools import repeat
