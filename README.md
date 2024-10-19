@@ -65,6 +65,4 @@ In principle any csv could be suplpied as long it contains the standard columns,
   * exp_mz
   * search_engine
 
-Examples:
- 
-to follow
+Find more examples in the exmaple_data folder.
