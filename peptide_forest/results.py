@@ -34,7 +34,7 @@ def process_final(
         q_col = f"q-value_{score_col.split('score_processed_')[-1]}"
         df[q_col] = 1.0
         df.loc[df_scores.index, q_col] = df_scores["q-value"]
-        df[q_col].fillna(df_scores["q-value"].max(), inplace=True)
+        df[q_col] = df[q_col].fillna(df_scores["q-value"].max())
 
         # Mark top targets
         top_target_col = f"top_target_{score_col.split('score_processed_')[-1]}"

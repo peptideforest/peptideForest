@@ -25,7 +25,7 @@ def find_psms_to_keep(df_scores, score_col):
     """
     # Get maxima per spectrum ID
     max_per_spec_id = (
-        df_scores.groupby("spectrum_id")[score_col].transform(max).replace(0.0, pd.NA)
+        df_scores.groupby("spectrum_id")[score_col].transform("max").replace(0.0, pd.NA)
     )
     # Find those PSMs where the score equals the maximum for that spectrum
     score_is_max = max_per_spec_id == df_scores[score_col]
@@ -199,9 +199,11 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
         if value == "None":
             conf[key] = None
 
-    # Reset scores
-    df.loc[:, "model_score"] = 0
-    df.loc[:, "model_score_train"] = 0
+    # Reset scores and ensure they are float columns to avoid dtype warnings
+    df.loc[:, "model_score"] = 0.0
+    df.loc[:, "model_score_train"] = 0.0
+    df["model_score"] = df["model_score"].astype(float)
+    df["model_score_train"] = df["model_score_train"].astype(float)
 
     feature_importances = []
 
@@ -250,6 +252,11 @@ def fit_cv(df, score_col, cv_split_data, sensitivity, q_cut, conf):
 
         # Scale the data
         features = get_feature_cols(df)
+        # Ensure feature columns are float before scaling to avoid dtype warnings
+        train_data[features] = train_data[features].astype(float)
+        train[features] = train[features].astype(float)
+        test[features] = test[features].astype(float)
+
         scaler = StandardScaler().fit(train_data.loc[:, features])
         train_data.loc[:, features] = scaler.transform(train_data.loc[:, features])
         train.loc[:, features] = scaler.transform(train.loc[:, features])
@@ -313,7 +320,7 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
     psms = {"train": [], "test": [], "train_avg": None, "test_avg": None}
 
     # Remove all classifier columns and create safe copy
-    df.drop(columns=f"score_processed_rf-reg", errors="ignore", inplace=True)
+    df.drop(columns="score_processed_rf-reg", errors="ignore", inplace=True)
     df_training = df.copy(deep=True)
 
     # Create cross-validation splits for training with equal number of spectra
@@ -375,8 +382,10 @@ def train(df, init_eng, sensitivity, q_cut, q_cut_train, n_train, n_eval, conf):
         if epoch >= n_train:
             df_training.loc[:, "model_score_train_all"] += df_training[
                 "model_score_train"
-            ]
-            df_training.loc[:, "model_score_all"] += df_training["model_score"]
+            ].astype(float)
+            df_training.loc[:, "model_score_all"] += df_training["model_score"].astype(
+                float
+            )
             feature_importances.extend(feature_importance_sub)
 
         pbar.set_postfix(

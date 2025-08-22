@@ -6,7 +6,6 @@ from itertools import repeat
 
 import numpy as np
 import pandas as pd
-import uparma
 from loguru import logger
 
 import peptide_forest.knowledge_base
@@ -157,7 +156,7 @@ def get_stats(df):
     return stats
 
 
-def calc_col_features(df, min_data=0.7):
+def calc_col_features(df, params, min_data=0.7):
     """Compute all column level features for input data.
 
     Args:
@@ -181,14 +180,20 @@ def calc_col_features(df, min_data=0.7):
     delta_columns += [f"delta_score_3_{col}" for col in d3[d3 >= min_data].index]
 
     # Convert all scores so that a higher score is better
-    udict = uparma.UParma()
-    engines = df["search_engine"].unique()
-    bigger_score_translations = udict.get_default_params("pyiohat_style_1")[
-        "bigger_scores_better"
-    ]["translated_value"]
-    bigger_score_better_engs = [bigger_score_translations[e] for e in engines]
+    engines = set(df["search_engine"].unique())
+    engines_defined = set([v["engine"] for _, v in params["input_files"].items()])
+    if len(engines - engines_defined) > 0:
+        logger.warning(
+            f"Not all engines defined in the df have bigger_score_better columns in the json. These are missing: {engines - engines_defined}"
+        )
+        raise ValueError(
+            "Not all engines defined in the df have bigger_score_better columns in the json."
+        )
+
     scores_that_need_to_be_inverted = [
-        c for c, bsb in zip(engines, bigger_score_better_engs) if bsb is False
+        v["engine"]
+        for _, v in params["input_files"].items()
+        if v["bigger_score_better"] is False
     ]
     inds = df[df["search_engine"].isin(scores_that_need_to_be_inverted)].index
     df.loc[inds, "score_processed"] = -np.log10(df.loc[inds, "score_processed"])
@@ -208,7 +213,7 @@ def calc_col_features(df, min_data=0.7):
     remaining_idx_cols = [
         c
         for c in df.columns
-        if not c in core_idx_cols + value_cols and c != "search_engine"
+        if c not in core_idx_cols + value_cols and c != "search_engine"
     ]
 
     # Pivot
@@ -237,7 +242,7 @@ def calc_col_features(df, min_data=0.7):
     return df
 
 
-def calc_row_features(df):
+def calc_row_features(df, params):
     """Compute all row level features for input data.
 
     Args:
