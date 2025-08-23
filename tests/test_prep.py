@@ -5,11 +5,15 @@ import pytest
 from peptide_forest import PeptideForest, prep
 
 path_dict_medium = {
-    pytest._test_path / "_data" / "mascot_dat2csv_1_0_0.csv": {
+    pytest._test_path
+    / "_data"
+    / "mascot_dat2csv_1_0_0.csv": {
         "engine": "mascot",
         "score_col": "mascot:score",
     },
-    pytest._test_path / "_data" / "omssa_2_1_9.csv": {
+    pytest._test_path
+    / "_data"
+    / "omssa_2_1_9.csv": {
         "engine": "omssa",
         "score_col": "omssa:pvalue",
     },
