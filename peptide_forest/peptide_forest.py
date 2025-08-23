@@ -51,7 +51,15 @@ class PeptideForest:
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
             with Timer(description=f"Slurped in unified csv for {info['engine']}"):
-                usecols = shared_cols + [info["score_col"]]
+                column_mapping = self.params.get("column_mapping", None)
+                usecols = None
+                if column_mapping is not None:
+                    for k, v in column_mapping.items():
+                        if v == info["score_col"]:
+                            usecols = shared_cols + [k]
+                            break
+                if usecols is None:
+                    usecols = shared_cols + [info["score_col"]]
                 try:
                     df = pd.read_csv(file, usecols=usecols)
                 except ValueError:
@@ -65,6 +73,7 @@ class PeptideForest:
                         logger.warning(f"Missing columns are: {missing_cols}")
                     exit(1)
                 # Add information
+                df.rename(columns=self.params.get("column_mapping", {}), inplace=True)
                 df["score"] = df[info["score_col"]]
 
                 # Drop irrelevant columns
@@ -88,7 +97,6 @@ class PeptideForest:
             inplace=True,
         )
         combined_df = combined_df.convert_dtypes()
-        combined_df.rename(columns=self.params.get("column_mapping", {}), inplace=True)
 
         # Assert there are no overlaps between sequences in target and decoys
         shared_seq_target_decoy = (

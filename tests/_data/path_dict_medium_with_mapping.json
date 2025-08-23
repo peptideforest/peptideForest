@@ -1,0 +1,19 @@
+{
+    "input_files": {
+        "tests/_data/mascot_dat2csv_1_0_0.csv": {
+            "engine": "mascot_2_6_2",
+            "score_col": "mscore1",
+            "bigger_score_better": true
+        },
+        "tests/_data/omssa_2_1_9.csv": {
+            "engine": "omssa_2_1_9", 
+            "score_col": "oscore1",
+            "bigger_score_better": false
+        }
+    },
+    "initial_engine": "omssa_2_1_9",
+    "column_mapping": {
+        "omssa:pvalue": "oscore1",
+        "mascot:score": "mscore1"
+    }
+}
