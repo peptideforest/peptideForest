@@ -1,4 +1,5 @@
 """Main Peptide Forest class."""
+
 import json
 
 import pandas as pd
@@ -113,13 +114,13 @@ class PeptideForest:
         psms_per_eng = {}
         score_processed_cols = [c for c in self.input_df if "score_processed_" in c]
         for eng_score in score_processed_cols:
-            psms_per_eng[
-                eng_score.replace("score_processed_", "")
-            ] = peptide_forest.training.calc_num_psms(
-                self.input_df,
-                score_col=eng_score,
-                q_cut=self.params.get("q_cut", 0.01),
-                sensitivity=self.params.get("sensitivity", 0.9),
+            psms_per_eng[eng_score.replace("score_processed_", "")] = (
+                peptide_forest.training.calc_num_psms(
+                    self.input_df,
+                    score_col=eng_score,
+                    q_cut=self.params.get("q_cut", 0.01),
+                    sensitivity=self.params.get("sensitivity", 0.9),
+                )
             )
         logger.debug(f"PSMs per engine with q-val < 1%: {psms_per_eng}")
 

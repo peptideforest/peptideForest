@@ -1,4 +1,5 @@
 """Train peptide forest."""
+
 import sys
 
 import numpy as np

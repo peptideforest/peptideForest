@@ -1,4 +1,5 @@
 """Basic function to record execution time."""
+
 import datetime
 
 from loguru import logger
