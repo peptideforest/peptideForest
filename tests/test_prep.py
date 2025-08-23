@@ -2,18 +2,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from peptide_forest import prep, PeptideForest
+from peptide_forest import PeptideForest, prep
 
 path_dict_medium = {
-    pytest._test_path
-    / "_data"
-    / "mascot_dat2csv_1_0_0.csv": {
+    pytest._test_path / "_data" / "mascot_dat2csv_1_0_0.csv": {
         "engine": "mascot",
         "score_col": "mascot:score",
     },
-    pytest._test_path
-    / "_data"
-    / "omssa_2_1_9.csv": {"engine": "omssa", "score_col": "omssa:pvalue"},
+    pytest._test_path / "_data" / "omssa_2_1_9.csv": {
+        "engine": "omssa",
+        "score_col": "omssa:pvalue",
+    },
 }
 
 df_stats = pd.DataFrame(
@@ -204,7 +203,7 @@ def test_row_features():
         output=None,
     )
     pf.prep_ursgal_csvs()
-    df_test = prep.calc_row_features(pf.input_df)
+    df_test = prep.calc_row_features(pf.input_df, pf.params)
     assert (
         len(
             set(df_test.columns).difference(
@@ -243,8 +242,8 @@ def test_col_features():
         output=None,
     )
     pf.prep_ursgal_csvs()
-    df_test = prep.calc_row_features(pf.input_df)
-    df_test = prep.calc_col_features(df_test, min_data=0.2)
+    df_test = prep.calc_row_features(pf.input_df, pf.params)
+    df_test = prep.calc_col_features(df_test, pf.params, min_data=0.2)
     assert (
         len(
             set(df_test.columns).difference(
