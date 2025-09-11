@@ -17,13 +17,14 @@ class PeptideForest:
 
     def __init__(self, config_path, output):
         """Initialize new peptide forest class object.
-        
+
         Args:
             config_path (str): a path to a json file with configuration parameters
-            output (str): output file path 
-            initial_engine (str, None): sets initial scoring engine if engine name is given. defaults to None where the
-                                        engine with most PSMs at q-cut is chosen.
-        """ ""
+            output (str): output file path
+            initial_engine (str, None): sets initial scoring engine if engine name
+                is  given. defaults to None where the engine with most PSMs
+                at q-cut is chosen.
+        """
         # Attributes
         self.output_path = output
         with open(config_path, "r") as json_file:
@@ -50,9 +51,29 @@ class PeptideForest:
         # Read in engines one by one
         for file, info in self.params["input_files"].items():
             with Timer(description=f"Slurped in unified csv for {info['engine']}"):
-                df = pd.read_csv(file, usecols=shared_cols + [info["score_col"]])
+                column_mapping = self.params.get("column_mapping", None)
+                usecols = None
+                if column_mapping is not None:
+                    for k, v in column_mapping.items():
+                        if v == info["score_col"]:
+                            usecols = shared_cols + [k]
+                            break
+                if usecols is None:
+                    usecols = shared_cols + [info["score_col"]]
+                try:
+                    df = pd.read_csv(file, usecols=usecols)
+                except ValueError:
+                    logger.warning(f"{usecols} are not available in csv")
+                    with open(file, encoding="utf-8-sig") as f:
+                        all_cols = set(f.readline().replace("\n", "").split(","))
 
+                    logger.warning(f"Available columns are: {all_cols}")
+                    missing_cols = set(usecols) - all_cols
+                    if missing_cols:
+                        logger.warning(f"Missing columns are: {missing_cols}")
+                    exit(1)
                 # Add information
+                df.rename(columns=self.params.get("column_mapping", {}), inplace=True)
                 df["score"] = df[info["score_col"]]
 
                 # Drop irrelevant columns
@@ -66,7 +87,8 @@ class PeptideForest:
                     logger.warning(
                         f"{rows_dropped} duplicated rows were dropped in {file}."
                     )
-
+                if "search_engine" not in df.columns:
+                    df["search_engine"] = info["engine"]
                 engine_lvl_dfs.append(df)
 
         combined_df = pd.concat(engine_lvl_dfs, sort=True).reset_index(drop=True)
@@ -105,8 +127,14 @@ class PeptideForest:
         """Calculate and adds features to dataframe."""
         logger.info("Calculating features...")
         with Timer("Computed features"):
-            self.input_df = peptide_forest.prep.calc_row_features(self.input_df)
-            self.input_df = peptide_forest.prep.calc_col_features(self.input_df)
+            self.input_df = peptide_forest.prep.calc_row_features(
+                self.input_df,
+                self.params,
+            )
+            self.input_df = peptide_forest.prep.calc_col_features(
+                self.input_df,
+                self.params,
+            )
 
     def fit(self):
         """Perform cross-validated training and evaluation."""
@@ -157,8 +185,8 @@ class PeptideForest:
                 sensitivity=self.params.get("sensitivity", 0.9),
                 q_cut=self.params.get("q_cut", 0.01),
             )
-            self.output_df["modifications"].replace(
-                {"None": None}, inplace=True, regex=False
+            self.output_df["modifications"] = self.output_df["modifications"].replace(
+                {"None": None}, regex=False
             )
 
     def write_output(self):

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from peptide_forest import prep, PeptideForest
+from peptide_forest import PeptideForest, prep
 
 path_dict_medium = {
     pytest._test_path
@@ -13,7 +13,10 @@ path_dict_medium = {
     },
     pytest._test_path
     / "_data"
-    / "omssa_2_1_9.csv": {"engine": "omssa", "score_col": "omssa:pvalue"},
+    / "omssa_2_1_9.csv": {
+        "engine": "omssa",
+        "score_col": "omssa:pvalue",
+    },
 }
 
 df_stats = pd.DataFrame(
@@ -204,7 +207,7 @@ def test_row_features():
         output=None,
     )
     pf.prep_ursgal_csvs()
-    df_test = prep.calc_row_features(pf.input_df)
+    df_test = prep.calc_row_features(pf.input_df, pf.params)
     assert (
         len(
             set(df_test.columns).difference(
@@ -243,8 +246,52 @@ def test_col_features():
         output=None,
     )
     pf.prep_ursgal_csvs()
-    df_test = prep.calc_row_features(pf.input_df)
-    df_test = prep.calc_col_features(df_test, min_data=0.2)
+    df_test = prep.calc_row_features(pf.input_df, pf.params)
+    df_test = prep.calc_col_features(df_test, pf.params, min_data=0.2)
+    assert (
+        len(
+            set(df_test.columns).difference(
+                {
+                    "spectrum_title",
+                    "spectrum_id",
+                    "sequence",
+                    "modifications",
+                    "is_decoy",
+                    "protein_id",
+                    "charge",
+                    "comments",
+                    "mass",
+                    "dm",
+                    "enz_n",
+                    "enz_c",
+                    "enz_int",
+                    "pep_len",
+                    "count_prot",
+                    "score_processed_mascot_2_6_2",
+                    "score_processed_omssa_2_1_9",
+                    "delta_score_2_omssa_2_1_9",
+                    "reported_by_mascot_2_6_2",
+                    "reported_by_omssa_2_1_9",
+                    "raw_data_location",
+                    "accuracy_ppm",
+                }
+            )
+        )
+        == 0
+    )
+    assert all(df_test["score_processed_mascot_2_6_2"] == [0.0, 0.0, 0.0, 0.0, 20.0])
+    assert all(df_test["score_processed_omssa_2_1_9"] == [30.0, 29.0, 20.0, 10.0, 0.0])
+    assert all(df_test["delta_score_2_omssa_2_1_9"] == [1.0, 0.0, 0.0, 0.0, 0.0])
+
+
+def test_col_features_with_mapping():
+    pf = PeptideForest(
+        config_path=pytest._test_path / "_data" / "path_dict_medium_with_mapping.json",
+        output=None,
+    )
+    pf.prep_ursgal_csvs()
+    df_test = prep.calc_row_features(pf.input_df, pf.params)
+    df_test = prep.calc_col_features(df_test, pf.params, min_data=0.2)
     assert (
         len(
             set(df_test.columns).difference(
